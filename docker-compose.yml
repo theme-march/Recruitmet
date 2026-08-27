@@ -1,0 +1,38 @@
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: recruitment_os
+      MYSQL_USER: orbit
+      MYSQL_PASSWORD: orbit-change-me
+    ports:
+      - "3306:3306"
+    volumes:
+      - orbit_mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: mysql://orbit:orbit-change-me@mysql:3306/recruitment_os
+      AUTH_SECRET: replace-with-at-least-32-random-characters
+      STORAGE_DRIVER: local
+      STORAGE_LOCAL_ROOT: storage/private
+    ports:
+      - "3000:3000"
+    volumes:
+      - orbit_private_files:/app/storage/private
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+volumes:
+  orbit_mysql:
+  orbit_private_files:

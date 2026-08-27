@@ -1,0 +1,2 @@
+import { forgotSchema } from "@/features/auth/schemas"; import { createPasswordReset } from "@/features/auth/service"; import { errorResponse } from "@/lib/errors";
+export async function POST(request:Request){try{const {identity}=forgotSchema.parse(await request.json());const token=await createPasswordReset(identity);return Response.json({ok:true,message:"If the account exists, recovery instructions have been created.",...(process.env.NODE_ENV!=="production"&&token?{developmentToken:token}:{})})}catch(error){return errorResponse(error)}}

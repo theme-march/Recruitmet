@@ -1,0 +1,20 @@
+import { can, officeScope } from "@/lib/authorization";
+import { AppError, errorResponse } from "@/lib/errors";
+import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/session";
+import { workflowCountryWhere, workflowModule } from "@/lib/workflow-country";
+
+const start = (value: string) => value ? new Date(`${value}T00:00:00`) : null;
+const end = (value: string) => value ? new Date(`${value}T23:59:59.999`) : null;
+
+export async function GET(request: Request) {
+  try {
+const session = await getSession(); if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401); if (!(await can(session, workflowModule(request), "View"))) throw new AppError("FORBIDDEN", "View permission is required.", 403);
+    const url = new URL(request.url); const p = (key: string) => (url.searchParams.get(key) ?? "").trim(); const page = Math.max(1, Number(p("page")) || 1); const pageSize = Math.min(100, Math.max(10, Number(p("pageSize")) || 25));
+const files = await prisma.processingFile.findMany({ where: { ...officeScope(session), country: workflowCountryWhere(request), OR: [{ currentStage: "E-Visa Hold" }, { holds: { some: { type: "HOLD", previousStage: "E-Visa Hold" } } }] }, orderBy: { updatedAt: "desc" }, take: 5000, include: { candidate: true, passport: true, assignedTo: { select: { id: true, name: true } }, office: { select: { id: true, name: true } }, holds: { where: { type: "HOLD" }, orderBy: { createdAt: "desc" }, take: 1 } } });
+    const rows = files.map((file) => { const hold = file.holds[0]; return { id: file.id, holdId: hold?.id ?? file.id, fileNo: file.fileNo, candidateNo: file.candidate.candidateNo, name: file.candidate.fullName, phone: file.candidate.phone, passportNumber: file.passport?.passportNumber ?? file.candidate.passportNo ?? "Not entered", officerId: file.assignedTo?.id ?? "", officer: file.assignedTo?.name ?? "Unassigned", profession: file.profession ?? file.candidate.profession ?? "N/A", company: file.company ?? "N/A", source: file.candidate.source ?? "N/A", customerStatus: String(file.candidate.status), officeStatus: hold?.status ?? String(file.status), remarks: hold?.note ?? hold?.reason ?? "N/A", reason: hold?.reason ?? "N/A", createdAt: (hold?.createdAt ?? file.updatedAt).toISOString(), expectedRelease: hold?.expectedRelease?.toISOString() ?? null, owner: hold?.owner ?? file.assignedTo?.name ?? "Unassigned" }; });
+    const from = start(p("createdFrom")), to = end(p("createdTo")); const filtered = rows.filter((r) => (!p("passport") || r.passportNumber.toLowerCase().includes(p("passport").toLowerCase())) && (!p("phone") || r.phone.toLowerCase().includes(p("phone").toLowerCase())) && (!p("name") || r.name.toLowerCase().includes(p("name").toLowerCase())) && (!p("officer") || r.officerId === p("officer")) && (!p("profession") || r.profession === p("profession")) && (!p("company") || r.company === p("company")) && (!p("source") || r.source === p("source")) && (!p("customerStatus") || r.customerStatus === p("customerStatus")) && (!p("officeStatus") || r.officeStatus === p("officeStatus")) && (!p("remarks") || r.remarks.toLowerCase().includes(p("remarks").toLowerCase())) && (!from || new Date(r.createdAt) >= from) && (!to || new Date(r.createdAt) <= to));
+    const users = await prisma.user.findMany({ where: { ...officeScope(session), status: "ACTIVE" }, select: { id: true, name: true }, orderBy: { name: "asc" } }); const values = (key: "profession" | "company" | "source" | "customerStatus" | "officeStatus") => [...new Set(rows.map((r) => r[key]).filter((x) => x && x !== "N/A"))].sort(); const offset = (page - 1) * pageSize;
+    return Response.json({ data: filtered.slice(offset, offset + pageSize), filters: { users, professions: values("profession"), companies: values("company"), sources: values("source"), customerStatuses: values("customerStatus"), officeStatuses: values("officeStatus") }, meta: { page, pageSize, total: filtered.length, totalPages: Math.max(1, Math.ceil(filtered.length / pageSize)) } });
+  } catch (error) { return errorResponse(error); }
+}

@@ -1,0 +1,1235 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  LOCKED
+  ON_LEAVE
+}
+
+enum RecordStatus {
+  DRAFT
+  PENDING
+  ACTIVE
+  VERIFIED
+  APPROVED
+  REJECTED
+  HOLD
+  RETURNED
+  EXPIRED
+  CANCELLED
+  COMPLETED
+  ARCHIVED
+}
+
+enum PaymentStatus {
+  PENDING
+  DUE
+  PARTIAL
+  PAID
+  OVERDUE
+  FAILED
+  REFUNDED
+  REVERSED
+}
+
+enum DocumentStatus {
+  PENDING
+  UPLOADED
+  VERIFIED
+  REJECTED
+  EXPIRED
+  REPLACED
+}
+
+enum JobStatus {
+  READY
+  PROCESSING
+  COMPLETED
+  FAILED
+  EXPIRED
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+model Office {
+  id         String           @id @default(cuid())
+  code       String           @unique
+  name       String
+  address    String?
+  city       String?
+  country    String?
+  phone      String?
+  email      String?
+  status     UserStatus       @default(ACTIVE)
+  users      User[]
+  candidates Candidate[]
+  files      ProcessingFile[]
+  companies  Company[]
+  officers   Officer[]
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  description String?
+  status      UserStatus       @default(ACTIVE)
+  users       User[]
+  permissions RolePermission[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model Permission {
+  id     String           @id @default(cuid())
+  module String
+  page   String
+  action String
+  roles  RolePermission[]
+
+  @@unique([module, page, action])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model User {
+  id            String                 @id @default(cuid())
+  employeeId    String?                @unique
+  name          String
+  email         String                 @unique
+  username      String                 @unique
+  passwordHash  String
+  phone         String?
+  photo         String?
+  status        UserStatus             @default(ACTIVE)
+  roleId        String
+  role          Role                   @relation(fields: [roleId], references: [id])
+  officeId      String?
+  office        Office?                @relation(fields: [officeId], references: [id])
+  lastLoginAt   DateTime?
+  sessions      Session[]
+  auditLogs     AuditLog[]
+  activities    ActivityLog[]
+  assignedFiles ProcessingFile[]
+  calls         WorkCall[]
+  loginHistory  LoginHistory[]
+  followUps     FollowUp[]
+  callRecords   CallRecord[]
+  verifications DocumentVerification[]
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  device    String?
+  ip        String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model LoginHistory {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  identity  String
+  result    String
+  reason    String?
+  ip        String?
+  device    String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([identity, createdAt])
+  @@index([userId, createdAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, expiresAt])
+}
+
+model Candidate {
+  id               String                @id @default(cuid())
+  candidateNo      String                @unique
+  registrationNo   String?               @unique
+  fullName         String
+  phone            String
+  passportNo       String?               @unique
+  nationalId       String?               @unique
+  email            String?               @unique
+  dob              DateTime?
+  gender           String?
+  maritalStatus    String?
+  address          String?
+  district         String?
+  education        String?
+  experience       String?
+  profession       String?
+  preferredCountry String?
+  source           String?
+  photo            String?
+  status           RecordStatus          @default(PENDING)
+  officeId         String?
+  office           Office?               @relation(fields: [officeId], references: [id])
+  files            ProcessingFile[]
+  calls            WorkCall[]
+  interviews       Interview[]
+  documents        Document[]
+  payments         Payment[]
+  phones           CandidatePhone[]
+  educations       CandidateEducation[]
+  experiences      CandidateExperience[]
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  @@index([fullName, phone])
+}
+
+model CandidatePhone {
+  id          String    @id @default(cuid())
+  candidateId String
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  phone       String
+  label       String?
+  isPrimary   Boolean   @default(false)
+  verifiedAt  DateTime?
+
+  @@unique([candidateId, phone])
+  @@index([phone])
+}
+
+model CandidateEducation {
+  id          String    @id @default(cuid())
+  candidateId String
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  level       String
+  institution String?
+  subject     String?
+  passingYear Int?
+  result      String?
+}
+
+model CandidateExperience {
+  id          String    @id @default(cuid())
+  candidateId String
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  employer    String?
+  role        String
+  country     String?
+  years       Decimal?  @db.Decimal(5, 2)
+  skills      Json?
+}
+
+model WorkCall {
+  id              String       @id @default(cuid())
+  leadNo          String       @unique
+  candidateId     String?
+  candidate       Candidate?   @relation(fields: [candidateId], references: [id])
+  fullName        String
+  phone           String
+  alternatePhones Json?
+  country         String?
+  workCategory    String?
+  company         String?
+  source          String?
+  purpose         String?
+  priority        Int          @default(3)
+  status          String       @default("New")
+  followUpAt      DateTime?
+  notes           Json?
+  assignedToId    String?
+  assignedTo      User?        @relation(fields: [assignedToId], references: [id])
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  followUps       FollowUp[]
+  callRecords     CallRecord[]
+
+  @@index([phone, status])
+}
+
+model FollowUp {
+  id           String    @id @default(cuid())
+  leadId       String
+  lead         WorkCall  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  assignedToId String?
+  assignedTo   User?     @relation(fields: [assignedToId], references: [id])
+  dueAt        DateTime
+  purpose      String
+  reminderAt   DateTime?
+  status       String    @default("Pending")
+  note         String?
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([assignedToId, status, dueAt])
+}
+
+model CallRecord {
+  id          String   @id @default(cuid())
+  leadId      String
+  lead        WorkCall @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  officerId   String?
+  officer     User?    @relation(fields: [officerId], references: [id])
+  startedAt   DateTime
+  durationSec Int?
+  outcome     String
+  note        String?
+  createdAt   DateTime @default(now())
+
+  @@index([leadId, startedAt])
+  @@index([officerId, startedAt])
+}
+
+model Interview {
+  id          String                @id @default(cuid())
+  candidateId String
+  candidate   Candidate             @relation(fields: [candidateId], references: [id])
+  title       String
+  company     String?
+  profession  String?
+  type        String?
+  scheduledAt DateTime
+  venue       String?
+  interviewer String?
+  rating      Int?
+  result      String                @default("Scheduled")
+  notes       String?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  scheduleId  String?
+  schedule    InterviewSchedule?    @relation(fields: [scheduleId], references: [id])
+  assessments InterviewAssessment[]
+}
+
+model InterviewSchedule {
+  id           String      @id @default(cuid())
+  title        String
+  company      String?
+  profession   String?
+  scheduledAt  DateTime
+  venue        String?
+  meetingUrl   String?
+  interviewer  String?
+  capacity     Int
+  instructions String?
+  status       String      @default("Scheduled")
+  interviews   Interview[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([scheduledAt, status])
+}
+
+model InterviewAssessment {
+  id          String    @id @default(cuid())
+  interviewId String
+  interview   Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  criterion   String
+  score       Decimal?  @db.Decimal(5, 2)
+  answer      String?
+  notes       String?
+  createdAt   DateTime  @default(now())
+}
+
+model ProcessingFile {
+  id             String              @id @default(cuid())
+  fileNo         String              @unique
+  candidateId    String
+  candidate      Candidate           @relation(fields: [candidateId], references: [id])
+  country        String
+  currentStage   String
+  status         RecordStatus        @default(PENDING)
+  company        String?
+  demand         String?
+  profession     String?
+  agent          String?
+  vendor         String?
+  openedAt       DateTime            @default(now())
+  deadline       DateTime?
+  officeId       String?
+  office         Office?             @relation(fields: [officeId], references: [id])
+  assignedToId   String?
+  assignedTo     User?               @relation(fields: [assignedToId], references: [id])
+  workflowEvents WorkflowEvent[]
+  documents      Document[]
+  payments       Payment[]
+  flights        FlightPassenger[]
+  holds          HoldReturn[]
+  statusHistory  FileStatusHistory[]
+  assignments    FileAssignment[]
+  passport       PassportProcess?
+  medical        MedicalProcess[]
+  mofa           MofaProcess[]
+  takamul        TakamulProcess[]
+  biometrics     BiometricProcess[]
+  police         PoliceClearance[]
+  visas          VisaProcess[]
+  manpower       ManpowerProcess[]
+  reprocess      ReprocessRequest[]
+  companyId      String?
+  companyRecord  Company?            @relation(fields: [companyId], references: [id])
+  demandId       String?
+  demandRecord   Demand?             @relation(fields: [demandId], references: [id])
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([country, currentStage, status])
+}
+
+model PassportProcess {
+  id                 String         @id @default(cuid())
+  fileId             String         @unique
+  file               ProcessingFile @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  passportNumber     String         @unique
+  passportType       String         @default("Ordinary")
+  issueDate          DateTime
+  issuePlace         String?
+  issuingAuthority   String?
+  expiryDate         DateTime
+  nationality        String?
+  verificationStatus String         @default("Pending")
+  remarks            String?
+  documentId         String?
+  enteredBy          String?
+  verifiedBy         String?
+  verifiedAt         DateTime?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@index([expiryDate, verificationStatus])
+}
+
+model FileStatusHistory {
+  id             String         @id @default(cuid())
+  fileId         String
+  file           ProcessingFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  previousStage  String?
+  newStage       String
+  previousStatus RecordStatus?
+  newStatus      RecordStatus
+  reason         String
+  actorId        String?
+  createdAt      DateTime       @default(now())
+
+  @@index([fileId, createdAt])
+}
+
+model FileAssignment {
+  id         String         @id @default(cuid())
+  fileId     String
+  file       ProcessingFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  officerId  String
+  assignedBy String
+  assignedAt DateTime       @default(now())
+  endedAt    DateTime?
+  reason     String?
+
+  @@index([fileId, endedAt])
+  @@index([officerId, endedAt])
+}
+
+model Country {
+  id           String                 @id @default(cuid())
+  code         String                 @unique
+  name         String                 @unique
+  currency     String
+  timezone     String
+  phoneCode    String?
+  workflowType String
+  active       Boolean                @default(true)
+  workflow     CountryWorkflowStage[]
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+}
+
+model CountryWorkflowStage {
+  id           String               @id @default(cuid())
+  countryId    String
+  country      Country              @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  code         String
+  name         String
+  sortOrder    Int
+  terminal     Boolean              @default(false)
+  deadlineDays Int?
+  requirements StageRequirement[]
+  outgoing     WorkflowTransition[] @relation("FromStage")
+  incoming     WorkflowTransition[] @relation("ToStage")
+  active       Boolean              @default(true)
+
+  @@unique([countryId, code])
+  @@unique([countryId, sortOrder])
+}
+
+model StageRequirement {
+  id            String               @id @default(cuid())
+  stageId       String
+  stage         CountryWorkflowStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  type          String
+  reference     String
+  configuration Json?
+  required      Boolean              @default(true)
+
+  @@index([stageId, type])
+}
+
+model WorkflowTransition {
+  id          String               @id @default(cuid())
+  fromStageId String
+  fromStage   CountryWorkflowStage @relation("FromStage", fields: [fromStageId], references: [id], onDelete: Cascade)
+  toStageId   String
+  toStage     CountryWorkflowStage @relation("ToStage", fields: [toStageId], references: [id], onDelete: Cascade)
+  permission  String
+  approval    Boolean              @default(false)
+  active      Boolean              @default(true)
+
+  @@unique([fromStageId, toStageId])
+}
+
+model WorkflowEvent {
+  id          String         @id @default(cuid())
+  fileId      String
+  file        ProcessingFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  stage       String
+  status      String
+  data        Json?
+  completedBy String?
+  completedAt DateTime?
+  createdAt   DateTime       @default(now())
+
+  @@index([fileId, stage])
+}
+
+model Payment {
+  id          String           @id @default(cuid())
+  paymentNo   String           @unique
+  invoiceNo   String?
+  candidateId String?
+  candidate   Candidate?       @relation(fields: [candidateId], references: [id])
+  fileId      String?
+  file        ProcessingFile?  @relation(fields: [fileId], references: [id])
+  type        String
+  amount      Decimal          @db.Decimal(14, 2)
+  currency    String           @default("BDT")
+  method      String?
+  reference   String?
+  dueDate     DateTime?
+  collectedAt DateTime?
+  collector   String?
+  status      PaymentStatus    @default(PENDING)
+  note        String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  items       PaymentItem[]
+  receipts    PaymentReceipt[]
+  refunds     Refund[]
+
+  @@index([status, dueDate])
+}
+
+model PaymentItem {
+  id          String   @id @default(cuid())
+  paymentId   String
+  payment     Payment  @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  category    String
+  description String?
+  amount      Decimal  @db.Decimal(14, 2)
+  createdAt   DateTime @default(now())
+}
+
+model PaymentReceipt {
+  id        String   @id @default(cuid())
+  paymentId String
+  payment   Payment  @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  receiptNo String   @unique
+  objectKey String?
+  issuedBy  String
+  issuedAt  DateTime @default(now())
+}
+
+model Refund {
+  id             String    @id @default(cuid())
+  paymentId      String
+  payment        Payment   @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  amount         Decimal   @db.Decimal(14, 2)
+  reason         String
+  method         String?
+  requestedBy    String
+  approvedBy     String?
+  transactionRef String?   @unique
+  status         String    @default("Requested")
+  requestedAt    DateTime  @default(now())
+  completedAt    DateTime?
+
+  @@index([paymentId, status])
+}
+
+model Commission {
+  id              String    @id @default(cuid())
+  beneficiaryType String
+  beneficiaryId   String
+  fileId          String?
+  demandId        String?
+  type            String
+  rate            Decimal?  @db.Decimal(8, 4)
+  amount          Decimal   @db.Decimal(14, 2)
+  basis           String
+  status          String    @default("Pending")
+  approvedBy      String?
+  paidAt          DateTime?
+  reference       String?   @unique
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([beneficiaryType, beneficiaryId, status])
+}
+
+model Document {
+  id             String                 @id @default(cuid())
+  documentNo     String                 @unique
+  candidateId    String?
+  candidate      Candidate?             @relation(fields: [candidateId], references: [id])
+  fileId         String?
+  file           ProcessingFile?        @relation(fields: [fileId], references: [id])
+  type           String
+  number         String?
+  fileName       String?
+  url            String?
+  issueDate      DateTime?
+  expiryDate     DateTime?
+  version        Int                    @default(1)
+  verifiedBy     String?
+  status         DocumentStatus         @default(PENDING)
+  remarks        String?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  documentTypeId String?
+  documentType   DocumentType?          @relation(fields: [documentTypeId], references: [id])
+  versions       DocumentVersion[]
+  verifications  DocumentVerification[]
+  history        DocumentHistory[]
+
+  @@index([type, status, expiryDate])
+}
+
+model DocumentType {
+  id           String     @id @default(cuid())
+  code         String     @unique
+  name         String
+  country      String?
+  mimeTypes    Json
+  maxSizeBytes Int
+  expirable    Boolean    @default(false)
+  sensitive    Boolean    @default(true)
+  active       Boolean    @default(true)
+  documents    Document[]
+}
+
+model StoredObject {
+  id           String            @id @default(cuid())
+  objectKey    String            @unique
+  storage      String
+  originalName String
+  safeName     String
+  mimeType     String
+  sizeBytes    Int
+  checksum     String
+  scanStatus   String            @default("Pending")
+  createdBy    String
+  createdAt    DateTime          @default(now())
+  versions     DocumentVersion[]
+}
+
+model DocumentVersion {
+  id             String       @id @default(cuid())
+  documentId     String
+  document       Document     @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  version        Int
+  storedObjectId String
+  storedObject   StoredObject @relation(fields: [storedObjectId], references: [id], onDelete: Restrict)
+  uploadedBy     String
+  note           String?
+  createdAt      DateTime     @default(now())
+
+  @@unique([documentId, version])
+}
+
+model DocumentVerification {
+  id         String             @id @default(cuid())
+  documentId String
+  document   Document           @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  verifierId String
+  verifier   User               @relation(fields: [verifierId], references: [id])
+  status     VerificationStatus
+  reason     String?
+  createdAt  DateTime           @default(now())
+
+  @@index([documentId, createdAt])
+}
+
+model DocumentHistory {
+  id         String   @id @default(cuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  action     String
+  actorId    String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([documentId, createdAt])
+}
+
+model Flight {
+  id               String            @id @default(cuid())
+  flightNo         String
+  airline          String
+  pnr              String?
+  departureAt      DateTime
+  arrivalAt        DateTime?
+  departureAirport String
+  destination      String
+  status           String            @default("Scheduled")
+  ticketFile       String?
+  passengers       FlightPassenger[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+}
+
+model FlightPassenger {
+  flightId String
+  fileId   String
+  flight   Flight         @relation(fields: [flightId], references: [id], onDelete: Cascade)
+  file     ProcessingFile @relation(fields: [fileId], references: [id])
+  ticketNo String?
+  baggage  String?
+  flown    Boolean        @default(false)
+
+  @@id([flightId, fileId])
+}
+
+model HoldReturn {
+  id              String         @id @default(cuid())
+  fileId          String
+  file            ProcessingFile @relation(fields: [fileId], references: [id])
+  type            String
+  previousStage   String
+  reason          String
+  actionDate      DateTime       @default(now())
+  expectedRelease DateTime?
+  financialImpact Decimal?       @db.Decimal(14, 2)
+  note            String?
+  attachment      String?
+  status          String
+  owner           String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model ReprocessRequest {
+  id            String         @id @default(cuid())
+  fileId        String
+  file          ProcessingFile @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  previousStage String
+  proposedStage String
+  reason        String
+  requiredData  Json?
+  assignedTo    String?
+  requestedBy   String
+  approvedBy    String?
+  targetDate    DateTime?
+  status        String         @default("Requested")
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([fileId, status])
+}
+
+model Officer {
+  id               String     @id @default(cuid())
+  employeeId       String     @unique
+  name             String
+  phone            String?
+  email            String?
+  officeId         String
+  office           Office     @relation(fields: [officeId], references: [id])
+  department       String
+  roleName         String
+  joinDate         DateTime?
+  target           Int?
+  photo            String?
+  employmentStatus UserStatus @default(ACTIVE)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@index([officeId, department, employmentStatus])
+}
+
+model Agent {
+  id             String   @id @default(cuid())
+  code           String   @unique
+  name           String
+  contactPerson  String?
+  phone          String?
+  email          String?
+  address        String?
+  country        String?
+  commissionRule Json?
+  agreementKey   String?
+  status         String   @default("Active")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Vendor {
+  id            String    @id @default(cuid())
+  code          String    @unique
+  name          String
+  type          String
+  service       String
+  contactPerson String?
+  phone         String?
+  email         String?
+  address       String?
+  contractDate  DateTime?
+  rate          Decimal?  @db.Decimal(14, 2)
+  contractKey   String?
+  status        String    @default("Active")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Company {
+  id                 String           @id @default(cuid())
+  code               String           @unique
+  name               String
+  registrationNumber String?          @unique
+  country            String
+  industry           String?
+  address            String?
+  contactPerson      String?
+  phone              String?
+  email              String?
+  officeId           String?
+  office             Office?          @relation(fields: [officeId], references: [id])
+  status             String           @default("Active")
+  demands            Demand[]
+  processingFiles    ProcessingFile[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@index([country, status])
+}
+
+model Demand {
+  id                String           @id @default(cuid())
+  demandNo          String           @unique
+  companyId         String
+  company           Company          @relation(fields: [companyId], references: [id])
+  title             String
+  country           String
+  profession        String
+  quantity          Int
+  assignedQuantity  Int              @default(0)
+  salary            Decimal?         @db.Decimal(14, 2)
+  currency          String?
+  visaQuantity      Int?
+  visaRate          Decimal?         @db.Decimal(14, 2)
+  commissionPerFile Decimal?         @db.Decimal(14, 2)
+  deadline          DateTime?
+  expiryDate        DateTime?
+  requirements      Json?
+  status            String           @default("Draft")
+  processingFiles   ProcessingFile[]
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([companyId, country, status])
+}
+
+model ProfessionCategory {
+  id          String       @id @default(cuid())
+  code        String       @unique
+  name        String
+  parentId    String?
+  description String?
+  color       String?
+  icon        String?
+  sortOrder   Int          @default(0)
+  active      Boolean      @default(true)
+  professions Profession[]
+}
+
+model Profession {
+  id                String             @id @default(cuid())
+  code              String             @unique
+  name              String
+  categoryId        String
+  category          ProfessionCategory @relation(fields: [categoryId], references: [id])
+  visaEquivalent    String?
+  takamulEquivalent String?
+  skillLevel        String?
+  description       String?
+  active            Boolean            @default(true)
+
+  @@index([categoryId, active])
+}
+
+model MedicalProcess {
+  id              String         @id @default(cuid())
+  fileId          String
+  file            ProcessingFile @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  center          String?
+  appointmentDate DateTime?
+  testDate        DateTime?
+  reportDate      DateTime?
+  result          String         @default("Pending")
+  expiryDate      DateTime?
+  isReMedical     Boolean        @default(false)
+  metadata        Json?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([fileId, result, expiryDate])
+}
+
+model MofaProcess {
+  id         String         @id @default(cuid())
+  fileId     String
+  file       ProcessingFile @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  mofaNumber String?        @unique
+  submitDate DateTime?
+  doneDate   DateTime?
+  status     String         @default("Pending")
+  isReMofa   Boolean        @default(false)
+  metadata   Json?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@index([fileId, status])
+}
+
+model TakamulProcess {
+  id                 String         @id @default(cuid())
+  fileId             String
+  file               ProcessingFile @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  registrationNumber String?        @unique
+  certificateNumber  String?        @unique
+  examDate           DateTime?
+  presentDate        DateTime?
+  centerDistrict     String?
+  visaProfession     String?
+  takamulProfession  String?
+  status             String         @default("Pending")
+  reportStatus       String         @default("Pending")
+  doneBy             String?
+  remarks            String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@index([fileId, status])
+}
+
+model BiometricProcess {
+  id              String         @id @default(cuid())
+  fileId          String
+  file            ProcessingFile @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  type            String
+  appointmentDate DateTime?
+  presentDate     DateTime?
+  completedAt     DateTime?
+  status          String         @default("Pending")
+  evidenceKey     String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([fileId, type, status])
+}
+
+model PoliceClearance {
+  id                String         @id @default(cuid())
+  fileId            String
+  file              ProcessingFile @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  applicationNumber String?        @unique
+  applicationDate   DateTime?
+  issueDate         DateTime?
+  expiryDate        DateTime?
+  result            String?
+  certificateKey    String?
+  status            String         @default("Pending")
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([fileId, status, expiryDate])
+}
+
+model VisaProcess {
+  id              String         @id @default(cuid())
+  fileId          String
+  file            ProcessingFile @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  visaNumber      String?        @unique
+  visaType        String?
+  profession      String?
+  applicationDate DateTime?
+  submissionDate  DateTime?
+  issueDate       DateTime?
+  stampingDate    DateTime?
+  expiryDate      DateTime?
+  status          String         @default("Pending")
+  visaObjectKey   String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([fileId, status, expiryDate])
+}
+
+model ManpowerProcess {
+  id           String         @id @default(cuid())
+  fileId       String
+  file         ProcessingFile @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  reference    String?        @unique
+  company      String?
+  profession   String?
+  quantity     Int            @default(1)
+  submittedAt  DateTime?
+  approvedAt   DateTime?
+  status       String         @default("Pending")
+  requirements Json?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([fileId, status])
+}
+
+model MasterData {
+  id          String   @id @default(cuid())
+  type        String
+  code        String
+  name        String
+  parentId    String?
+  country     String?
+  description String?
+  color       String?
+  sortOrder   Int      @default(0)
+  config      Json?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([type, code])
+  @@index([type, active])
+}
+
+model Notification {
+  id          String                @id @default(cuid())
+  recipient   String
+  title       String
+  message     String
+  type        String
+  priority    String                @default("Normal")
+  channel     String                @default("In-app")
+  scheduledAt DateTime?
+  sentAt      DateTime?
+  readAt      DateTime?
+  actionUrl   String?
+  status      String                @default("Draft")
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  templateId  String?
+  template    NotificationTemplate? @relation(fields: [templateId], references: [id])
+  retryCount  Int                   @default(0)
+  lastError   String?
+}
+
+model NotificationTemplate {
+  id            String         @id @default(cuid())
+  code          String         @unique
+  name          String
+  type          String
+  channel       String
+  subject       String?
+  body          String
+  variables     Json?
+  retryPolicy   Json?
+  active        Boolean        @default(true)
+  notifications Notification[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model TutorialCategory {
+  id          String     @id @default(cuid())
+  code        String     @unique
+  name        String
+  description String?
+  icon        String?
+  audience    String?
+  sortOrder   Int        @default(0)
+  active      Boolean    @default(true)
+  tutorials   Tutorial[]
+}
+
+model Tutorial {
+  id           String           @id @default(cuid())
+  categoryId   String
+  category     TutorialCategory @relation(fields: [categoryId], references: [id])
+  title        String
+  description  String?
+  type         String
+  resourceUrl  String
+  thumbnailKey String?
+  audience     String?
+  language     String           @default("English")
+  durationMin  Int?
+  sortOrder    Int              @default(0)
+  status       String           @default("Draft")
+  viewCount    Int              @default(0)
+  publishedAt  DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([categoryId, status, sortOrder])
+}
+
+model SystemSetting {
+  id        String   @id @default(cuid())
+  group     String
+  key       String
+  value     Json
+  sensitive Boolean  @default(false)
+  updatedBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([group, key])
+}
+
+model SavedFilter {
+  id        String   @id @default(cuid())
+  userId    String
+  module    String
+  name      String
+  filters   Json
+  shared    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, module, name])
+}
+
+model ImportJob {
+  id              String      @id @default(cuid())
+  module          String
+  templateVersion String
+  objectKey       String
+  mapping         Json?
+  duplicateRule   String
+  status          JobStatus   @default(READY)
+  totalRows       Int         @default(0)
+  validRows       Int         @default(0)
+  invalidRows     Int         @default(0)
+  duplicateRows   Int         @default(0)
+  insertedRows    Int         @default(0)
+  updatedRows     Int         @default(0)
+  errorObjectKey  String?
+  createdBy       String
+  createdAt       DateTime    @default(now())
+  completedAt     DateTime?
+  rows            ImportRow[]
+
+  @@index([module, status, createdAt])
+}
+
+model ImportRow {
+  id         String    @id @default(cuid())
+  jobId      String
+  job        ImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  rowNumber  Int
+  data       Json
+  valid      Boolean
+  errors     Json?
+  duplicate  Boolean   @default(false)
+  importedId String?
+
+  @@unique([jobId, rowNumber])
+}
+
+model ExportJob {
+  id          String    @id @default(cuid())
+  module      String
+  format      String
+  filters     Json?
+  columns     Json?
+  status      JobStatus @default(READY)
+  objectKey   String?
+  createdBy   String
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+  expiresAt   DateTime?
+
+  @@index([module, status, createdAt])
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  module    String
+  recordId  String
+  action    String
+  summary   String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([module, recordId, createdAt])
+}
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id])
+  role          String?
+  ip            String?
+  device        String?
+  module        String
+  recordId      String
+  action        String
+  oldValue      Json?
+  newValue      Json?
+  reason        String?
+  correlationId String   @unique
+  createdAt     DateTime @default(now())
+
+  @@index([module, recordId, createdAt])
+}

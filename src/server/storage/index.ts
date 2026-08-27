@@ -1,0 +1,2 @@
+import "server-only"; import {LocalPrivateStorage} from "./local"; import {S3PrivateStorage} from "./s3"; import type {PrivateStorage} from "./types";
+export function privateStorage():PrivateStorage{const driver=process.env.STORAGE_DRIVER||"local";if(driver==="local")return new LocalPrivateStorage();if(driver==="s3")return new S3PrivateStorage();throw new Error(`Unknown storage driver: ${driver}`)}

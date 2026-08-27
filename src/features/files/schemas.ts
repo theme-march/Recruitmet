@@ -1,0 +1,2 @@
+import {z} from "zod";
+export const fileCreateSchema=z.object({candidateId:z.string().min(10),country:z.string().min(2).max(100),company:z.string().max(180).optional(),companyId:z.string().optional(),demandId:z.string().optional(),profession:z.string().min(2).max(150),agent:z.string().max(150).optional(),vendor:z.string().max(150).optional(),assignedToId:z.string().optional(),deadline:z.coerce.date().optional(),verificationNote:z.string().min(3).max(1000)});
