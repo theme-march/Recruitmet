@@ -14,6 +14,7 @@ import {
   Receipt,
   SearchCheck,
   UserRoundCheck,
+  Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -24,13 +25,15 @@ const list = (s: string) => s.split("|").map((label, i) => ({ id: `${i + 1}`, la
 
 export const modules: AppModule[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, items: list("Dashboard") },
-  { id: "call-center", label: "Call Center", icon: Headphones, items: list("Create Work Call|Work Call List|Officer Dashboard|Registration & interviews") },
+  { id: "call-center", label: "Candidates", icon: Users, items: list("Create Work Call|Registration & interviews") },
   { id: "ksa", label: "Saudi Arabia", icon: Globe, items: list("Candidates List") },
   { id: "dubai", label: "Dubai", icon: Building2, items: list("Candidates List") },
   { id: "other-country", label: "Other Country", icon: Plane, items: list("Candidates List") },
   { id: "office-vendor", label: "Office & Vendor", icon: Handshake, items: list("Works & Demands") },
+  { id: "agents", label: "Agents", icon: Users, items: list("Agent List") },
   { id: "payment-collection", label: "Payment Collection", icon: Receipt, items: list("Payment Collect") },
   { id: "document", label: "Document", icon: FolderGit2, items: list("Dubai Document") },
+  { id: "country-setup", label: "Country Setup", icon: Globe, items: list("Destination Countries") },
   { id: "tutorials", label: "Tutorials", icon: GraduationCap, items: list("Tutorial Categories|Tutorials") },
 
   // Secondary aliases for backwards-compatibility
@@ -46,9 +49,26 @@ export const modules: AppModule[] = [
 ];
 
 
-export const getModule = (id: string) => modules.find((m) => m.id === id);
+export const getModule = (id: string) => {
+  const found = modules.find((m) => m.id === id);
+  if (found) return found;
+  const label = id.split("-").map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join(" ");
+  return {
+    id,
+    label,
+    icon: Globe,
+    items: [{ id: "1", label: "Candidates List" }],
+  };
+};
+
 export const moduleItemSlug = (label: string) => label.toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-export const getModuleItemBySlug = (moduleId: string, slug: string) => getModule(moduleId)?.items.find((item) => moduleItemSlug(item.label) === slug);
+export const getModuleItemBySlug = (moduleId: string, slug: string) => {
+  const mod = getModule(moduleId);
+  if (!mod) return undefined;
+  const found = mod.items.find((item) => moduleItemSlug(item.label) === slug);
+  if (found) return found;
+  return { id: "1", label: "Candidates List" };
+};
 export const moduleItemPath = (moduleId: string, label: string) => `/module/${moduleId}/${moduleItemSlug(label)}`;
 
 

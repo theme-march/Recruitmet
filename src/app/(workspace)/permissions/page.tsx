@@ -100,6 +100,13 @@ const moduleConfig: ModuleDefinition[] = [
     hasExport: true,
   },
   {
+    id: "agents",
+    label: "Agents & Channel Partners",
+    desc: "Agency broker directory, candidate referral commissions, and partner profiles",
+    icon: Users,
+    hasExport: true,
+  },
+  {
     id: "payment-collection",
     label: "Payment Collection",
     desc: "Candidate payment deposits, cash vouchers, fee receipts, and billing tracking",

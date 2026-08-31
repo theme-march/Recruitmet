@@ -154,13 +154,15 @@ export async function syncDatabaseForCallCenter() {
     for (const cand of candidates) {
       const interview = cand.interviews[0];
       const lead = cand.calls[0];
-      let country = "Saudi Arabia";
+      let country = cand.preferredCountry || "Saudi Arabia";
       if (interview?.schedule?.company && /sobha|dubai|uae/i.test(interview.schedule.company)) {
         country = "Dubai";
       } else if (cand.preferredCountry && /dubai|uae/i.test(cand.preferredCountry)) {
         country = "Dubai";
-      } else if (cand.preferredCountry && /other/i.test(cand.preferredCountry) && !interview) {
-        country = "Other Country";
+      } else if (cand.preferredCountry && /saudi/i.test(cand.preferredCountry)) {
+        country = "Saudi Arabia";
+      } else if (cand.preferredCountry) {
+        country = cand.preferredCountry;
       }
 
       const existingFile = cand.files[0];

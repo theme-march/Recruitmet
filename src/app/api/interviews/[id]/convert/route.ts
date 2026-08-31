@@ -30,8 +30,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       });
     }
 
-    const isDubai = /sobha|dubai|uae/i.test(interview.title || interview.company || interview.schedule?.title || "");
-    const country = isDubai ? "Dubai" : "Saudi Arabia";
+    // Find candidate's agent and country from lead or candidate
+    const lead = await prisma.workCall.findFirst({ where: { candidateId: interview.candidateId } });
+    const leadNotesObj = lead?.notes && typeof lead.notes === "object" && !Array.isArray(lead.notes) ? (lead.notes as Record<string, unknown>) : {};
+    const leadWorkObj = leadNotesObj.work && typeof leadNotesObj.work === "object" && !Array.isArray(leadNotesObj.work) ? (leadNotesObj.work as Record<string, unknown>) : {};
+    const resolvedAgent = (leadWorkObj.agent as string) || lead?.source || interview.candidate?.source || "Direct";
+
+    const isDubai = /sobha|dubai|uae/i.test(lead?.country || interview.title || interview.company || interview.schedule?.title || "");
+    const country = lead?.country ? (lead.country.includes("Saudi") ? "Saudi Arabia" : lead.country.includes("Dubai") ? "Dubai" : lead.country) : (isDubai ? "Dubai" : "Saudi Arabia");
     const fileNo = `FILE-${Math.floor(100000 + Math.random() * 900000)}`;
 
     const newFile = await prisma.processingFile.create({
@@ -41,16 +47,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         country,
         currentStage: "Passport Entry",
         status: "ACTIVE",
-        profession: interview.profession || interview.schedule?.profession || "Driver",
-        company: interview.company || interview.schedule?.company || "Saudi Binladen Group",
-        agent: "Direct",
+        profession: interview.profession || interview.schedule?.profession || "General Worker",
+        company: interview.company || interview.schedule?.company || (country === "Saudi Arabia" ? "Saudi Binladen Group" : "Dubai Workforce Co."),
+        agent: resolvedAgent,
         assignedToId: session.userId,
         officeId: session.user.officeId || null,
       },
     });
 
-    // Update WorkCall lead notes if existing
-    const lead = await prisma.workCall.findFirst({ where: { candidateId: interview.candidateId } });
     if (lead) {
       const notesObj = lead.notes && typeof lead.notes === "object" && !Array.isArray(lead.notes) ? (lead.notes as Record<string, unknown>) : {};
       const workObj = notesObj.work && typeof notesObj.work === "object" && !Array.isArray(notesObj.work) ? (notesObj.work as Record<string, unknown>) : {};

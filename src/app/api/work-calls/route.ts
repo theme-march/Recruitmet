@@ -35,6 +35,8 @@ const schema = z.object({
   priority: z.coerce.number().int().min(1).max(5),
   officeVisit: optionalText,
   callSource: optionalText,
+  agent: optionalText,
+  agentId: optionalText,
   callPurpose: z.string().trim().min(1).max(150),
   behaviorTag: z.string().trim().min(1).max(100),
   callStatus: z.string().trim().min(1).max(100),
@@ -197,6 +199,7 @@ export async function POST(request: Request) {
             maritalStatus: input.maritalStatus || null,
             education: input.education || null,
             status: "ACTIVE",
+            source: input.agent || input.callSource || "Direct",
             officeId: session.user.officeId || null,
           },
         });
@@ -208,43 +211,40 @@ export async function POST(request: Request) {
             dob: candDob || candidate.dob || null,
             profession: input.workCategory || input.expertIn || candidate.profession || "Worker",
             district: input.district || candidate.district || null,
+            source: input.agent || input.callSource || candidate.source || "Direct",
           },
         });
       }
 
-      const shouldCreateFile = input.interviewStatus === "Selected" || input.interviewStatus === "Passed" || input.fileStatus === "Confirm";
-      let processingFile = null;
+      // Unconditionally create Processing File for candidate so they can be processed immediately
+      const fileNo = `FILE-${Math.floor(100000 + Math.random() * 900000)}`;
+      const countryNormalized = input.country.includes("Saudi") ? "Saudi Arabia" : input.country.includes("Dubai") ? "Dubai" : input.country;
+      const processingFile = await tx.processingFile.create({
+        data: {
+          fileNo,
+          candidateId: candidate.id,
+          country: countryNormalized,
+          currentStage: "Passport Entry",
+          status: "ACTIVE",
+          profession: input.workCategory || input.expertIn || "General Worker",
+          company: input.company || schedule?.company || (countryNormalized === "Saudi Arabia" ? "Saudi Binladen Group" : "Dubai Workforce Co."),
+          agent: input.agent || input.callSource || "Direct",
+          assignedToId: session.userId,
+          officeId: session.user.officeId || null,
+        },
+      });
 
-      if (shouldCreateFile) {
-        const fileNo = `FILE-${Math.floor(100000 + Math.random() * 900000)}`;
-        const countryNormalized = input.country.includes("Saudi") ? "Saudi Arabia" : input.country.includes("Dubai") ? "Dubai" : input.country;
-        processingFile = await tx.processingFile.create({
+      if (input.passportNo) {
+        await tx.passportProcess.create({
           data: {
-            fileNo,
-            candidateId: candidate.id,
-            country: countryNormalized,
-            currentStage: "Passport Entry",
-            status: "ACTIVE",
-            profession: input.workCategory || input.expertIn || "General Worker",
-            company: input.company || schedule?.company || (countryNormalized === "Saudi Arabia" ? "Saudi Binladen Group" : "Dubai Workforce Co."),
-            agent: input.callSource || "Direct",
-            assignedToId: session.userId,
-            officeId: session.user.officeId || null,
+            fileId: processingFile.id,
+            passportNumber: input.passportNo,
+            passportType: "Ordinary",
+            issueDate: new Date("2023-01-01"),
+            expiryDate: new Date("2033-01-01"),
+            verificationStatus: "Verified",
           },
-        });
-
-        if (input.passportNo) {
-          await tx.passportProcess.create({
-            data: {
-              fileId: processingFile.id,
-              passportNumber: input.passportNo,
-              passportType: "Ordinary",
-              issueDate: new Date("2023-01-01"),
-              expiryDate: new Date("2033-01-01"),
-              verificationStatus: "Verified",
-            },
-          }).catch(() => {});
-        }
+        }).catch(() => {});
       }
 
       if (input.interviewOption === "With Interview" && schedule) {

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { toast } from "sonner";
+import { DocumentViewerModal, type DocumentViewerData } from "@/components/document-viewer-modal";
 
 type State = "PENDING" | "DONE" | "NO NEED";
 type Category = "PC Documents" | "Certificate" | "Licence" | "CV" | "BMET Finger" | "BMET Training";
@@ -26,6 +28,7 @@ type Category = "PC Documents" | "Certificate" | "Licence" | "CV" | "BMET Finger
 type Row = {
   id: string;
   fileNo: string;
+  candidateId?: string;
   candidateNo: string;
   name: string;
   phone: string;
@@ -36,6 +39,7 @@ type Row = {
   company: string;
   profession: string;
   statuses: Record<Category, State>;
+  docAttachments?: Record<string, string | undefined>;
 };
 
 type Data = {
@@ -66,6 +70,7 @@ export function DubaiDocumentsPage() {
   const [selectedCat, setSelectedCat] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [activeDoc, setActiveDoc] = useState<DocumentViewerData | null>(null);
 
   const result = useQuery({
     queryKey: ["dubai-documents", applied, status, country, selectedCat, page, pageSize],
@@ -105,6 +110,29 @@ export function DubaiDocumentsPage() {
     setCountry("");
     setSelectedCat("");
     setPage(1);
+  };
+
+  const handleAttachFile = async (category: string, fileData: { url: string; fileName: string; size: string }) => {
+    if (!activeDoc) return;
+    try {
+      const res = await fetch("/api/dubai-documents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileId: activeDoc.extraMeta?.fileId,
+          candidateId: activeDoc.extraMeta?.candidateId,
+          category,
+          fileData: fileData.url,
+          fileName: fileData.fileName,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to upload document");
+      toast.success(`${category} scan attached & verified successfully!`);
+      void result.refetch();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error uploading document");
+    }
   };
 
   const download = () => {
@@ -548,42 +576,73 @@ export function DubaiDocumentsPage() {
                     <div style={{ fontSize: "11px", color: "var(--muted)" }}>{row.profession}</div>
                   </td>
 
-                  {/* Read-only Live Dynamic Document Status Badges */}
+                  {/* Interactive Dynamic Document Status Badges */}
                   {categories.map((c) => {
                     const st = row.statuses[c] ?? "PENDING";
+                    const isDone = st === "DONE";
+                    const isNoNeed = st === "NO NEED";
+                    const hasAttachment = Boolean(row.docAttachments?.[c]);
+
                     return (
                       <td key={c} style={{ padding: "10px 6px", textAlign: "center" }}>
-                        <span
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveDoc({
+                              candidateName: row.name,
+                              passportNo: row.passport !== "Not entered" ? row.passport : undefined,
+                              candidateNo: row.candidateNo,
+                              country: row.country,
+                              profession: row.profession,
+                              company: row.company,
+                              title: `${c} — ${row.name}`,
+                              category: c,
+                              url: row.docAttachments?.[c],
+                              fileNumber: row.fileNo,
+                              verifiedStatus: isDone ? "Verified Valid" : isNoNeed ? "Not Required" : "Pending Verification",
+                              extraMeta: {
+                                fileId: row.id,
+                                candidateId: row.candidateId || "",
+                              },
+                            });
+                          }}
                           style={{
-                            display: "inline-block",
-                            padding: "4px 8px",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            padding: "4px 9px",
                             borderRadius: "6px",
-                            fontSize: "10px",
+                            fontSize: "10.5px",
                             fontWeight: 800,
                             letterSpacing: "0.3px",
+                            cursor: "pointer",
+                            transition: "all 0.15s ease",
                             background:
-                              st === "DONE"
+                              isDone
                                 ? "#ecfdf5"
-                                : st === "NO NEED"
+                                : isNoNeed
                                 ? "#f5f3ff"
                                 : "#fffbeb",
                             color:
-                              st === "DONE"
+                              isDone
                                 ? "#059669"
-                                : st === "NO NEED"
+                                : isNoNeed
                                 ? "#7c3aed"
                                 : "#d97706",
                             border: `1px solid ${
-                              st === "DONE"
+                              isDone
                                 ? "#a7f3d0"
-                                : st === "NO NEED"
+                                : isNoNeed
                                 ? "#ddd6fe"
                                 : "#fde68a"
                             }`,
+                            boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
                           }}
+                          title={`Click to view, print or upload ${c}`}
                         >
-                          {st}
-                        </span>
+                          {isDone && <CheckCircle2 size={11} />}
+                          {isDone && hasAttachment ? "DONE (ATTACHED)" : st}
+                        </button>
                       </td>
                     );
                   })}
@@ -658,6 +717,15 @@ export function DubaiDocumentsPage() {
           </button>
         </div>
       </section>
+
+      {/* Document Viewer & Quick Uploader Modal */}
+      {activeDoc && (
+        <DocumentViewerModal
+          doc={activeDoc}
+          onClose={() => setActiveDoc(null)}
+          onAttachFile={handleAttachFile}
+        />
+      )}
     </div>
   );
 }

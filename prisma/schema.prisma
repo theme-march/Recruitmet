@@ -479,6 +479,10 @@ model CountryWorkflowStage {
   country      Country              @relation(fields: [countryId], references: [id], onDelete: Cascade)
   code         String
   name         String
+  subtitle     String?
+  description  String?
+  icon         String?
+  isCustom     Boolean              @default(false)
   sortOrder    Int
   terminal     Boolean              @default(false)
   deadlineDays Int?

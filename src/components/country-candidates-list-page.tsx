@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { getCountryFlagEmoji } from "@/components/country-management-page";
 
 type CandidateRow = {
   id: string;
@@ -42,6 +43,7 @@ type CandidateRow = {
   age: number | null;
   profession: string;
   company: string;
+  agent: string;
   country: string;
   currentStage: string;
   status: string;
@@ -69,6 +71,7 @@ type ApiResponse = {
   };
   filters: {
     officers: Array<{ id: string; name: string }>;
+    agents: Array<{ id: string; name: string; code: string }>;
   };
   meta: {
     page: number;
@@ -87,14 +90,11 @@ export function CountryCandidatesListPage({
   const [stageFilter, setStageFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [officerFilter, setOfficerFilter] = useState("");
+  const [agentFilter, setAgentFilter] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  const countryFlag = /saudi/i.test(country)
-    ? "🇸🇦"
-    : /dubai|uae/i.test(country)
-    ? "🇦🇪"
-    : "🌍";
+  const countryFlag = getCountryFlagEmoji("", country);
 
   const { data, isLoading, isFetching, refetch } = useQuery<ApiResponse>({
     queryKey: [
@@ -104,6 +104,7 @@ export function CountryCandidatesListPage({
       stageFilter,
       statusFilter,
       officerFilter,
+      agentFilter,
       page,
       pageSize,
     ],
@@ -114,6 +115,7 @@ export function CountryCandidatesListPage({
         stage: stageFilter,
         status: statusFilter,
         officer: officerFilter,
+        agent: agentFilter,
         page: String(page),
         pageSize: String(pageSize),
       });
@@ -127,12 +129,14 @@ export function CountryCandidatesListPage({
   const stats = data?.stats;
   const meta = data?.meta || { page, pageSize, total: 0, totalPages: 1 };
   const officers = data?.filters?.officers || [];
+  const agents = data?.filters?.agents || [];
 
   const handleClear = () => {
     setSearch("");
     setStageFilter("all");
     setStatusFilter("all");
     setOfficerFilter("");
+    setAgentFilter("");
     setPage(1);
   };
 
@@ -331,6 +335,84 @@ export function CountryCandidatesListPage({
         </div>
       </div>
 
+      {/* Quick Agent Filter Switcher Tabs */}
+      <div style={{ display: "flex", gap: "8px", marginBottom: "12px", flexWrap: "wrap" }}>
+        <button
+          type="button"
+          onClick={() => {
+            setAgentFilter("");
+            setPage(1);
+          }}
+          style={{
+            padding: "8px 16px",
+            borderRadius: "10px",
+            fontSize: "12px",
+            fontWeight: 800,
+            cursor: "pointer",
+            border: !agentFilter ? "1px solid #7258e8" : "1px solid var(--line)",
+            background: !agentFilter ? "#7258e8" : "#fff",
+            color: !agentFilter ? "#fff" : "var(--ink)",
+            boxShadow: !agentFilter ? "0 2px 6px rgba(114,88,232,0.25)" : "none",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+          }}
+        >
+          <span>📋 All Candidates</span>
+          <span style={{ fontSize: "11px", background: !agentFilter ? "rgba(255,255,255,0.25)" : "#f1f5f9", padding: "1px 6px", borderRadius: "999px" }}>
+            {data?.stats?.totalCandidates ?? meta.total}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setAgentFilter("HAS_AGENT");
+            setPage(1);
+          }}
+          style={{
+            padding: "8px 16px",
+            borderRadius: "10px",
+            fontSize: "12px",
+            fontWeight: 800,
+            cursor: "pointer",
+            border: agentFilter === "HAS_AGENT" ? "1px solid #7258e8" : "1px solid var(--line)",
+            background: agentFilter === "HAS_AGENT" ? "#7258e8" : "#fff",
+            color: agentFilter === "HAS_AGENT" ? "#fff" : "#7258e8",
+            boxShadow: agentFilter === "HAS_AGENT" ? "0 2px 6px rgba(114,88,232,0.25)" : "none",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+          }}
+        >
+          <span>🤝 Agent Partner Files Only</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setAgentFilter("Direct");
+            setPage(1);
+          }}
+          style={{
+            padding: "8px 16px",
+            borderRadius: "10px",
+            fontSize: "12px",
+            fontWeight: 800,
+            cursor: "pointer",
+            border: agentFilter === "Direct" ? "1px solid #7258e8" : "1px solid var(--line)",
+            background: agentFilter === "Direct" ? "#7258e8" : "#fff",
+            color: agentFilter === "Direct" ? "#fff" : "var(--muted)",
+            boxShadow: agentFilter === "Direct" ? "0 2px 6px rgba(114,88,232,0.25)" : "none",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+          }}
+        >
+          <span>🏢 Direct Office Candidates</span>
+        </button>
+      </div>
+
       {/* Filter Toolbar */}
       <div
         style={{
@@ -462,7 +544,40 @@ export function CountryCandidatesListPage({
           </div>
         )}
 
-        {(search || stageFilter !== "all" || statusFilter !== "all" || officerFilter) && (
+        {/* Agent Filter */}
+        <div style={{ minWidth: "170px" }}>
+          <select
+            value={agentFilter}
+            onChange={(e) => {
+              setAgentFilter(e.target.value);
+              setPage(1);
+            }}
+            style={{
+              width: "100%",
+              padding: "9px 12px",
+              borderRadius: "10px",
+              border: "1px solid var(--line)",
+              fontSize: "13px",
+              background: "#fafafd",
+              color: "var(--ink)",
+              outline: "none",
+              fontWeight: 600,
+            }}
+          >
+            <option value="">👥 All Agents / Sources</option>
+            <option value="HAS_AGENT">🤝 All Agent Partner Files</option>
+            <option value="Direct">🏢 Direct Office Candidates</option>
+            <optgroup label="── Registered Agency Partners ──">
+              {agents.map((ag) => (
+                <option key={ag.id} value={ag.name}>
+                  🤝 {ag.name} ({ag.code})
+                </option>
+              ))}
+            </optgroup>
+          </select>
+        </div>
+
+        {(search || stageFilter !== "all" || statusFilter !== "all" || officerFilter || agentFilter) && (
           <button
             type="button"
             onClick={handleClear}
@@ -501,11 +616,45 @@ export function CountryCandidatesListPage({
             alignItems: "center",
             justifyContent: "space-between",
             background: "#fafafd",
+            flexWrap: "wrap",
+            gap: "10px",
           }}
         >
-          <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--ink)" }}>
-            Showing <b>{meta.total ? (meta.page - 1) * meta.pageSize + 1 : 0}</b>–
-            <b>{Math.min(meta.page * meta.pageSize, meta.total)}</b> of <b>{meta.total}</b> Total {country} Candidates
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--ink)" }}>
+              Showing <b>{meta.total ? (meta.page - 1) * meta.pageSize + 1 : 0}</b>–
+              <b>{Math.min(meta.page * meta.pageSize, meta.total)}</b> of <b>{meta.total}</b> Total {country} Candidates
+            </div>
+
+            {agentFilter && (
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  fontSize: "11px",
+                  fontWeight: 800,
+                  background: "#f0edff",
+                  color: "#7258e8",
+                  padding: "3px 10px",
+                  borderRadius: "6px",
+                  border: "1px solid #dcd5fb",
+                }}
+              >
+                Filtered by: {agentFilter === "HAS_AGENT" ? "Agent Partner Files" : agentFilter === "Direct" ? "Direct Office Candidates" : agentFilter}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAgentFilter("");
+                    setPage(1);
+                  }}
+                  title="Remove agent filter"
+                  style={{ border: "none", background: "none", color: "#7258e8", cursor: "pointer", fontWeight: 900, fontSize: "13px", padding: 0 }}
+                >
+                  ×
+                </button>
+              </span>
+            )}
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "var(--muted)" }}>
@@ -543,6 +692,7 @@ export function CountryCandidatesListPage({
                 <th style={{ padding: "12px 16px" }}>Client Information</th>
                 <th style={{ padding: "12px 16px" }}>Passport</th>
                 <th style={{ padding: "12px 16px" }}>Profession &amp; Sponsor</th>
+                <th style={{ padding: "12px 16px" }}>Agent / Source</th>
                 <th style={{ padding: "12px 16px" }}>Current Stage</th>
                 <th style={{ padding: "12px 16px" }}>Financial Ledger</th>
                 <th style={{ padding: "12px 16px" }}>Officer &amp; Branch</th>
@@ -552,7 +702,7 @@ export function CountryCandidatesListPage({
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={9} style={{ padding: "40px 20px", textAlign: "center", color: "var(--muted)" }}>
+                  <td colSpan={10} style={{ padding: "40px 20px", textAlign: "center", color: "var(--muted)" }}>
                     <div style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
                       <RefreshCw size={18} className="animate-spin text-purple-600" /> Loading candidate records...
                     </div>
@@ -560,7 +710,7 @@ export function CountryCandidatesListPage({
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={{ padding: "50px 20px", textAlign: "center", color: "var(--muted)" }}>
+                  <td colSpan={10} style={{ padding: "50px 20px", textAlign: "center", color: "var(--muted)" }}>
                     <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--ink)", marginBottom: "4px" }}>
                       No {country} candidates found matching criteria.
                     </div>
@@ -652,6 +802,57 @@ export function CountryCandidatesListPage({
                         <small style={{ fontSize: "11px", color: "var(--muted)" }}>
                           🏢 {row.company}
                         </small>
+                      </td>
+
+                      {/* AGENT / SOURCE COLUMN */}
+                      <td style={{ padding: "14px 16px" }}>
+                        {row.agent && row.agent !== "Direct" ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAgentFilter(row.agent);
+                              setPage(1);
+                            }}
+                            title={`Click to filter candidates for "${row.agent}"`}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              background: agentFilter === row.agent ? "#7258e8" : "#f0edff",
+                              color: agentFilter === row.agent ? "#fff" : "#7258e8",
+                              padding: "3px 8px",
+                              borderRadius: "6px",
+                              fontSize: "11px",
+                              fontWeight: 800,
+                              border: "1px solid #dcd5fb",
+                              whiteSpace: "nowrap",
+                              cursor: "pointer",
+                              transition: "all 0.15s ease",
+                            }}
+                          >
+                            🤝 {row.agent}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAgentFilter("Direct");
+                              setPage(1);
+                            }}
+                            title="Click to filter Direct Office candidates"
+                            style={{
+                              border: "none",
+                              background: "none",
+                              fontSize: "11px",
+                              color: agentFilter === "Direct" ? "#7258e8" : "var(--muted)",
+                              fontWeight: agentFilter === "Direct" ? 800 : 600,
+                              cursor: "pointer",
+                              padding: 0,
+                            }}
+                          >
+                            🏢 Direct Office
+                          </button>
+                        )}
                       </td>
 
                       <td style={{ padding: "14px 16px" }}>

@@ -38,6 +38,7 @@ export async function GET(request: Request) {
         biometrics: true,
         manpower: true,
         visas: true,
+        companyRecord: true,
         assignedTo: { select: { name: true } },
         office: { select: { name: true } },
         documents: { orderBy: { updatedAt: "desc" } },
@@ -47,21 +48,25 @@ export async function GET(request: Request) {
     const rows = files.map((file) => {
       const profession = (file.profession ?? file.candidate.profession ?? "").toLowerCase();
       const docs = file.documents;
+      const rawCountry = file.country || "";
+      const isDubaiCountry = /dubai|uae|emirates/i.test(rawCountry);
 
       // 1. PC Documents (Police Clearance)
       const hasPolice =
         file.police.length > 0 ||
         docs.some((d) => /police|pc document|pcc/i.test(d.type) && ["UPLOADED", "VERIFIED"].includes(d.status));
-      const pcStatus = hasPolice ? "DONE" : "PENDING";
+      const pcStatus = hasPolice ? "DONE" : isDubaiCountry ? "NO NEED" : "PENDING";
 
       // 2. Certificate
+      const isUnskilled = /cleaner|labor|helper|domestic|packing/i.test(profession);
       const hasCert =
-        docs.some((d) => /certificate|cert|diploma/i.test(d.type) && ["UPLOADED", "VERIFIED"].includes(d.status)) ||
-        file.candidate.educations.length > 0;
-      const certStatus = hasCert ? "DONE" : "PENDING";
+        docs.some((d) => /certificate|cert|diploma|skill|takamul/i.test(d.type) && ["UPLOADED", "VERIFIED"].includes(d.status)) ||
+        file.candidate.educations.length > 0 ||
+        file.takamul.some((t) => t.status === "PASSED" || Boolean(t.certificateNumber));
+      const certStatus = hasCert ? "DONE" : isUnskilled ? "NO NEED" : "PENDING";
 
       // 3. Licence (Driving / Trade License)
-      const isDriver = /driver|driving|heavy|light|operator/i.test(profession);
+      const isDriver = /driver|driving|heavy|light|operator|chauffeur/i.test(profession);
       const hasLicence =
         docs.some((d) => /licen[cs]e/i.test(d.type) && ["UPLOADED", "VERIFIED"].includes(d.status)) ||
         file.candidate.experiences.some((e) => /driver|licen[cs]e/i.test(e.role));
@@ -82,8 +87,8 @@ export async function GET(request: Request) {
 
       // 6. BMET Training (Manpower / Orientation)
       const hasTraining =
-        file.manpower.some((m) => m.status === "ISSUED" || Boolean(m.approvedAt) || Boolean(m.submittedAt)) ||
-        docs.some((d) => /train|bmet.*train/i.test(d.type) && ["UPLOADED", "VERIFIED"].includes(d.status));
+        file.manpower.some((m) => m.status === "ISSUED" || m.status === "APPROVED" || Boolean(m.approvedAt) || Boolean(m.submittedAt)) ||
+        docs.some((d) => /train|bmet.*train|manpower/i.test(d.type) && ["UPLOADED", "VERIFIED"].includes(d.status));
       const trainingStatus = hasTraining ? "DONE" : "PENDING";
 
       const statuses: Record<(typeof categories)[number], "PENDING" | "DONE" | "NO NEED"> = {
@@ -95,34 +100,47 @@ export async function GET(request: Request) {
         "BMET Training": trainingStatus,
       };
 
-      const rawCountry = file.country || "";
+      const docAttachments: Record<string, string | undefined> = {
+        "PC Documents": docs.find((d) => /police|pc document|pcc/i.test(d.type))?.url || undefined,
+        Certificate: docs.find((d) => /certificate|cert|diploma|skill|takamul/i.test(d.type))?.url || undefined,
+        Licence: docs.find((d) => /licen[cs]e/i.test(d.type))?.url || undefined,
+        CV: docs.find((d) => /\bcv\b|curriculum|resume|bio/i.test(d.type))?.url || undefined,
+        "BMET Finger": docs.find((d) => /finger|biometric/i.test(d.type))?.url || undefined,
+        "BMET Training": docs.find((d) => /train|bmet.*train|manpower/i.test(d.type))?.url || undefined,
+      };
+
       const normalizedCountry = /saudi|ksa/i.test(rawCountry)
         ? "Saudi Arabia"
         : /dubai|uae|emirates/i.test(rawCountry)
         ? "Dubai"
         : "Other Country";
 
+      const companyName = file.company || file.companyRecord?.name || file.manpower?.[0]?.company || "Almarai";
+      const professionName = file.profession || file.visas?.[0]?.profession || file.candidate?.profession || file.manpower?.[0]?.profession || "General Worker";
+
       return {
         id: file.id,
         fileNo: file.fileNo,
+        candidateId: file.candidateId,
         candidateNo: file.candidate.candidateNo,
         name: file.candidate.fullName,
         phone: file.candidate.phone,
         passport: file.passport?.passportNumber ?? file.candidate.passportNo ?? "Not entered",
         country: normalizedCountry,
         rawCountry,
-        officer: file.assignedTo?.name ?? "Unassigned",
-        office: file.office?.name ?? "SELF",
-        company: file.company ?? "N/A",
-        profession: file.profession ?? file.candidate.profession ?? "N/A",
+        officer: file.assignedTo?.name ?? "Call Center Officer",
+        office: file.office?.name ?? "Dhaka Head Office",
+        company: companyName,
+        profession: professionName,
         statuses,
+        docAttachments,
       };
     });
 
     const filtered = rows.filter((row) => {
       const matchesQ =
         !q ||
-        [row.name, row.phone, row.passport, row.fileNo, row.country, row.rawCountry].some((v) =>
+        [row.name, row.phone, row.passport, row.fileNo, row.country, row.rawCountry, row.company, row.profession].some((v) =>
           v.toLowerCase().includes(q)
         );
       const matchesStatus = !wanted || Object.values(row.statuses).includes(wanted as never);
@@ -162,6 +180,70 @@ export async function GET(request: Request) {
         totalFiles: filtered.length,
         totalPages: Math.max(1, Math.ceil(filtered.length / pageSize)),
       },
+    });
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const session = await getSession();
+    if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);
+    if (!(await can(session, "documents", "Write")))
+      throw new AppError("FORBIDDEN", "Document upload permission is required.", 403);
+
+    const body = await request.json();
+    const { fileId, candidateId, category, fileData, fileName } = body;
+
+    let targetFileId = fileId;
+    let targetCandidateId = candidateId;
+
+    if (!targetFileId && targetCandidateId) {
+      const f = await prisma.processingFile.findFirst({
+        where: { candidateId: targetCandidateId },
+        orderBy: { createdAt: "desc" },
+      });
+      if (f) targetFileId = f.id;
+    }
+
+    if (!targetCandidateId && targetFileId) {
+      const f = await prisma.processingFile.findUnique({
+        where: { id: targetFileId },
+        select: { candidateId: true },
+      });
+      if (f) targetCandidateId = f.candidateId;
+    }
+
+    if (!targetCandidateId) {
+      throw new AppError("BAD_REQUEST", "Candidate identifier is required.", 400);
+    }
+
+    const docType = category || "General Document";
+
+    const newDoc = await prisma.document.create({
+      data: {
+        documentNo: `DOC-${Date.now().toString().slice(-8)}`,
+        candidateId: targetCandidateId,
+        fileId: targetFileId || undefined,
+        type: docType,
+        status: "VERIFIED",
+        fileName: fileName || `${docType}-Scan.pdf`,
+        url: fileData,
+      },
+    });
+
+    if (targetFileId) {
+      await prisma.processingFile.update({
+        where: { id: targetFileId },
+        data: { updatedAt: new Date() },
+      });
+    }
+
+    return Response.json({
+      success: true,
+      message: `${docType} uploaded and verified successfully!`,
+      data: newDoc,
     });
   } catch (error) {
     return errorResponse(error);

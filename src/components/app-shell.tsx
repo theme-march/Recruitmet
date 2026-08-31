@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, ChevronDown, Command, Headphones, LogOut, Menu, Search, Settings, ShieldCheck, X } from "lucide-react";
+import { Bell, Building2, ChevronDown, Command, Globe, Headphones, LogOut, Menu, Search, Settings, ShieldCheck, Users, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -18,6 +18,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [expandedModule, setExpandedModule] = useState<string | null>(null);
   const [navCounts, setNavCounts] = useState<Record<string, Record<string, number>>>({});
+  const [dbCountries, setDbCountries] = useState<Array<{ id: string; name: string; code: string; active: boolean; candidateCount: number }>>([]);
   const path = usePathname();
   const routeParts = path.split("/").filter(Boolean);
   const selectedModule = routeParts[0] === "module" ? routeParts[1] : null;
@@ -27,12 +28,55 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const allowed = profile?.roleKey === "SUPER_ADMIN"
       ? allModuleIds
       : (profile?.allowedModules || (profile ? moduleIdsForRole(profile.roleKey) : allModuleIds));
-    return modules.filter((module) => !module.hidden && allowed.includes(module.id) && (module.label.toLowerCase().includes(moduleQuery.toLowerCase()) || module.items.some((item) => item.label.toLowerCase().includes(moduleQuery.toLowerCase()))));
-  }, [moduleQuery, profile]);
+
+    const nonCountryModules = modules.filter(
+      (m) => !["ksa", "dubai", "other-country"].includes(m.id) && !m.hidden && allowed.includes(m.id as any)
+    );
+
+    const countryMods = dbCountries.length > 0
+      ? dbCountries
+          .filter((c) => c.active)
+          .map((c) => {
+            const lower = c.name.toLowerCase();
+            const id = lower.includes("saudi")
+              ? "ksa"
+              : lower.includes("dubai")
+              ? "dubai"
+              : lower === "other" || lower === "other country"
+              ? "other-country"
+              : c.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
+            const icon = lower.includes("saudi") ? Globe : lower.includes("dubai") ? Building2 : Globe;
+
+            return {
+              id,
+              label: c.name,
+              icon,
+              items: [{ id: "1", label: "Candidates List" }],
+              candidateCount: c.candidateCount,
+            };
+          })
+      : modules.filter((m) => ["ksa", "dubai", "other-country"].includes(m.id));
+
+    const callCenterIdx = nonCountryModules.findIndex((m) => m.id === "call-center");
+    const combined = [...nonCountryModules];
+    if (callCenterIdx >= 0) {
+      combined.splice(callCenterIdx + 1, 0, ...countryMods as any);
+    } else {
+      combined.push(...countryMods as any);
+    }
+
+    return combined.filter(
+      (m) =>
+        m.label.toLowerCase().includes(moduleQuery.toLowerCase()) ||
+        m.items.some((item) => item.label.toLowerCase().includes(moduleQuery.toLowerCase()))
+    );
+  }, [moduleQuery, profile, dbCountries]);
 
   useEffect(() => {
     void fetch("/api/me").then((response) => response.ok ? response.json() : null).then((body) => setProfile(body?.data ?? null));
     void fetch("/api/nav-counts").then((response) => response.ok ? response.json() : null).then((body) => setNavCounts(body?.data ?? {}));
+    void fetch("/api/countries").then((response) => response.ok ? response.json() : null).then((body) => setDbCountries(body?.data ?? []));
   }, [path]);
 
   useEffect(() => {
@@ -59,8 +103,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="app-shell">
       <aside className={`sidebar ${open ? "sidebar-open" : ""}`}>
         <div className="brand">
-          <span className="brand-mark"><Headphones size={20} /></span>
-          <span><b>ORBIT</b><small>CALL CENTER PANEL</small></span>
+          <span className="brand-mark"><Users size={20} /></span>
+          <span><b>ORBIT</b><small>CANDIDATES PANEL</small></span>
           <button className="icon mobile" onClick={() => setOpen(false)}><X size={20} /></button>
         </div>
         <div className="side-search">
@@ -87,7 +131,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
             if (module.items.length === 1) {
               const singleItem = module.items[0];
-              const singleCount = navCounts[module.id]?.[singleItem.label] ?? 0;
+              const singleCount =
+                module.id === "country-setup"
+                  ? (dbCountries.length || (navCounts[module.id]?.[singleItem.label] ?? 0))
+                  : (module as any).candidateCount !== undefined
+                  ? (module as any).candidateCount
+                  : (navCounts[module.id]?.[singleItem.label] ?? 0);
               const hideBadge = module.id === "document" || module.id === "payment-collection";
               return (
                 <div className="nav-group" key={module.id} style={{ "--nav-accent": accent } as React.CSSProperties}>

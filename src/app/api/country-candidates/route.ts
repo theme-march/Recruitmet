@@ -15,6 +15,7 @@ export async function GET(request: Request) {
     const status = searchParams.get("status") || "";
     const search = (searchParams.get("search") || "").trim();
     const officerId = searchParams.get("officer") || "";
+    const agent = searchParams.get("agent") || "";
     const page = Math.max(1, Number(searchParams.get("page")) || 1);
     const pageSize = Math.min(100, Math.max(5, Number(searchParams.get("pageSize")) || 20));
 
@@ -23,44 +24,113 @@ export async function GET(request: Request) {
     // Country filter
     let countryWhere: any = {};
     if (/saudi/i.test(country)) {
-      countryWhere = { contains: "Saudi" };
+      countryWhere = {
+        OR: [
+          { country: { contains: "Saudi" } },
+          { candidate: { preferredCountry: { contains: "Saudi" } } },
+        ],
+      };
     } else if (/dubai|uae/i.test(country)) {
-      countryWhere = { in: ["Dubai", "UAE", "United Arab Emirates"] };
+      countryWhere = {
+        OR: [
+          { country: { in: ["Dubai", "UAE", "United Arab Emirates"] } },
+          { candidate: { preferredCountry: { in: ["Dubai", "UAE", "United Arab Emirates"] } } },
+        ],
+      };
+    } else if (/^other( country)?$/i.test(country)) {
+      countryWhere = {
+        OR: [
+          { country: { in: ["Other", "Other Country"] } },
+          { candidate: { preferredCountry: { in: ["Other", "Other Country"] } } },
+          {
+            AND: [
+              { country: { notIn: ["Saudi", "Saudi Arabia", "Dubai", "UAE", "United Arab Emirates"] } },
+              { candidate: { preferredCountry: { notIn: ["Saudi", "Saudi Arabia", "Dubai", "UAE", "United Arab Emirates"] } } },
+            ],
+          },
+        ],
+      };
     } else {
-      countryWhere = { notIn: ["Saudi", "Saudi Arabia", "Dubai", "UAE", "United Arab Emirates"] };
+      const clean = country.trim();
+      countryWhere = {
+        OR: [
+          { country: { contains: clean } },
+          { candidate: { preferredCountry: { contains: clean } } },
+        ],
+      };
+    }
+
+    const andClauses: any[] = [];
+
+    if (stage && stage !== "all") {
+      andClauses.push({ currentStage: stage });
+    }
+
+    if (status && status !== "all") {
+      andClauses.push({ status: status });
+    }
+
+    if (officerId) {
+      andClauses.push({ assignedToId: officerId });
+    }
+
+    if (agent && agent !== "all") {
+      if (agent === "Direct") {
+        andClauses.push({
+          OR: [
+            { agent: "Direct" },
+            { agent: null },
+            { agent: "" },
+            { candidate: { source: "Direct" } },
+            { candidate: { source: null } },
+          ],
+        });
+      } else if (agent === "HAS_AGENT") {
+        andClauses.push({
+          OR: [
+            { AND: [{ agent: { not: null } }, { agent: { not: "" } }, { agent: { not: "Direct" } }] },
+            { AND: [{ candidate: { source: { not: null } } }, { candidate: { source: { not: "" } } }, { candidate: { source: { not: "Direct" } } }] },
+          ],
+        });
+      } else {
+        andClauses.push({
+          OR: [
+            { agent: { contains: agent } },
+            { agent: agent },
+            { candidate: { source: { contains: agent } } },
+            { candidate: { source: agent } },
+          ],
+        });
+      }
+    }
+
+    if (search) {
+      andClauses.push({
+        OR: [
+          { fileNo: { contains: search } },
+          { candidate: { fullName: { contains: search } } },
+          { candidate: { candidateNo: { contains: search } } },
+          { candidate: { phone: { contains: search } } },
+          { candidate: { passportNo: { contains: search } } },
+          { passport: { passportNumber: { contains: search } } },
+          { company: { contains: search } },
+          { profession: { contains: search } },
+          { agent: { contains: search } },
+          { candidate: { source: { contains: search } } },
+        ],
+      });
     }
 
     const where: any = {
       ...scope,
-      country: countryWhere,
+      ...countryWhere,
     };
 
-    if (stage && stage !== "all") {
-      where.currentStage = stage;
+    if (andClauses.length > 0) {
+      where.AND = andClauses;
     }
 
-    if (status && status !== "all") {
-      where.status = status;
-    }
-
-    if (officerId) {
-      where.assignedToId = officerId;
-    }
-
-    if (search) {
-      where.OR = [
-        { fileNo: { contains: search } },
-        { candidate: { fullName: { contains: search } } },
-        { candidate: { candidateNo: { contains: search } } },
-        { candidate: { phone: { contains: search } } },
-        { candidate: { passportNo: { contains: search } } },
-        { passport: { passportNumber: { contains: search } } },
-        { company: { contains: search } },
-        { profession: { contains: search } },
-      ];
-    }
-
-    const [total, files, officers, rawStats] = await Promise.all([
+    const [total, files, officers, agents, rawStats] = await Promise.all([
       prisma.processingFile.count({ where }),
       prisma.processingFile.findMany({
         where,
@@ -77,6 +147,7 @@ export async function GET(request: Request) {
               district: true,
               dob: true,
               profession: true,
+              source: true,
             },
           },
           passport: {
@@ -125,8 +196,12 @@ export async function GET(request: Request) {
         select: { id: true, name: true },
         orderBy: { name: "asc" },
       }),
+      prisma.agent.findMany({
+        select: { id: true, name: true, code: true },
+        orderBy: { name: "asc" },
+      }),
       prisma.processingFile.findMany({
-        where: { ...scope, country: countryWhere },
+        where,
         select: {
           currentStage: true,
           status: true,
@@ -174,6 +249,7 @@ export async function GET(request: Request) {
         age,
         profession: file.profession || file.candidate?.profession || "General Worker",
         company: file.company || "N/A",
+        agent: file.agent || file.candidate?.source || "Direct",
         country: file.country,
         currentStage: file.currentStage,
         status: file.status,
@@ -202,6 +278,7 @@ export async function GET(request: Request) {
       },
       filters: {
         officers,
+        agents,
       },
       meta: {
         page,

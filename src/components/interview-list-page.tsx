@@ -37,9 +37,20 @@ type DemandItem = {
 const readableDate = (value: string) =>
   new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value));
 
+function getScheduleCountry(sch: Schedule): { name: string; flag: string } {
+  const text = `${sch.title} ${sch.company || ""} ${sch.instructions || ""} ${sch.venue || ""}`.toLowerCase();
+  if (/saudi|binladen|nesma|almarai|riyadh|jeddah|dammam/i.test(text)) return { name: "Saudi Arabia", flag: "🇸🇦" };
+  if (/dubai|emirates|uae|sobha|abu dhabi/i.test(text)) return { name: "Dubai", flag: "🇦🇪" };
+  if (/oman|muscat/i.test(text)) return { name: "Oman", flag: "🇴🇲" };
+  if (/qatar|doha/i.test(text)) return { name: "Qatar", flag: "🇶🇦" };
+  if (/malaysia|kuala/i.test(text)) return { name: "Malaysia", flag: "🇲🇾" };
+  return { name: "Saudi Arabia", flag: "🇸🇦" };
+}
+
 export function InterviewListPage({ upcomingOnly = false }: { upcomingOnly?: boolean }) {
   const [input, setInput] = useState("");
   const [search, setSearch] = useState("");
+  const [countryFilter, setCountryFilter] = useState("all");
   
   // Create Modal States
   const [createOpen, setCreateOpen] = useState(false);
@@ -104,10 +115,23 @@ export function InterviewListPage({ upcomingOnly = false }: { upcomingOnly?: boo
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const schedules = query.data ?? [];
-  const upcoming = schedules
+
+  // Country counts
+  const saudiCount = schedules.filter((s) => getScheduleCountry(s).name === "Saudi Arabia").length;
+  const dubaiCount = schedules.filter((s) => getScheduleCountry(s).name === "Dubai").length;
+  const omanCount = schedules.filter((s) => getScheduleCountry(s).name === "Oman").length;
+  const qatarCount = schedules.filter((s) => getScheduleCountry(s).name === "Qatar").length;
+  const malaysiaCount = schedules.filter((s) => getScheduleCountry(s).name === "Malaysia").length;
+
+  const filteredSchedules = schedules.filter((item) => {
+    if (countryFilter === "all") return true;
+    return getScheduleCountry(item).name === countryFilter;
+  });
+
+  const upcoming = filteredSchedules
     .filter((item) => new Date(item.scheduledAt) >= today)
     .sort((a, b) => +new Date(a.scheduledAt) - +new Date(b.scheduledAt));
-  const past = schedules
+  const past = filteredSchedules
     .filter((item) => new Date(item.scheduledAt) < today)
     .sort((a, b) => +new Date(b.scheduledAt) - +new Date(a.scheduledAt));
 
@@ -253,7 +277,7 @@ export function InterviewListPage({ upcomingOnly = false }: { upcomingOnly?: boo
       <div className="interview-page-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px", flexWrap: "wrap", gap: "12px" }}>
         <div>
           <div className="breadcrumb" style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-            Call Center / Registration &amp; Interviews
+            Candidates / Registration &amp; Interviews
           </div>
           <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--ink)", margin: "4px 0" }}>Registration &amp; Interviews</h1>
           <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0 }}>Create, schedule and manage overseas recruitment interview drives with clients.</p>
@@ -284,43 +308,73 @@ export function InterviewListPage({ upcomingOnly = false }: { upcomingOnly?: boo
           )}
           <Link
             prefetch={true}
-            href={moduleItemPath("call-center", "Officer Dashboard")}
+            href={moduleItemPath("call-center", "Create Work Call")}
             style={{
               display: "inline-flex",
               alignItems: "center",
               gap: "6px",
               padding: "9px 14px",
               borderRadius: "10px",
-              background: "#fff",
-              border: "1px solid var(--line)",
-              color: "var(--ink)",
+              background: "#ecfdf5",
+              border: "1px solid #a7f3d0",
+              color: "#059669",
               fontSize: "12px",
               fontWeight: 700,
               textDecoration: "none",
             }}
           >
-            Officer Dashboard
-          </Link>
-          <Link
-            prefetch={true}
-            href={moduleItemPath("call-center", "Work Call List")}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "9px 14px",
-              borderRadius: "10px",
-              background: "#f0edff",
-              border: "1px solid #dcd5fb",
-              color: "#7258e8",
-              fontSize: "12px",
-              fontWeight: 700,
-              textDecoration: "none",
-            }}
-          >
-            Work Call List
+            <Plus size={14} /> Create Work Call
           </Link>
         </div>
+      </div>
+
+      {/* Country Filter Switcher Tabs */}
+      <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexWrap: "wrap" }}>
+        {[
+          { id: "all", label: "🌍 All Countries", count: schedules.length },
+          { id: "Saudi Arabia", label: "🇸🇦 Saudi Arabia", count: saudiCount },
+          { id: "Dubai", label: "🇦🇪 Dubai", count: dubaiCount },
+          { id: "Oman", label: "🇴🇲 Oman", count: omanCount },
+          { id: "Qatar", label: "🇶🇦 Qatar", count: qatarCount },
+          { id: "Malaysia", label: "🇲🇾 Malaysia", count: malaysiaCount },
+        ].map((c) => {
+          const active = countryFilter === c.id;
+          return (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => setCountryFilter(c.id)}
+              style={{
+                padding: "8px 16px",
+                borderRadius: "10px",
+                fontSize: "12px",
+                fontWeight: 800,
+                cursor: "pointer",
+                border: active ? "1px solid #7258e8" : "1px solid var(--line)",
+                background: active ? "#7258e8" : "#fff",
+                color: active ? "#fff" : "var(--ink)",
+                boxShadow: active ? "0 2px 6px rgba(114,88,232,0.25)" : "none",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                transition: "all 0.15s ease",
+              }}
+            >
+              <span>{c.label}</span>
+              <span
+                style={{
+                  fontSize: "11px",
+                  background: active ? "rgba(255,255,255,0.25)" : "#f1f5f9",
+                  padding: "1px 6px",
+                  borderRadius: "999px",
+                  color: active ? "#fff" : "var(--muted)",
+                }}
+              >
+                {c.count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Search Filter Card */}
@@ -747,7 +801,7 @@ function ScheduleSection({
             }}
           >
             <div>
-              {/* Date & Company Tag */}
+              {/* Date, Country & Company Tag */}
               <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px", flexWrap: "wrap" }}>
                 <span
                   style={{
@@ -764,6 +818,27 @@ function ScheduleSection({
                 >
                   <CalendarDays size={13} /> {readableDate(row.scheduledAt)}
                 </span>
+                {(() => {
+                  const cInfo = getScheduleCountry(row);
+                  return (
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        fontSize: "11px",
+                        fontWeight: 800,
+                        color: "#0f766e",
+                        background: "#f0fdfa",
+                        border: "1px solid #ccfbf1",
+                        padding: "3px 8px",
+                        borderRadius: "6px",
+                      }}
+                    >
+                      {cInfo.flag} {cInfo.name}
+                    </span>
+                  );
+                })()}
                 {row.company && (
                   <span
                     style={{

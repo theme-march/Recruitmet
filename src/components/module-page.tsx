@@ -36,6 +36,11 @@ const WorksDemandsPage = dynamic(
   { loading: () => <ComponentSkeleton /> }
 );
 
+const AgentsPage = dynamic(
+  () => import("@/components/agents-page").then((mod) => mod.AgentsPage),
+  { loading: () => <ComponentSkeleton /> }
+);
+
 const PaymentCollectionPage = dynamic(
   () => import("@/components/payment-collection-page").then((mod) => mod.PaymentCollectionPage),
   { loading: () => <ComponentSkeleton /> }
@@ -43,6 +48,11 @@ const PaymentCollectionPage = dynamic(
 
 const DubaiDocumentsPage = dynamic(
   () => import("@/components/dubai-documents-page").then((mod) => mod.DubaiDocumentsPage),
+  { loading: () => <ComponentSkeleton /> }
+);
+
+const CountryManagementPage = dynamic(
+  () => import("@/components/country-management-page").then((mod) => mod.CountryManagementPage),
   { loading: () => <ComponentSkeleton /> }
 );
 
@@ -162,6 +172,11 @@ function renderModuleContent(moduleId: string, initialTab: string, officerName: 
     if (initialTab === "Works & Demands") return <WorksDemandsPage />;
   }
 
+  // Agents & Channel Partners module routes
+  if (moduleId === "agents" || moduleId === "agent") {
+    return <AgentsPage />;
+  }
+
   // Payment Collection module routes
   if (moduleId === "payment-collection" || (moduleId === "accounts" && initialTab === "Payment Collect")) {
     return <PaymentCollectionPage />;
@@ -170,6 +185,11 @@ function renderModuleContent(moduleId: string, initialTab: string, officerName: 
   // Document module routes
   if (moduleId === "document" || moduleId === "documents") {
     return <DubaiDocumentsPage />;
+  }
+
+  // Country Setup / Destination Countries module route
+  if (moduleId === "country-setup") {
+    return <CountryManagementPage />;
   }
 
   // Tutorials module routes
@@ -249,8 +269,9 @@ function renderModuleContent(moduleId: string, initialTab: string, officerName: 
     }
   }
 
-  // Generic fallback
-  return <ModuleView moduleId={moduleId} initialTab={initialTab} people={[]} total={0} />;
+  // Dynamic Country modules (e.g. Oman, Romania, Qatar, Kuwait, Malaysia, etc.)
+  const dynamicCountryName = moduleId.split("-").map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join(" ");
+  return <CountryCandidatesListPage country={dynamicCountryName} />;
 }
 
 

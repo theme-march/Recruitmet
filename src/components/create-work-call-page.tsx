@@ -1,11 +1,12 @@
 "use client";
 
-import { List, Plus, Send, Sparkles } from "lucide-react";
+import { Check, List, Plus, Send, Sparkles, UserPlus, Users, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { moduleItemPath } from "@/lib/modules";
+import { getCountryFlagEmoji } from "@/components/country-management-page";
 
 type Schedule = {
   id: string;
@@ -16,6 +17,15 @@ type Schedule = {
   venue?: string | null;
 };
 
+type AgentOption = {
+  id: string;
+  code: string;
+  name: string;
+  phone: string;
+  district: string;
+  commissionRate?: string;
+};
+
 export function CreateWorkCallPage({ officerName }: { officerName: string }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -23,6 +33,10 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [companies, setCompanies] = useState<Array<{ id: string; name: string }>>([]);
   const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
+  const [agents, setAgents] = useState<AgentOption[]>([]);
+  const [selectedAgent, setSelectedAgent] = useState("");
+  const [showAgentModal, setShowAgentModal] = useState(false);
+  const [creatingAgent, setCreatingAgent] = useState(false);
 
   // Controlled Interview Option Auto-fill States
   const [selectedScheduleId, setSelectedScheduleId] = useState("");
@@ -33,6 +47,8 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
   const [interviewStatus, setInterviewStatus] = useState("Waiting For Interview");
   const [fileStatus, setFileStatus] = useState("Interested");
 
+  const [selectedCountry, setSelectedCountry] = useState("Saudi Arabia");
+  const [customCountry, setCustomCountry] = useState("");
   const [phones, setPhones] = useState([""]);
   const [dob, setDob] = useState("");
   const [workerComments, setWorkerComments] = useState([""]);
@@ -95,9 +111,19 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
     }
   };
 
+  const [dbCountries, setDbCountries] = useState<Array<{ id: string; name: string; code: string; active: boolean }>>([]);
+
   useEffect(() => {
     const urlScheduleId = new URLSearchParams(window.location.search).get("scheduleId") ?? "";
     if (urlScheduleId) setSelectedScheduleId(urlScheduleId);
+
+    void fetch("/api/countries")
+      .then((res) => (res.ok ? res.json() : { data: [] }))
+      .then((body) => {
+        if (body?.data?.length) {
+          setDbCountries(body.data.filter((c: any) => c.active));
+        }
+      });
 
     void fetch("/api/admin/master-data")
       .then((res) => (res.ok ? res.json() : null))
@@ -108,6 +134,14 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
           if (body.data.interviewSchedules?.length) {
             setSchedules(body.data.interviewSchedules);
           }
+        }
+      });
+
+    void fetch("/api/agents?pageSize=100")
+      .then((res) => (res.ok ? res.json() : { data: [] }))
+      .then((body) => {
+        if (body?.data?.length) {
+          setAgents(body.data);
         }
       });
 
@@ -127,12 +161,55 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
       });
   }, []);
 
+  const handleQuickCreateAgent = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setCreatingAgent(true);
+    const form = new FormData(e.currentTarget);
+    try {
+      const payload = {
+        name: String(form.get("agentName") || "").trim(),
+        contactPerson: String(form.get("contactPerson") || "").trim() || undefined,
+        phone: String(form.get("phone") || "").trim(),
+        country: String(form.get("district") || "").trim() || "Dhaka",
+        commissionRate: String(form.get("commissionRate") || "").trim() || "৳ 25,000 / candidate",
+        status: "Active",
+      };
+
+      const res = await fetch("/api/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error?.message || "Failed to create agent");
+
+      const created = json.data;
+      const newOption: AgentOption = {
+        id: created.id,
+        code: created.code,
+        name: created.name,
+        phone: created.phone,
+        district: created.country || "Dhaka",
+      };
+      setAgents((prev) => [newOption, ...prev]);
+      setSelectedAgent(created.name);
+      setShowAgentModal(false);
+      toast.success(`Agent "${created.name}" created & assigned!`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create agent");
+    } finally {
+      setCreatingAgent(false);
+    }
+  };
+
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
     const form = new FormData(event.currentTarget);
     const payload = Object.fromEntries(form.entries()) as Record<string, unknown>;
+    payload.country = selectedCountry;
     payload.interviewOption = interviewOption;
+    payload.agent = selectedAgent || String(form.get("agent") || "") || String(form.get("callSource") || "Direct");
     payload.additionalPhones = phones.filter(Boolean);
     payload.workerComments = workerComments;
     payload.executiveComments = executiveComments;
@@ -199,14 +276,14 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
       <div className="page-head compact" style={{ marginBottom: "18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <div className="breadcrumb" style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-            Call Center / Create Work Call
+            Candidates / Create Work Call
           </div>
           <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--ink)", margin: "4px 0" }}>Create Work Call</h1>
           <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0 }}>Register and assign a recruitment lead with candidate preferences and interview drive.</p>
         </div>
         <Link
           prefetch={true}
-          href={moduleItemPath("call-center", "Work Call List")}
+          href={moduleItemPath("call-center", "Registration & interviews")}
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -221,7 +298,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
             textDecoration: "none",
           }}
         >
-          <List size={16} /> Work Call List
+          <List size={16} /> Registration &amp; Interviews
         </Link>
       </div>
 
@@ -238,13 +315,14 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
               </span>
             )}
           </div>
-
           <div className="interview-choice" style={{ display: "flex", gap: "20px", marginBottom: "18px" }}>
             <label style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 700, fontSize: "13px", cursor: "pointer", color: "var(--ink)" }}>
               <input
                 type="radio"
                 checked={interviewOption === "With Interview"}
-                onChange={() => setInterviewOption("With Interview")}
+                onChange={() => {
+                  setInterviewOption("With Interview");
+                }}
                 style={{ width: "18px", height: "18px", accentColor: "#7258e8", cursor: "pointer" }}
               />
               With Interview Drive
@@ -253,119 +331,274 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
               <input
                 type="radio"
                 checked={interviewOption === "Without Interview"}
-                onChange={() => setInterviewOption("Without Interview")}
+                onChange={() => {
+                  setInterviewOption("Without Interview");
+                  setSelectedScheduleId("");
+                  setInterviewDate("");
+                  setInterviewStatus("Selected");
+                }}
                 style={{ width: "18px", height: "18px", accentColor: "#7258e8", cursor: "pointer" }}
               />
               Without Interview (Direct Candidate)
             </label>
           </div>
 
-          <div className="work-form-grid">
-            <label>
-              Interview Schedule
-              <select
-                name="interviewScheduleId"
-                value={selectedScheduleId}
-                onChange={(e) => handleScheduleChange(e.target.value)}
-              >
-                <option value="">Select Interview Schedule</option>
-                {schedules.map((schedule) => (
-                  <option key={schedule.id} value={schedule.id}>
-                    {schedule.title} · {new Date(schedule.scheduledAt).toLocaleString()}
-                  </option>
-                ))}
-              </select>
-            </label>
+          {interviewOption === "With Interview" ? (
+            <div className="work-form-grid">
+              <label>
+                Interview Schedule
+                <select
+                  name="interviewScheduleId"
+                  value={selectedScheduleId}
+                  onChange={(e) => handleScheduleChange(e.target.value)}
+                >
+                  <option value="">Select Interview Schedule</option>
+                  {schedules.map((schedule) => (
+                    <option key={schedule.id} value={schedule.id}>
+                      {schedule.title} · {new Date(schedule.scheduledAt).toLocaleString()}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-            <label>
-              Interview Date
-              <input
-                name="interviewDate"
-                type="datetime-local"
-                value={interviewDate}
-                onChange={(e) => setInterviewDate(e.target.value)}
-              />
-            </label>
+              <label>
+                Interview Date
+                <input
+                  name="interviewDate"
+                  type="datetime-local"
+                  value={interviewDate}
+                  onChange={(e) => setInterviewDate(e.target.value)}
+                />
+              </label>
 
-            <label>
-              Interested Work Category
-              <select
-                name="workCategory"
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-              >
-                <option value="">Select Interested Work Category</option>
-                {categoryOptions.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <label>
+                Interested Work Category
+                <select
+                  name="workCategory"
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                >
+                  <option value="">Select Interested Work Category</option>
+                  {categoryOptions.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-            <label>
-              Interested Work Sub Category
-              <select
-                name="workSubCategory"
-                value={selectedSubCategory}
-                onChange={(e) => setSelectedSubCategory(e.target.value)}
-              >
-                <option value="">Select Interested Work Sub Category</option>
-                {subCategoryList.map((sub) => (
-                  <option key={sub} value={sub}>
-                    {sub}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <label>
+                Interested Work Sub Category
+                <select
+                  name="workSubCategory"
+                  value={selectedSubCategory}
+                  onChange={(e) => setSelectedSubCategory(e.target.value)}
+                >
+                  <option value="">Select Interested Work Sub Category</option>
+                  {subCategoryList.map((sub) => (
+                    <option key={sub} value={sub}>
+                      {sub}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-            <label>
-              Interested Company
-              <select
-                name="company"
-                value={selectedCompany}
-                onChange={(e) => setSelectedCompany(e.target.value)}
-              >
-                <option value="">Select Interested Company</option>
-                {companyList.map((comp) => (
-                  <option key={comp} value={comp}>
-                    {comp}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <label>
+                Interested Company
+                <select
+                  name="company"
+                  value={selectedCompany}
+                  onChange={(e) => setSelectedCompany(e.target.value)}
+                >
+                  <option value="">Select Interested Company</option>
+                  {companyList.map((comp) => (
+                    <option key={comp} value={comp}>
+                      {comp}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-            <label>
-              Interview Status
-              <select
-                name="interviewStatus"
-                value={interviewStatus}
-                onChange={(e) => setInterviewStatus(e.target.value)}
-              >
-                <option value="Waiting For Interview">Waiting For Interview</option>
-                <option value="Scheduled">Scheduled</option>
-                <option value="Selected">Selected</option>
-                <option value="Rejected">Rejected</option>
-                <option value="Absent">Absent</option>
-              </select>
-            </label>
+              <label>
+                Interview Status
+                <select
+                  name="interviewStatus"
+                  value={interviewStatus}
+                  onChange={(e) => setInterviewStatus(e.target.value)}
+                >
+                  <option value="Waiting For Interview">Waiting For Interview</option>
+                  <option value="Scheduled">Scheduled</option>
+                  <option value="Selected">Selected</option>
+                  <option value="Rejected">Rejected</option>
+                  <option value="Absent">Absent</option>
+                </select>
+              </label>
 
-            <label>
-              File Status
-              <select
-                name="fileStatus"
-                value={fileStatus}
-                onChange={(e) => setFileStatus(e.target.value)}
+              <label>
+                File Status
+                <select
+                  name="fileStatus"
+                  value={fileStatus}
+                  onChange={(e) => setFileStatus(e.target.value)}
+                >
+                  <option value="New">New</option>
+                  <option value="Interested">Interested</option>
+                  <option value="Pre-Confirmed">Pre-Confirmed</option>
+                  <option value="Active">Active</option>
+                  <option value="Hold">Hold</option>
+                  <option value="Closed">Closed</option>
+                </select>
+              </label>
+            </div>
+          ) : (
+            <div className="work-form-grid">
+              <input type="hidden" name="interviewScheduleId" value="" />
+              <input type="hidden" name="interviewDate" value="" />
+              <input type="hidden" name="interviewStatus" value="Direct Candidate" />
+
+              <label>
+                Direct Work Category
+                <select
+                  name="workCategory"
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                >
+                  <option value="">Select Work Category</option>
+                  {categoryOptions.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                Profession / Sub Category / Trade
+                <select
+                  name="workSubCategory"
+                  value={selectedSubCategory}
+                  onChange={(e) => setSelectedSubCategory(e.target.value)}
+                >
+                  <option value="">Select Trade / Profession</option>
+                  {subCategoryList.map((sub) => (
+                    <option key={sub} value={sub}>
+                      {sub}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                Target Company (Optional)
+                <select
+                  name="company"
+                  value={selectedCompany}
+                  onChange={(e) => setSelectedCompany(e.target.value)}
+                >
+                  <option value="">Select Target Company</option>
+                  {companyList.map((comp) => (
+                    <option key={comp} value={comp}>
+                      {comp}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                File Processing Status
+                <select
+                  name="fileStatus"
+                  value={fileStatus}
+                  onChange={(e) => setFileStatus(e.target.value)}
+                >
+                  <option value="New">New Lead</option>
+                  <option value="Interested">Interested</option>
+                  <option value="Pre-Confirmed">Pre-Confirmed</option>
+                  <option value="Active">Active Processing</option>
+                  <option value="Hold">Hold</option>
+                  <option value="Closed">Closed</option>
+                </select>
+              </label>
+            </div>
+          )}
+
+            {/* ASSIGN / LINK AGENT SELECTOR */}
+            <div
+              style={{
+                gridColumn: "1 / -1",
+                background: "#f8fafc",
+                padding: "16px 20px",
+                borderRadius: "14px",
+                border: "1px solid var(--line)",
+                marginTop: "4px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "8px",
+                  flexWrap: "wrap",
+                  gap: "8px",
+                }}
               >
-                <option value="New">New</option>
-                <option value="Interested">Interested</option>
-                <option value="Pre-Confirmed">Pre-Confirmed</option>
-                <option value="Active">Active</option>
-                <option value="Hold">Hold</option>
-                <option value="Closed">Closed</option>
+                <span style={{ fontSize: "13px", fontWeight: 800, color: "var(--ink)", display: "flex", alignItems: "center", gap: "7px" }}>
+                  <Users size={16} color="#7258e8" /> + Link / Assign Agent Partner (Optional)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowAgentModal(true)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "5px",
+                    padding: "5px 12px",
+                    borderRadius: "8px",
+                    background: "#f0edff",
+                    color: "#7258e8",
+                    border: "1px solid #dcd5fb",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  <UserPlus size={13} /> + Create New Agent
+                </button>
+              </div>
+
+              <select
+                name="agent"
+                value={selectedAgent}
+                onChange={(e) => setSelectedAgent(e.target.value)}
+                style={{
+                  width: "100%",
+                  height: "42px",
+                  borderRadius: "8px",
+                  border: "1px solid #cbd5e1",
+                  padding: "0 12px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  outline: "none",
+                  background: "#fff",
+                }}
+              >
+                <option value="">Direct Office Candidate (No Agent)</option>
+                <optgroup label="── Registered Agency Partners & Brokers ──">
+                  {agents.map((ag) => (
+                    <option key={ag.id} value={ag.name}>
+                      [{ag.code}] {ag.name} · 📞 {ag.phone} ({ag.district})
+                    </option>
+                  ))}
+                </optgroup>
               </select>
-            </label>
-          </div>
+
+              {selectedAgent && selectedAgent !== "Direct Office Candidate (No Agent)" && (
+                <div style={{ marginTop: "8px", fontSize: "11px", color: "#059669", fontWeight: 700, display: "flex", alignItems: "center", gap: "5px" }}>
+                  <Check size={13} /> This lead and resulting files will be automatically attributed to "{selectedAgent}".
+                </div>
+              )}
+            </div>
         </section>
 
         {/* BASIC QUESTION */}
@@ -450,13 +683,36 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
           <h2 style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink)", margin: "0 0 16px", borderBottom: "1px solid var(--line)", paddingBottom: "10px" }}>
             3. Prefer Country &amp; Target Destination
           </h2>
+
           <div className="work-form-grid">
             <label style={{ gridColumn: "1 / -1" }}>
               Target Country <sup>*</sup>
-              <select name="country" required defaultValue="Saudi Arabia" style={{ fontSize: "14px", fontWeight: 700, height: "46px" }}>
-                <option value="Saudi Arabia">🇸🇦 Saudi Arabia</option>
-                <option value="Dubai">🇦🇪 Dubai</option>
-                <option value="Other Country">🌍 Other Country</option>
+              <select
+                name="countrySelect"
+                required
+                value={selectedCountry}
+                onChange={(e) => setSelectedCountry(e.target.value)}
+                style={{ fontSize: "14px", fontWeight: 700, height: "46px" }}
+              >
+                {dbCountries.length > 0 ? (
+                  dbCountries.map((dc) => (
+                    <option key={dc.id || dc.name} value={dc.name}>
+                      {getCountryFlagEmoji(dc.code, dc.name)} {dc.name} ({dc.code})
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option value="Saudi Arabia">🇸🇦 Saudi Arabia (KSA)</option>
+                    <option value="Dubai">🇦🇪 Dubai (UAE)</option>
+                    <option value="Qatar">🇶🇦 Qatar (QA)</option>
+                    <option value="Kuwait">🇰🇼 Kuwait (KW)</option>
+                    <option value="Oman">🇴🇲 Oman (OM)</option>
+                    <option value="Bahrain">🇧🇭 Bahrain (BH)</option>
+                    <option value="Malaysia">🇲🇾 Malaysia (MY)</option>
+                    <option value="Singapore">🇸🇬 Singapore (SG)</option>
+                    <option value="Romania">🇷🇴 Romania (RO)</option>
+                  </>
+                )}
               </select>
               <small style={{ color: "var(--muted)", fontSize: "11px", marginTop: "5px", display: "block" }}>
                 Target overseas destination pipeline where this candidate will be processed upon lead confirmation.
@@ -753,6 +1009,142 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
           </button>
         </div>
       </form>
+
+      {/* QUICK CREATE AGENT MODAL */}
+      {showAgentModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15, 23, 42, 0.65)",
+            backdropFilter: "blur(4px)",
+            zIndex: 9999,
+            display: "grid",
+            placeItems: "center",
+            padding: "20px",
+          }}
+          onClick={() => !creatingAgent && setShowAgentModal(false)}
+        >
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: "16px",
+              width: "min(500px, 100%)",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.25)",
+              border: "1px solid var(--line)",
+              overflow: "hidden",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                padding: "16px 20px",
+                borderBottom: "1px solid var(--line)",
+                background: "#f8fafc",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <Users size={18} color="#7258e8" />
+                <h3 style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink)", margin: 0 }}>
+                  Quick Register Agent Partner
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAgentModal(false)}
+                style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer" }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleQuickCreateAgent} style={{ padding: "20px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "var(--ink)", marginBottom: "4px" }}>
+                    Agent / Agency Name *
+                  </label>
+                  <input
+                    name="agentName"
+                    required
+                    placeholder="e.g. Al-Falah Overseas"
+                    style={{ width: "100%", height: "38px", borderRadius: "8px", border: "1px solid #cbd5e1", padding: "0 10px", fontSize: "12px", outline: "none" }}
+                  />
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "var(--ink)", marginBottom: "4px" }}>
+                      Phone Number *
+                    </label>
+                    <input
+                      name="phone"
+                      required
+                      placeholder="e.g. 01711223344"
+                      style={{ width: "100%", height: "38px", borderRadius: "8px", border: "1px solid #cbd5e1", padding: "0 10px", fontSize: "12px", outline: "none" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "var(--ink)", marginBottom: "4px" }}>
+                      District / City
+                    </label>
+                    <input
+                      name="district"
+                      defaultValue="Dhaka"
+                      placeholder="e.g. Sylhet, Cumilla"
+                      style={{ width: "100%", height: "38px", borderRadius: "8px", border: "1px solid #cbd5e1", padding: "0 10px", fontSize: "12px", outline: "none" }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "var(--ink)", marginBottom: "4px" }}>
+                    Owner / Contact Person (Optional)
+                  </label>
+                  <input
+                    name="contactPerson"
+                    placeholder="e.g. Kamal Uddin"
+                    style={{ width: "100%", height: "38px", borderRadius: "8px", border: "1px solid #cbd5e1", padding: "0 10px", fontSize: "12px", outline: "none" }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "18px" }}>
+                <button
+                  type="button"
+                  disabled={creatingAgent}
+                  onClick={() => setShowAgentModal(false)}
+                  style={{ padding: "8px 16px", borderRadius: "8px", border: "1px solid var(--line)", background: "#fff", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingAgent}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "8px 18px",
+                    borderRadius: "8px",
+                    border: "none",
+                    background: "#7258e8",
+                    color: "#fff",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    cursor: creatingAgent ? "not-allowed" : "pointer",
+                  }}
+                >
+                  <Plus size={13} /> {creatingAgent ? "Creating..." : "Create & Assign"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -29,6 +29,7 @@ import {
   Plus,
   Printer,
   Receipt,
+  Save,
   Search,
   Send,
   ShieldAlert,
@@ -38,14 +39,21 @@ import {
   UploadCloud,
   User,
   UserCheck,
+  Users,
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { toast } from "sonner";
 import { MoneyReceiptModal, type ReceiptData } from "@/components/money-receipt-modal";
 import { DocumentViewerModal, type DocumentViewerData } from "@/components/document-viewer-modal";
+import {
+  MASTER_STAGES,
+  getStageIcon,
+  getDefaultStagesForCountry,
+} from "@/lib/country-pipeline";
+import { parseStageDescription } from "@/components/country-pipeline-detail";
 
 type ProcessingFileData = {
   id: string;
@@ -240,6 +248,7 @@ type ProcessingFileData = {
     createdAt: string;
   }>;
   agent?: string;
+  agentRecord?: { id: string; name: string; code: string; phone?: string; district?: string } | null;
   biometrics?: Array<{
     id?: string;
     status?: string;
@@ -248,6 +257,23 @@ type ProcessingFileData = {
     presentDate?: string;
     evidenceKey?: string;
     completedAt?: string;
+  }>;
+  workflowEvents?: Array<{
+    id: string;
+    stage: string;
+    status: string;
+    data?: {
+      title?: string;
+      description?: string;
+      price?: number;
+      fileName?: string;
+      fileSize?: string;
+      fileData?: string;
+      authorRole?: string;
+      createdAt?: string;
+    };
+    completedBy?: string;
+    createdAt: string;
   }>;
 };
 
@@ -273,13 +299,13 @@ const dubaiStages = [
 ];
 
 const otherStages = [
-  { id: "Passport Entry", stepNo: 1, label: "Passport", subtitle: "Entry & Expiry", icon: FileText },
-  { id: "Medical", stepNo: 2, label: "Medical", subtitle: "Fitness & Bio", icon: ShieldCheck },
-  { id: "Police Clearance", stepNo: 3, label: "Police PCC", subtitle: "Clearance Cert", icon: ShieldCheck },
-  { id: "Payment", stepNo: 4, label: "Payment", subtitle: "Deposits & Fee", icon: CreditCard },
-  { id: "E-Visa Stamping", stepNo: 5, label: "Visa Stamping", subtitle: "Embassy Stamp", icon: Globe },
-  { id: "Manpower", stepNo: 6, label: "Manpower", subtitle: "BMET Clearance", icon: FileCheck },
-  { id: "Flight", stepNo: 7, label: "Flight", subtitle: "Ticket & Depart", icon: Plane },
+  { id: "Passport Entry", stepNo: 1, label: "Passport", subtitle: "Entry & Expiry", description: "", fields: [], isCustom: false, icon: FileText },
+  { id: "Medical", stepNo: 2, label: "Medical", subtitle: "Fitness & Bio", description: "", fields: [], isCustom: false, icon: ShieldCheck },
+  { id: "Police Clearance", stepNo: 3, label: "Police PCC", subtitle: "Clearance Cert", description: "", fields: [], isCustom: false, icon: ShieldCheck },
+  { id: "Payment", stepNo: 4, label: "Payment", subtitle: "Deposits & Fee", description: "", fields: [], isCustom: false, icon: CreditCard },
+  { id: "E-Visa Stamping", stepNo: 5, label: "Visa Stamping", subtitle: "Embassy Stamp", description: "", fields: [], isCustom: false, icon: Globe },
+  { id: "Manpower", stepNo: 6, label: "Manpower", subtitle: "BMET Clearance", description: "", fields: [], isCustom: false, icon: FileCheck },
+  { id: "Flight", stepNo: 7, label: "Flight", subtitle: "Ticket & Depart", description: "", fields: [], isCustom: false, icon: Plane },
 ];
 
 function FileUploadField({
@@ -367,6 +393,8 @@ export default function FileProcessingPage() {
   const params = useParams();
   const id = params?.id as string;
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const stageParam = searchParams.get("stage") || searchParams.get("step") || searchParams.get("tab");
 
   // Navigation & View Modes (Default to all-tables "dossier" so user sees EVERYTHING immediately)
   const [mainView, setMainView] = useState<"dossier" | "pipeline" | "ledger" | "timeline">("dossier");
@@ -382,25 +410,62 @@ export default function FileProcessingPage() {
   const [activeReceipt, setActiveReceipt] = useState<ReceiptData | null>(null);
   const [activeDoc, setActiveDoc] = useState<DocumentViewerData | null>(null);
   const [newNote, setNewNote] = useState("");
+  const [noteTitle, setNoteTitle] = useState("");
+  const [notePrice, setNotePrice] = useState("");
   const [noteTag, setNoteTag] = useState("General Note");
-  const [notesList, setNotesList] = useState<Array<{ id: string; text: string; author: string; role: string; createdAt: string; tag: string }>>([
-    {
-      id: "note-1",
-      text: "Candidate verified original passport and certificate copies at Dhaka Head Office. Ready for immediate deployment upon visa stamping.",
-      author: "Call Center Officer",
-      role: "Desk Officer",
-      createdAt: "Today, 02:45 PM",
-      tag: "Verification",
-    },
-    {
-      id: "note-2",
-      text: "Initial screening call completed. Medical fitness test scheduled at approved medical center. Advance deposit recorded in ledger.",
-      author: "System Administrator",
-      role: "Super Admin",
-      createdAt: "Yesterday, 11:30 AM",
-      tag: "Follow-up",
-    },
-  ]);
+  const [submittingNote, setSubmittingNote] = useState(false);
+  const [notesList, setNotesList] = useState<Array<{ id: string; title?: string; text: string; author: string; role: string; createdAt: string; tag: string; price?: number; isDb?: boolean }>>([]);
+
+  const handleCreateFileNote = async () => {
+    if (!newNote.trim() && !noteTitle.trim()) {
+      toast.error("Please enter a note title or description.");
+      return;
+    }
+    setSubmittingNote(true);
+    try {
+      const res = await fetch(`/api/files/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create-note",
+          title: noteTitle.trim() || noteTag || "General Remark",
+          description: newNote.trim(),
+          price: notePrice ? Number(notePrice) : undefined,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error?.message || "Failed to save note");
+      toast.success("Note saved successfully!");
+      setNewNote("");
+      setNoteTitle("");
+      setNotePrice("");
+      await query.refetch();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save note");
+    } finally {
+      setSubmittingNote(false);
+    }
+  };
+
+  const handleDeleteFileNote = async (noteId: string) => {
+    if (!confirm("Are you sure you want to delete this note?")) return;
+    try {
+      const res = await fetch(`/api/files/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "delete-note",
+          noteId,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error?.message || "Failed to delete note");
+      toast.success("Note removed successfully.");
+      await query.refetch();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete note");
+    }
+  };
 
   // Physical file attachments map (Category -> { url, fileName, size })
   const [attachedFiles, setAttachedFiles] = useState<Record<string, { url: string; fileName: string; size: string }>>({});
@@ -416,21 +481,89 @@ export default function FileProcessingPage() {
     enabled: Boolean(id),
   });
 
+  const countriesQuery = useQuery({
+    queryKey: ["countries-list-stages"],
+    queryFn: async () => {
+      const res = await fetch("/api/countries");
+      if (!res.ok) return [];
+      const json = await res.json();
+      return (json.data || []) as Array<{
+        name: string;
+        code: string;
+        workflowType: string;
+        workflow?: Array<{ code: string; name: string; sortOrder: number; active: boolean }>;
+      }>;
+    },
+  });
+
   const file = query.data;
+  const stages = useMemo(() => {
+    if (!file) return otherStages;
+
+    const matchedCountry = (countriesQuery.data || []).find(
+      (c) =>
+        c.name.toLowerCase() === (file.country || "").toLowerCase() ||
+        c.code.toLowerCase() === (file.country || "").toLowerCase()
+    );
+
+    if (matchedCountry?.workflow && matchedCountry.workflow.length > 0) {
+      const activeDbStages = matchedCountry.workflow.filter((w) => w.active);
+      if (activeDbStages.length > 0) {
+        return activeDbStages.map((w: any, idx: number) => {
+          const masterDef = MASTER_STAGES.find((m) => m.code === w.code);
+          const iconName = w.icon || masterDef?.iconName || "FileText";
+          const parsed = parseStageDescription(w.description || masterDef?.description);
+          return {
+            id: w.name || masterDef?.id || "Stage",
+            stepNo: idx + 1,
+            label: w.name || masterDef?.label || "Stage",
+            subtitle: w.subtitle || masterDef?.subtitle || "Milestone",
+            description: parsed.text,
+            fields: parsed.fields,
+            icon: getStageIcon(iconName),
+            code: w.code,
+            isCustom: Boolean(w.isCustom || !masterDef),
+          };
+        });
+      }
+    }
+
+    // Default fallback to country template
+    const defStages = getDefaultStagesForCountry(file.country || "", matchedCountry?.workflowType);
+    return defStages.map((s, idx) => ({
+      id: s.id,
+      stepNo: idx + 1,
+      label: s.label,
+      subtitle: s.subtitle,
+      description: s.description || "",
+      fields: [] as any[],
+      icon: s.icon,
+      code: s.code,
+      isCustom: false,
+    }));
+  }, [file, countriesQuery.data]);
+
   const isSaudi = /saudi|ksa/i.test(file?.country || "");
   const isDubai = /dubai|uae|emirates/i.test(file?.country || "");
   const isOtherCountry = !isSaudi && !isDubai;
-  const stages = isDubai ? dubaiStages : isOtherCountry ? otherStages : saudiStages;
 
   useEffect(() => {
-    if (file?.currentStage) {
+    if (stageParam) {
+      if (stageParam.toLowerCase() === "payment") {
+        setMainView("pipeline");
+        setActiveTab("Payment");
+      } else {
+        setMainView("pipeline");
+        setActiveTab(stageParam);
+      }
+    } else if (file?.currentStage) {
       if (file.currentStage === "First Payment" || file.currentStage === "Second Payment") {
         setActiveTab("Payment");
       } else {
         setActiveTab(file.currentStage);
       }
     }
-  }, [file?.currentStage]);
+  }, [stageParam, file?.currentStage]);
 
   // Data-Driven Stage Completion Checker
   const isStageCompleted = (stageId: string): boolean => {
@@ -593,9 +726,10 @@ export default function FileProcessingPage() {
     );
   }
 
-  const totalPaid = file.payments?.reduce((sum, p) => sum + (p.status === "PAID" ? Number(p.amount) : 0), 0) || 0;
-  const totalPackageCost = 350000;
+  const totalPaid = file.payments?.reduce((sum, p) => sum + (!p.status || !["CANCELLED", "VOID", "REFUNDED", "REVERSED", "FAILED"].includes(String(p.status).toUpperCase()) ? Number(p.amount) : 0), 0) || 0;
+  const totalPackageCost = /dubai/i.test(file.country) ? 300000 : 350000;
   const balanceRemaining = Math.max(0, totalPackageCost - totalPaid);
+  const advanceAmount = Math.max(0, totalPaid - totalPackageCost);
 
   const initials = file.candidate.fullName
     .split(" ")
@@ -628,6 +762,20 @@ export default function FileProcessingPage() {
                   <span className={`badge-country ${file.status === "ACTIVE" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
                     ● {file.status}
                   </span>
+                  {file.agent && file.agent !== "Direct" && file.agent !== "Direct Office" ? (
+                    <Link
+                      href={file.agentRecord?.id ? `/agents/${file.agentRecord.id}` : `/module/agents/agent-list?q=${encodeURIComponent(file.agent)}`}
+                      className="badge-country"
+                      style={{ background: "#f0edff", color: "#7258e8", borderColor: "#dcd5fb", textDecoration: "none", fontWeight: 800 }}
+                      title="Click to view Agent Partner Profile"
+                    >
+                      🤝 Agent: {file.agentRecord?.name || file.agent} ➔
+                    </Link>
+                  ) : (
+                    <span className="badge-country bg-slate-50 text-slate-700 border-slate-200">
+                      🏢 Direct Office
+                    </span>
+                  )}
                   <span className="badge-country bg-indigo-50 text-indigo-700 border-indigo-200">
                     ⚡ {progressPercent}% Completed ({completedCount}/{stages.length} Stages)
                   </span>
@@ -637,6 +785,27 @@ export default function FileProcessingPage() {
             
             {/* Quick Actions */}
             <div className="hero-actions">
+              {file.agent && file.agent !== "Direct" && file.agent !== "Direct Office" && (
+                <Link
+                  href={file.agentRecord?.id ? `/agents/${file.agentRecord.id}` : `/module/agents/agent-list?q=${encodeURIComponent(file.agent)}`}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    background: "#f0edff",
+                    color: "#7258e8",
+                    border: "1px solid #dcd5fb",
+                    padding: "8px 14px",
+                    borderRadius: "9px",
+                    fontSize: "12px",
+                    fontWeight: 800,
+                    textDecoration: "none",
+                  }}
+                  title="Open Agent Profile & Candidate Notes"
+                >
+                  <Users size={14} className="text-purple-600" /> 🤝 Agent Profile ➔
+                </Link>
+              )}
               <a
                 href={`tel:${phoneClean}`}
                 className="btn-modal-cancel"
@@ -721,6 +890,22 @@ export default function FileProcessingPage() {
               <b>{file.company || (isDubai ? "Dubai Employer LLC" : "Saudi Binladen Group")}</b>
             </div>
             <div className="hero-subitem">
+              <span>Agent / Partner</span>
+              <b>
+                {file.agent && file.agent !== "Direct" && file.agent !== "Direct Office" ? (
+                  <Link
+                    href={file.agentRecord?.id ? `/agents/${file.agentRecord.id}` : `/module/agents/agent-list?q=${encodeURIComponent(file.agent)}`}
+                    style={{ color: "#7258e8", textDecoration: "none", fontWeight: 800, display: "inline-flex", alignItems: "center", gap: "4px" }}
+                    title="Click to open Agent Profile"
+                  >
+                    🤝 {file.agentRecord?.name || file.agent} ➔
+                  </Link>
+                ) : (
+                  "🏢 Direct Office"
+                )}
+              </b>
+            </div>
+            <div className="hero-subitem">
               <span>Assigned Officer</span>
               <b>{file.assignedTo?.name || "Senior Desk Officer"}</b>
             </div>
@@ -745,7 +930,7 @@ export default function FileProcessingPage() {
             className={`view-tab-btn ${mainView === "pipeline" ? "active" : ""}`}
             onClick={() => setMainView("pipeline")}
           >
-            <Layers size={16} /> ⚡ 9-Stage Processing Pipeline (Interactive Workflow)
+            <Layers size={16} /> ⚡ {stages.length}-Stage Processing Pipeline (Interactive Workflow)
           </button>
           <button
             type="button"
@@ -1281,58 +1466,6 @@ export default function FileProcessingPage() {
                         </button>
                       </div>
                     </form>
-
-                    {/* Real-time Payment Statement List */}
-                    {file.payments && file.payments.length > 0 && (
-                      <div className="mt-5 pt-4 border-t border-slate-200">
-                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">
-                          💳 Recorded Candidate Payments ({file.payments.length})
-                        </h4>
-                        <div className="space-y-2">
-                          {file.payments.map((p, idx) => (
-                            <div key={p.id || idx} className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between flex-wrap gap-2 text-xs">
-                              <div>
-                                <b className="text-slate-800 text-sm font-bold">{p.type || `Payment #${idx + 1}`}</b>
-                                <div className="text-slate-500 mt-0.5">
-                                  Ref: {p.reference || p.referenceNo || "N/A"} · Method: {p.method || "Cash"} · Date: {new Date(p.createdAt || Date.now()).toLocaleDateString("en-GB")}
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <span className="text-sm font-extrabold text-emerald-700">
-                                  ৳ {Number(p.amount).toLocaleString()} BDT
-                                </span>
-                                <button
-                                  type="button"
-                                  className="payment-receipt-btn text-xs"
-                                  onClick={() =>
-                                    setActiveReceipt({
-                                      receiptNo: p.reference || `REC-${idx + 1}`,
-                                      date: new Date(p.createdAt || Date.now()).toLocaleDateString("en-GB"),
-                                      candidateName: file.candidate.fullName,
-                                      candidateNo: file.candidate.candidateNo,
-                                      fileNo: file.fileNo,
-                                      passportNo: file.candidate.passportNo || file.passport?.passportNumber,
-                                      phone: file.candidate.phone,
-                                      country: file.country,
-                                      profession: file.profession,
-                                      paymentType: p.type || "Candidate Deposit",
-                                      paymentMethod: p.method || "Office Cash",
-                                      referenceNo: p.reference || `REC-${idx + 1}`,
-                                      amount: Number(p.amount),
-                                      totalPaid: totalPaid,
-                                      totalPackage: totalPackageCost,
-                                      officerName: file.assignedTo?.name || "Accounts Department",
-                                    })
-                                  }
-                                >
-                                  <Printer size={12} /> Print Receipt
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
 
@@ -1998,6 +2131,125 @@ export default function FileProcessingPage() {
                     </form>
                   </div>
                 )}
+
+                {/* 11. DYNAMIC CUSTOM STAGE PROCESSING PANEL */}
+                {(() => {
+                  const currentCustomStage = stages.find(
+                    (s: any) => s.id === activeTab && s.isCustom
+                  );
+                  if (!currentCustomStage) return null;
+                  const IconC = currentCustomStage.icon || FileText;
+                  const fields = (currentCustomStage as any).fields || [];
+
+                  return (
+                    <div className="tab-pane active">
+                      <div className="section-title">
+                        <IconC size={20} className="text-purple-600" />
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <h2>{currentCustomStage.label}</h2>
+                            <span style={{ fontSize: "11px", fontWeight: 800, background: "#f0edff", color: "#7258e8", padding: "2px 8px", borderRadius: "6px" }}>
+                              Custom Stage
+                            </span>
+                          </div>
+                          <p>{currentCustomStage.description || "Custom processing milestone and requirements."}</p>
+                        </div>
+                      </div>
+
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          toast.success(`${currentCustomStage.label} processing record updated!`);
+                        }}
+                        className="form-grid"
+                      >
+                        {fields.length === 0 ? (
+                          <div style={{ gridColumn: "1 / -1", padding: "24px", background: "#f8fafc", borderRadius: "12px", border: "1px solid var(--line)" }}>
+                            <label style={{ fontSize: "12px", fontWeight: 700, color: "var(--ink)", display: "block", marginBottom: "6px" }}>
+                              Status / Milestone Remarks
+                            </label>
+                            <textarea
+                              rows={3}
+                              placeholder="Enter stage processing notes, reference numbers, or verification status..."
+                              style={{ width: "100%", padding: "10px 14px", borderRadius: "8px", border: "1px solid var(--line)", background: "#ffffff" }}
+                            />
+                          </div>
+                        ) : (
+                          fields.map((fld: any) => (
+                            <div key={fld.id} style={{ gridColumn: fld.type === "textarea" ? "1 / -1" : "auto" }}>
+                              <label style={{ fontSize: "12px", fontWeight: 700, color: "var(--ink)", display: "block", marginBottom: "6px" }}>
+                                {fld.label} {fld.required && <span style={{ color: "#e11d48" }}>*</span>}
+                              </label>
+
+                              {fld.type === "text" && (
+                                <input
+                                  type="text"
+                                  placeholder={fld.placeholder || `Enter ${fld.label}...`}
+                                  required={fld.required}
+                                  style={{ width: "100%", height: "40px", padding: "0 12px", borderRadius: "8px", border: "1px solid var(--line)", background: "#ffffff" }}
+                                />
+                              )}
+
+                              {fld.type === "number" && (
+                                <input
+                                  type="number"
+                                  placeholder={fld.placeholder || `Enter amount or number...`}
+                                  required={fld.required}
+                                  style={{ width: "100%", height: "40px", padding: "0 12px", borderRadius: "8px", border: "1px solid var(--line)", background: "#ffffff" }}
+                                />
+                              )}
+
+                              {fld.type === "textarea" && (
+                                <textarea
+                                  rows={3}
+                                  placeholder={fld.placeholder || `Enter details...`}
+                                  required={fld.required}
+                                  style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid var(--line)", background: "#ffffff" }}
+                                />
+                              )}
+
+                              {fld.type === "date" && (
+                                <input
+                                  type="date"
+                                  required={fld.required}
+                                  style={{ width: "100%", height: "40px", padding: "0 12px", borderRadius: "8px", border: "1px solid var(--line)", background: "#ffffff" }}
+                                />
+                              )}
+
+                              {fld.type === "file" && (
+                                <input
+                                  type="file"
+                                  required={fld.required}
+                                  style={{ width: "100%", padding: "8px", borderRadius: "8px", border: "1px solid var(--line)", background: "#ffffff" }}
+                                />
+                              )}
+
+                              {fld.type === "select" && (
+                                <select
+                                  required={fld.required}
+                                  style={{ width: "100%", height: "40px", padding: "0 12px", borderRadius: "8px", border: "1px solid var(--line)", background: "#ffffff" }}
+                                >
+                                  <option value="">Select an option...</option>
+                                  {(fld.options || "").split(",").map((opt: string) => (
+                                    <option key={opt.trim()} value={opt.trim()}>
+                                      {opt.trim()}
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
+                            </div>
+                          ))
+                        )}
+
+                        <div className="form-actions" style={{ gridColumn: "1 / -1", marginTop: "12px" }}>
+                          <button type="submit" className="primary-action-btn" style={{ background: "#7258e8", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                            <Save size={15} /> Save {currentCustomStage.label} Details
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Right Column: Financial & Progress Widgets */}
@@ -2008,9 +2260,25 @@ export default function FileProcessingPage() {
                     <CreditCard size={17} className="text-indigo-600" /> Financial Ledger
                   </h3>
                   <div className="ledger-total-box">
-                    <div>
-                      <span>Total Amount Paid</span>
-                      <strong>৳ {totalPaid.toLocaleString()} BDT</strong>
+                    <div style={{ flex: 1 }}>
+                      <span style={{ fontSize: "11px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700 }}>Total Amount Paid</span>
+                      <strong style={{ display: "block", fontSize: "18px", color: "#059669" }}>৳ {totalPaid.toLocaleString()} BDT</strong>
+                      <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "3px" }}>
+                        Contract Package: <b>৳ {totalPackageCost.toLocaleString()} BDT</b>
+                      </div>
+                      {advanceAmount > 0 ? (
+                        <div style={{ fontSize: "11px", color: "#7c3aed", fontWeight: 800, marginTop: "2px" }}>
+                          🟣 Advance Extra: + ৳ {advanceAmount.toLocaleString()} BDT
+                        </div>
+                      ) : balanceRemaining > 0 ? (
+                        <div style={{ fontSize: "11px", color: "#e11d48", fontWeight: 800, marginTop: "2px" }}>
+                          🔴 Remaining Due: ৳ {balanceRemaining.toLocaleString()} BDT
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: "11px", color: "#059669", fontWeight: 800, marginTop: "2px" }}>
+                          🟢 100% Fully Settled (Zero Due)
+                        </div>
+                      )}
                     </div>
                     <DollarSign size={28} className="text-emerald-600 opacity-80" />
                   </div>
@@ -2197,7 +2465,17 @@ export default function FileProcessingPage() {
                   <div className="dossier-field"><span className="dossier-field-label">Gender &amp; Marital Status</span><b className="dossier-field-value">{file.candidate.gender || "Male"} · {file.candidate.maritalStatus || "Married"}</b></div>
                   <div className="dossier-field"><span className="dossier-field-label">Profession Category</span><b className="dossier-field-value highlight-purple">{file.profession || file.candidate.profession || "General Worker"}</b></div>
                   <div className="dossier-field"><span className="dossier-field-label">Target Country</span><b className="dossier-field-value">{file.country}</b></div>
-                  <div className="dossier-field"><span className="dossier-field-label">Agent / Source</span><b className="dossier-field-value">{file.candidate.source || file.agent || "Direct Office Registration"}</b></div>
+                  <div className="dossier-field"><span className="dossier-field-label">Agent / Referral Partner</span><b className="dossier-field-value">{file.agent && file.agent !== "Direct" && file.agent !== "Direct Office" ? (
+                    <Link
+                      href={file.agentRecord?.id ? `/agents/${file.agentRecord.id}` : `/module/agents/agent-list?q=${encodeURIComponent(file.agent)}`}
+                      style={{ color: "#7258e8", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px", fontWeight: 800 }}
+                      title="Open Agent Profile"
+                    >
+                      🤝 {file.agentRecord?.name || file.agent} {file.agentRecord?.code ? `(${file.agentRecord.code})` : ""} ➔
+                    </Link>
+                  ) : (
+                    file.candidate.source || file.agent || "🏢 Direct Office Registration"
+                  )}</b></div>
                   <div className="dossier-field"><span className="dossier-field-label">Branch Office</span><b className="dossier-field-value">{typeof file.candidate.office === "object" ? file.candidate.office?.name : (file.office?.name || "Dhaka Head Office")}</b></div>
                 </div>
               </div>
@@ -2359,8 +2637,12 @@ export default function FileProcessingPage() {
                     <h3 className="dossier-table-title">💵 Candidate Payment Deposits, Invoices &amp; Receipts Management</h3>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span className={totalPaid > 0 ? "dossier-badge-done" : "dossier-badge-pending"}>
-                      {totalPaid > 0 ? `✓ ৳ ${totalPaid.toLocaleString()} BDT Paid (${Math.round((totalPaid / totalPackageCost) * 100)}%)` : "● Payment Pending"}
+                    <span className={advanceAmount > 0 ? "dossier-badge-done" : totalPaid > 0 ? "dossier-badge-done" : "dossier-badge-pending"}>
+                      {advanceAmount > 0
+                        ? `✓ ৳ ${totalPaid.toLocaleString()} BDT Paid (100% Settled + ৳ ${advanceAmount.toLocaleString()} Advance)`
+                        : totalPaid > 0
+                        ? `✓ ৳ ${totalPaid.toLocaleString()} BDT Paid (${Math.round((totalPaid / totalPackageCost) * 100)}% - Due: ৳ ${balanceRemaining.toLocaleString()} BDT)`
+                        : "● Payment Pending"}
                     </span>
                     <button
                       type="button"
@@ -2391,10 +2673,26 @@ export default function FileProcessingPage() {
                   </div>
                 </div>
                 <div className="dossier-grid-4">
-                  <div className="dossier-field"><span className="dossier-field-label">Total Contract Package</span><b className="dossier-field-value">৳ {totalPackageCost.toLocaleString()} BDT</b></div>
-                  <div className="dossier-field"><span className="dossier-field-label">Total Amount Deposited</span><b className="dossier-field-value highlight-green">৳ {totalPaid.toLocaleString()} BDT</b></div>
-                  <div className="dossier-field"><span className="dossier-field-label">Remaining Balance Due</span><b className={`dossier-field-value ${balanceRemaining > 0 ? "highlight-red" : "highlight-green"}`}>৳ {balanceRemaining.toLocaleString()} BDT</b></div>
-                  <div className="dossier-field"><span className="dossier-field-label">Package Settlement</span><b className="dossier-field-value highlight-purple">{Math.round((totalPaid / totalPackageCost) * 100)}% Cleared</b></div>
+                  <div className="dossier-field">
+                    <span className="dossier-field-label">Total Contract Package</span>
+                    <b className="dossier-field-value">৳ {totalPackageCost.toLocaleString()} BDT</b>
+                  </div>
+                  <div className="dossier-field">
+                    <span className="dossier-field-label">Total Amount Deposited</span>
+                    <b className="dossier-field-value highlight-green">৳ {totalPaid.toLocaleString()} BDT</b>
+                  </div>
+                  <div className="dossier-field">
+                    <span className="dossier-field-label">{advanceAmount > 0 ? "Advance / Extra Surplus" : "Remaining Balance Due"}</span>
+                    <b className={`dossier-field-value ${advanceAmount > 0 ? "highlight-purple" : balanceRemaining > 0 ? "highlight-red" : "highlight-green"}`}>
+                      {advanceAmount > 0 ? `+ ৳ ${advanceAmount.toLocaleString()} BDT (Advance)` : `৳ ${balanceRemaining.toLocaleString()} BDT`}
+                    </b>
+                  </div>
+                  <div className="dossier-field">
+                    <span className="dossier-field-label">Package Settlement</span>
+                    <b className={`dossier-field-value ${advanceAmount > 0 ? "highlight-purple" : balanceRemaining === 0 ? "highlight-green" : "highlight-purple"}`}>
+                      {Math.round((totalPaid / totalPackageCost) * 100)}% Cleared {advanceAmount > 0 ? "(Advance Surplus)" : balanceRemaining === 0 ? "(Fully Paid)" : `(Due: ৳ ${balanceRemaining.toLocaleString()})`}
+                    </b>
+                  </div>
                 </div>
 
                 {/* All Recorded Transactions Breakdown */}
@@ -2971,20 +3269,28 @@ export default function FileProcessingPage() {
               <div className="fin-kpi-card">
                 <span>Total Contract Package</span>
                 <b>৳ {totalPackageCost.toLocaleString()} BDT</b>
-                <small className="text-slate-500">Saudi Arabia Overseas Employment</small>
+                <small className="text-slate-500">{file.country || "Overseas"} Employment</small>
               </div>
               <div className="fin-kpi-card highlight-green">
                 <span>Total Deposited / Paid</span>
                 <b className="text-emerald-600">৳ {totalPaid.toLocaleString()} BDT</b>
                 <small className="text-emerald-700">✓ {Math.round((totalPaid / totalPackageCost) * 100)}% Cleared</small>
               </div>
-              <div className="fin-kpi-card highlight-amber">
-                <span>Remaining Balance Due</span>
-                <b className={balanceRemaining > 0 ? "text-rose-600" : "text-emerald-600"}>
-                  ৳ {balanceRemaining.toLocaleString()} BDT
-                </b>
-                <small className="text-slate-500">{balanceRemaining === 0 ? "Fully Paid" : "Pending Final Settlement"}</small>
-              </div>
+              {advanceAmount > 0 ? (
+                <div className="fin-kpi-card highlight-purple">
+                  <span>Advance / Extra Deposited</span>
+                  <b className="text-purple-700">+ ৳ {advanceAmount.toLocaleString()} BDT</b>
+                  <small className="text-purple-600">✓ Advance Surplus (100% Settled)</small>
+                </div>
+              ) : (
+                <div className="fin-kpi-card highlight-amber">
+                  <span>Remaining Balance Due</span>
+                  <b className={balanceRemaining > 0 ? "text-rose-600" : "text-emerald-600"}>
+                    ৳ {balanceRemaining.toLocaleString()} BDT
+                  </b>
+                  <small className="text-slate-500">{balanceRemaining === 0 ? "Fully Paid (Zero Due)" : "Pending Final Settlement"}</small>
+                </div>
+              )}
             </div>
 
             {/* Master Payment Statement */}
@@ -3183,172 +3489,238 @@ export default function FileProcessingPage() {
                   })}
                 </div>
 
-                {/* Textarea Input */}
-                <div style={{ display: "flex", gap: "10px", alignItems: "flex-start", flexWrap: "wrap" }}>
-                  <textarea
-                    rows={2}
-                    placeholder="Type internal remarks, candidate feedback, or milestone updates..."
-                    value={newNote}
-                    onChange={(e) => setNewNote(e.target.value)}
-                    style={{
-                      flex: 1,
-                      minWidth: "260px",
-                      background: "#fff",
-                      border: "1px solid #cbd5e1",
-                      borderRadius: "10px",
-                      padding: "10px 14px",
-                      fontSize: "13px",
-                      color: "var(--ink)",
-                      outline: "none",
-                      resize: "vertical",
-                      fontFamily: "inherit",
-                      lineHeight: "1.45",
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!newNote.trim()) {
-                        toast.error("Please type a note before adding.");
-                        return;
-                      }
-                      const noteItem = {
-                        id: `note-${Date.now()}`,
-                        text: newNote.trim(),
-                        author: file.assignedTo?.name || "Officer Desk",
-                        role: "Officer Desk",
-                        createdAt: "Just now",
-                        tag: noteTag,
-                      };
-                      setNotesList([noteItem, ...notesList]);
-                      setNewNote("");
-                      toast.success("Officer note added successfully!");
-                    }}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      padding: "10px 20px",
-                      background: "#7258e8",
-                      color: "#fff",
-                      fontSize: "13px",
-                      fontWeight: 700,
-                      borderRadius: "10px",
-                      border: "none",
-                      cursor: "pointer",
-                      boxShadow: "0 2px 8px rgba(114,88,232,0.3)",
-                      height: "44px",
-                    }}
-                  >
-                    <Send size={14} /> Add Note
-                  </button>
+                {/* Input Fields: Title, Price & Description */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: "10px" }}>
+                    <input
+                      type="text"
+                      placeholder="Title / Subject (e.g. Visa Fee Agreement)..."
+                      value={noteTitle}
+                      onChange={(e) => setNoteTitle(e.target.value)}
+                      style={{
+                        background: "#fff",
+                        border: "1px solid #cbd5e1",
+                        borderRadius: "8px",
+                        padding: "8px 12px",
+                        fontSize: "12.5px",
+                        outline: "none",
+                      }}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Price Remark ৳ (Opt)"
+                      value={notePrice}
+                      onChange={(e) => setNotePrice(e.target.value)}
+                      style={{
+                        background: "#fff",
+                        border: "1px solid #cbd5e1",
+                        borderRadius: "8px",
+                        padding: "8px 12px",
+                        fontSize: "12.5px",
+                        outline: "none",
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ display: "flex", gap: "10px", alignItems: "flex-start", flexWrap: "wrap" }}>
+                    <textarea
+                      rows={2}
+                      placeholder="Type internal remarks, candidate feedback, or milestone updates..."
+                      value={newNote}
+                      onChange={(e) => setNewNote(e.target.value)}
+                      style={{
+                        flex: 1,
+                        minWidth: "260px",
+                        background: "#fff",
+                        border: "1px solid #cbd5e1",
+                        borderRadius: "10px",
+                        padding: "10px 14px",
+                        fontSize: "13px",
+                        color: "var(--ink)",
+                        outline: "none",
+                        resize: "vertical",
+                        fontFamily: "inherit",
+                        lineHeight: "1.45",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      disabled={submittingNote}
+                      onClick={handleCreateFileNote}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        padding: "10px 20px",
+                        background: "#7258e8",
+                        color: "#fff",
+                        fontSize: "13px",
+                        fontWeight: 700,
+                        borderRadius: "10px",
+                        border: "none",
+                        cursor: "pointer",
+                        boxShadow: "0 2px 8px rgba(114,88,232,0.3)",
+                        height: "44px",
+                      }}
+                    >
+                      <Send size={14} /> {submittingNote ? "Saving..." : "Add Note"}
+                    </button>
+                  </div>
                 </div>
+
                 <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "8px", display: "flex", alignItems: "center", gap: "4px" }}>
                   <span>🔒 Internal notes are private and encrypted for officer &amp; admin access only.</span>
                 </div>
               </div>
 
               {/* Notes Timeline Feed */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                {notesList.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "24px 10px", color: "var(--muted)", fontSize: "13px" }}>
-                    No internal officer notes added yet for this candidate.
-                  </div>
-                ) : (
-                  notesList.map((item) => (
-                    <div
-                      key={item.id}
-                      style={{
-                        display: "flex",
-                        gap: "12px",
-                        padding: "14px 16px",
-                        borderRadius: "12px",
-                        background: "#fafafd",
-                        border: "1px solid var(--line)",
-                        transition: "all 0.15s ease",
-                      }}
-                    >
-                      {/* Avatar */}
-                      <div
-                        style={{
-                          width: "34px",
-                          height: "34px",
-                          borderRadius: "8px",
-                          background: "#f0edff",
-                          color: "#7258e8",
-                          display: "grid",
-                          placeItems: "center",
-                          fontSize: "12px",
-                          fontWeight: 800,
-                          flexShrink: 0,
-                        }}
-                      >
-                        {item.author.slice(0, 2).toUpperCase()}
-                      </div>
+              {(() => {
+                const dbNotes = (file.workflowEvents || [])
+                  .filter((w) => ["AGENT_NOTE", "CANDIDATE_NOTE", "OFFICE_NOTE"].includes(w.stage) || (w.data as any)?.title)
+                  .map((w) => {
+                    const d = (w.data as any) || {};
+                    return {
+                      id: w.id,
+                      title: d.title || w.status || "Note",
+                      text: d.description || (typeof d === "string" ? d : ""),
+                      price: d.price || 0,
+                      author: w.completedBy || "Officer Desk",
+                      role: d.authorRole || (w.stage === "AGENT_NOTE" ? "Agent / Desk" : "Officer Desk"),
+                      createdAt: new Date(w.createdAt).toLocaleDateString("en-GB") + ", " + new Date(w.createdAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }),
+                      tag: w.stage === "AGENT_NOTE" ? "Agent Note" : (d.tag || "Candidate Note"),
+                      isDb: true,
+                    };
+                  });
+                const combinedNotes = [...dbNotes, ...notesList];
 
-                      {/* Content */}
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px", flexWrap: "wrap", gap: "6px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                            <strong style={{ fontSize: "13px", color: "var(--ink)" }}>{item.author}</strong>
-                            <span
-                              style={{
-                                fontSize: "10px",
-                                fontWeight: 700,
-                                background: item.role.includes("Admin") ? "#fef3c7" : "#ecfdf5",
-                                color: item.role.includes("Admin") ? "#b45309" : "#059669",
-                                padding: "2px 6px",
-                                borderRadius: "4px",
-                              }}
-                            >
-                              {item.role}
-                            </span>
-                            <span
-                              style={{
-                                fontSize: "10px",
-                                fontWeight: 700,
-                                background: "#f0edff",
-                                color: "#7258e8",
-                                padding: "2px 6px",
-                                borderRadius: "4px",
-                              }}
-                            >
-                              🏷️ {item.tag}
-                            </span>
+                return (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    {combinedNotes.length === 0 ? (
+                      <div style={{ textAlign: "center", padding: "24px 10px", color: "var(--muted)", fontSize: "13px" }}>
+                        No internal officer or agent notes added yet for this candidate.
+                      </div>
+                    ) : (
+                      combinedNotes.map((item) => (
+                        <div
+                          key={item.id}
+                          style={{
+                            display: "flex",
+                            gap: "12px",
+                            padding: "14px 16px",
+                            borderRadius: "12px",
+                            background: "#fafafd",
+                            border: "1px solid var(--line)",
+                            transition: "all 0.15s ease",
+                          }}
+                        >
+                          {/* Avatar */}
+                          <div
+                            style={{
+                              width: "34px",
+                              height: "34px",
+                              borderRadius: "8px",
+                              background: "#f0edff",
+                              color: "#7258e8",
+                              display: "grid",
+                              placeItems: "center",
+                              fontSize: "12px",
+                              fontWeight: 800,
+                              flexShrink: 0,
+                            }}
+                          >
+                            {item.author.slice(0, 2).toUpperCase()}
                           </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                            <span style={{ fontSize: "11px", color: "var(--muted)", display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                              <Clock size={11} /> {item.createdAt}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setNotesList(notesList.filter((n) => n.id !== item.id));
-                                toast.info("Officer note removed");
-                              }}
-                              title="Delete Note"
-                              style={{
-                                background: "none",
-                                border: "none",
-                                color: "#94a3b8",
-                                cursor: "pointer",
-                                padding: "2px",
-                                display: "grid",
-                                placeItems: "center",
-                              }}
-                            >
-                              <X size={13} />
-                            </button>
+
+                          {/* Content */}
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px", flexWrap: "wrap", gap: "6px" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                                <strong style={{ fontSize: "13px", color: "var(--ink)" }}>{item.author}</strong>
+                                <span
+                                  style={{
+                                    fontSize: "10px",
+                                    fontWeight: 700,
+                                    background: item.role.includes("Admin") ? "#fef3c7" : "#ecfdf5",
+                                    color: item.role.includes("Admin") ? "#b45309" : "#059669",
+                                    padding: "2px 6px",
+                                    borderRadius: "4px",
+                                  }}
+                                >
+                                  {item.role}
+                                </span>
+                                <span
+                                  style={{
+                                    fontSize: "10px",
+                                    fontWeight: 700,
+                                    background: "#f0edff",
+                                    color: "#7258e8",
+                                    padding: "2px 6px",
+                                    borderRadius: "4px",
+                                  }}
+                                >
+                                  🏷️ {item.tag}
+                                </span>
+                                {item.price > 0 && (
+                                  <span
+                                    style={{
+                                      fontSize: "10px",
+                                      fontWeight: 800,
+                                      background: "#ecfdf5",
+                                      color: "#059669",
+                                      padding: "2px 6px",
+                                      borderRadius: "4px",
+                                    }}
+                                  >
+                                    💰 ৳ {item.price.toLocaleString()} BDT
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                <span style={{ fontSize: "11px", color: "var(--muted)", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                                  <Clock size={11} /> {item.createdAt}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (item.isDb) {
+                                      handleDeleteFileNote(item.id);
+                                    } else {
+                                      setNotesList(notesList.filter((n) => n.id !== item.id));
+                                      toast.info("Officer note removed");
+                                    }
+                                  }}
+                                  title="Delete Note"
+                                  style={{
+                                    background: "none",
+                                    border: "none",
+                                    color: "#94a3b8",
+                                    cursor: "pointer",
+                                    padding: "2px",
+                                    display: "grid",
+                                    placeItems: "center",
+                                  }}
+                                >
+                                  <X size={13} />
+                                </button>
+                              </div>
+                            </div>
+                            {item.title && item.title !== "Note" && (
+                              <b style={{ display: "block", fontSize: "12.5px", color: "var(--ink)", marginBottom: "2px" }}>
+                                📌 {item.title}
+                              </b>
+                            )}
+                            {item.text && (
+                              <p style={{ fontSize: "13px", color: "#334155", lineHeight: "1.5", margin: 0 }}>
+                                {item.text}
+                              </p>
+                            )}
                           </div>
                         </div>
-                        <p style={{ fontSize: "13px", color: "#334155", lineHeight: "1.5", margin: 0 }}>
-                          {item.text}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
+                      ))
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* 2. STAGE ACTIVITY & AUDIT TRAIL CARD */}

@@ -74,6 +74,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       flights: { include: { flight: true } },
       statusHistory: { orderBy: { createdAt: "desc" as const } },
       documents: { orderBy: { createdAt: "desc" as const } },
+      workflowEvents: { orderBy: { createdAt: "desc" as const } },
     };
 
     let file = await prisma.processingFile.findUnique({
@@ -197,18 +198,104 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       }
     }
 
+    if (!file) {
+      const interview = await prisma.interview.findUnique({
+        where: { id },
+        include: {
+          candidate: {
+            include: {
+              files: {
+                orderBy: { createdAt: "desc" },
+                take: 1,
+              },
+            },
+          },
+        },
+      });
+
+      if (interview && interview.candidate) {
+        let targetFileId = interview.candidate.files?.[0]?.id;
+        if (!targetFileId) {
+          const isDubai = /sobha|dubai|uae/i.test(interview.title || interview.company || "");
+          const newFile = await prisma.processingFile.create({
+            data: {
+              fileNo: `FILE-${Date.now().toString().slice(-6)}`,
+              candidateId: interview.candidate.id,
+              country: isDubai ? "Dubai" : "Saudi Arabia",
+              currentStage: "Passport Entry",
+              status: "ACTIVE",
+              assignedToId: session.user.id,
+              profession: interview.profession || "General Worker",
+            },
+          });
+          targetFileId = newFile.id;
+        }
+        if (targetFileId) {
+          file = await prisma.processingFile.findUnique({
+            where: { id: targetFileId },
+            include: fileInclude,
+          });
+        }
+      }
+    }
+
     if (!file) throw new AppError("NOT_FOUND", "Candidate processing file not found.", 404);
-    const workflow = await getWorkflow(file.country);
+
+    let workflowList: Array<{ code: string; name: string; order: number; terminal: boolean }> = [];
+    try {
+      const workflow = await getWorkflow(file.country || "Saudi Arabia");
+      if (workflow?.workflow) {
+        workflowList = workflow.workflow.map((x) => ({ code: x.code, name: x.name, order: x.sortOrder, terminal: x.terminal }));
+      }
+    } catch {
+      workflowList = [
+        { code: "PASSPORT", name: "Passport Entry", order: 1, terminal: false },
+        { code: "MEDICAL", name: "Medical", order: 2, terminal: false },
+        { code: "POLICE", name: "Police Clearance", order: 3, terminal: false },
+        { code: "PAYMENT", name: "Payment", order: 4, terminal: false },
+        { code: "TAKAMUL", name: "Takamul", order: 5, terminal: false },
+        { code: "MOFA", name: "Mofa", order: 6, terminal: false },
+        { code: "MANPOWER", name: "Manpower", order: 7, terminal: false },
+        { code: "FLIGHT", name: "Flight", order: 8, terminal: true },
+      ];
+    }
+
+    // Resolve agent and agent record safely
+    let resolvedAgentName = file.agent || file.candidate?.source || "Direct";
+    try {
+      const workCallForAgent = await prisma.workCall.findFirst({ where: { candidateId: file.candidateId } });
+      const workCallNotes = (workCallForAgent?.notes ?? {}) as Record<string, unknown>;
+      const workObj = (workCallNotes.work ?? {}) as Record<string, unknown>;
+      resolvedAgentName = file.agent || (workObj.agent as string) || file.candidate?.source || "Direct";
+    } catch {}
+
+    let agentRecord = null;
+    try {
+      if (resolvedAgentName && resolvedAgentName !== "Direct" && resolvedAgentName !== "Direct Office") {
+        agentRecord = await prisma.agent.findFirst({
+          where: {
+            OR: [
+              { name: { contains: resolvedAgentName } },
+              { code: { contains: resolvedAgentName } },
+            ],
+          },
+          select: { id: true, name: true, code: true, phone: true, district: true },
+        });
+      }
+    } catch {}
 
     return NextResponse.json({
       data: {
         ...file,
-        payments: file.payments.map((p) => ({ ...p, amount: Number(p.amount) })),
-        holds: file.holds.map((h) => ({ ...h, financialImpact: h.financialImpact ? Number(h.financialImpact) : null })),
-        workflow: workflow.workflow.map((x) => ({ code: x.code, name: x.name, order: x.sortOrder, terminal: x.terminal })),
+        agent: resolvedAgentName,
+        agentRecord,
+        payments: (file.payments || []).map((p) => ({ ...p, amount: Number(p.amount) })),
+        holds: (file.holds || []).map((h) => ({ ...h, financialImpact: h.financialImpact ? Number(h.financialImpact) : null })),
+        workflow: workflowList,
       },
     });
   } catch (error) {
+    console.error("Error in /api/files/[id]:", error);
     return errorResponse(error);
   }
 }
@@ -779,6 +866,48 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       });
 
       return NextResponse.json({ ok: true, message: "Flight scheduled and candidate dossier completed!" });
+    }
+
+    // 13. Create Candidate Note / Price Remark
+    if (action === "create-note") {
+      const { title, description, price, docName, docSize, fileData } = z.object({
+        title: z.string().min(1, "Note title is required"),
+        description: z.string().nullish(),
+        price: z.union([z.string(), z.number()]).nullish(),
+        docName: z.string().nullish(),
+        docSize: z.string().nullish(),
+        fileData: z.string().nullish(),
+      }).parse(body);
+
+      const parsedPrice = typeof price === "string" ? parseFloat(price.replace(/[^0-9.]/g, "")) : Number(price) || 0;
+
+      const event = await prisma.workflowEvent.create({
+        data: {
+          fileId,
+          stage: "CANDIDATE_NOTE",
+          status: title.trim(),
+          completedBy: session.user.name,
+          data: {
+            title: title.trim(),
+            description: description?.trim() || "",
+            price: parsedPrice,
+            fileName: docName || null,
+            fileSize: docSize || null,
+            fileData: fileData || null,
+            authorRole: (session.user as any).role || "Officer Desk",
+            createdAt: new Date().toISOString(),
+          },
+        },
+      });
+
+      return NextResponse.json({ ok: true, message: `Note "${title}" saved successfully!`, data: event });
+    }
+
+    // 14. Delete Candidate Note
+    if (action === "delete-note") {
+      const { noteId } = z.object({ noteId: z.string() }).parse(body);
+      await prisma.workflowEvent.delete({ where: { id: noteId } }).catch(() => {});
+      return NextResponse.json({ ok: true, message: "Note removed successfully." });
     }
 
     return NextResponse.json({ ok: false, error: "Unknown action" }, { status: 400 });

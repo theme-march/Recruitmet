@@ -17,12 +17,25 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const q = (url.searchParams.get("q") ?? "").trim().toLowerCase();
     const fileStatus = url.searchParams.get("fileStatus") ?? "";
     const interviewStatus = url.searchParams.get("interviewStatus") ?? "";
+    const agentFilter = (url.searchParams.get("agent") ?? "").trim();
     const page = Math.max(1, Number(url.searchParams.get("page")) || 1);
     const exporting = url.searchParams.get("export") === "1";
     const pageSize = exporting ? 5000 : Math.min(100, Math.max(10, Number(url.searchParams.get("pageSize")) || 20));
     const schedule = await prisma.interviewSchedule.findUnique({
       where: { id },
-      include: { interviews: { orderBy: { createdAt: "asc" }, include: { candidate: { include: { files: { take: 1, orderBy: { updatedAt: "desc" } }, calls: { take: 1, orderBy: { updatedAt: "desc" } } } } } } },
+      include: {
+        interviews: {
+          orderBy: { createdAt: "asc" },
+          include: {
+            candidate: {
+              include: {
+                files: { take: 1, orderBy: { updatedAt: "desc" } },
+                calls: { take: 1, orderBy: { updatedAt: "desc" } },
+              },
+            },
+          },
+        },
+      },
     });
     if (!schedule) throw new AppError("NOT_FOUND", "Interview schedule was not found.", 404);
     const people = schedule.interviews.map((interview) => {
@@ -38,15 +51,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       const rowFileStatus = String(work.fileStatus ?? latestFile?.currentStage ?? (interview.candidate.registrationNo ? "Registration Done" : "Pre-Confirmed"));
       const displayName = call?.fullName || interview.candidate.fullName;
       const displayPhone = call?.phone || interview.candidate.phone;
+      const rowAgent = latestFile?.agent || (work?.agent as string) || interview.candidate.source || "Direct";
 
-            return {
+      return {
         id: interview.id,
         candidateId: interview.candidateId,
         candidateNo: interview.candidate.candidateNo,
         name: displayName,
         phone: displayPhone,
+        passportNo: interview.candidate.passportNo || "N/A",
         interviewDate: interview.scheduledAt.toISOString(),
         category: interview.profession ?? interview.candidate.profession ?? "Uncategorized",
+        agent: rowAgent,
         fileStatus: rowFileStatus,
         interviewStatus: interview.result === "Scheduled" ? "Waiting For Interview" : interview.result,
         rating: interview.rating,
@@ -54,16 +70,52 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         fileNo: latestFile?.fileNo || null,
       };
     });
+
     const attendance = {
       registered: people.length,
-      waiting: people.filter((row) => row.interviewStatus === "Waiting For Interview").length,
-      present: people.filter((row) => /attended|passed/i.test(row.interviewStatus)).length,
+      waiting: people.filter((row) => /waiting|scheduled/i.test(row.interviewStatus)).length,
+      present: people.filter((row) => /selected|passed|attended/i.test(row.interviewStatus)).length,
+      rejected: people.filter((row) => /reject/i.test(row.interviewStatus)).length,
       absent: people.filter((row) => /absent|rescheduled/i.test(row.interviewStatus)).length,
-      other: people.filter((row) => !/waiting for interview|attended|passed|absent|rescheduled/i.test(row.interviewStatus)).length,
+      other: people.filter((row) => !/waiting|scheduled|selected|passed|attended|reject|absent|rescheduled/i.test(row.interviewStatus)).length,
     };
-    const fileStatuses = ["New Incoming Lead", "New Data Lead", "Call Back & Requested PP", "Received PP", "Registration Done"];
+
+    // Compute Agent Breakdown for this interview drive
+    const agentMap: Record<string, { agent: string; total: number; selected: number; rejected: number; waiting: number; absent: number }> = {};
+    for (const p of people) {
+      const ag = p.agent && p.agent !== "Direct" ? p.agent : "Direct Office";
+      if (!agentMap[ag]) {
+        agentMap[ag] = { agent: ag, total: 0, selected: 0, rejected: 0, waiting: 0, absent: 0 };
+      }
+      agentMap[ag].total++;
+      if (/selected|passed|attended/i.test(p.interviewStatus)) agentMap[ag].selected++;
+      else if (/reject/i.test(p.interviewStatus)) agentMap[ag].rejected++;
+      else if (/absent/i.test(p.interviewStatus)) agentMap[ag].absent++;
+      else agentMap[ag].waiting++;
+    }
+    const agentBreakdown = Object.values(agentMap).sort((a, b) => b.total - a.total);
+
+    const fileStatuses = ["Pre-Confirmed", "Confirm", "Received PP", "Call Back & Requested PP", "New Incoming Lead"];
     const fileStatusCounts = Object.fromEntries(fileStatuses.map((status) => [status, people.filter((row) => row.fileStatus === status).length]));
-    const filtered = people.filter((row) => (!q || `${row.name} ${row.phone} ${row.candidateNo}`.toLowerCase().includes(q)) && (!fileStatus || row.fileStatus === fileStatus) && (!interviewStatus || row.interviewStatus === interviewStatus));
+
+    const filtered = people.filter((row) => {
+      const matchesQ = !q || `${row.name} ${row.phone} ${row.candidateNo} ${row.passportNo} ${row.agent}`.toLowerCase().includes(q);
+      const matchesFileStatus = !fileStatus || row.fileStatus === fileStatus;
+      const matchesInterviewStatus = !interviewStatus || (
+        interviewStatus === "Selected" ? /selected|passed|attended/i.test(row.interviewStatus) :
+        interviewStatus === "Rejected" ? /reject/i.test(row.interviewStatus) :
+        interviewStatus === "Waiting" || interviewStatus === "Waiting For Interview" ? /waiting|scheduled/i.test(row.interviewStatus) :
+        interviewStatus === "Absent" ? /absent|rescheduled/i.test(row.interviewStatus) :
+        row.interviewStatus === interviewStatus
+      );
+      const matchesAgent = !agentFilter || (
+        agentFilter === "Direct" ? (row.agent === "Direct" || !row.agent) :
+        agentFilter === "HAS_AGENT" ? (row.agent && row.agent !== "Direct") :
+        row.agent.toLowerCase().includes(agentFilter.toLowerCase())
+      );
+      return matchesQ && matchesFileStatus && matchesInterviewStatus && matchesAgent;
+    });
+
     // Fetch matching Demand Letter from Works & Demands
     let matchingDemand = null;
     const searchTerms = [schedule.company, schedule.profession, schedule.title].filter(Boolean) as string[];
@@ -100,6 +152,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       status: matchingDemand?.status || "Active",
     };
 
+    // Fetch all registered agency partners
+    const allRegisteredAgents = await prisma.agent.findMany({
+      select: { id: true, name: true, code: true },
+      orderBy: { name: "asc" },
+    });
+
     const start = exporting ? 0 : (page - 1) * pageSize;
     return Response.json({
       data: {
@@ -117,6 +175,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         },
         demand: demandInfo,
         attendance,
+        agentBreakdown,
+        allAgents: allRegisteredAgents,
         fileStatusCounts,
         people: filtered.slice(start, start + pageSize),
         meta: { page, pageSize, total: filtered.length, totalPages: Math.max(1, Math.ceil(filtered.length / pageSize)) },

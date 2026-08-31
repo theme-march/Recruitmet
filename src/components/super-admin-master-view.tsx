@@ -178,10 +178,17 @@ export function SuperAdminMasterView({
                 <span>Destination Country</span>
                 <select name="country" required>
                   <option value="Saudi Arabia">Saudi Arabia</option>
-                  <option value="Dubai">Dubai</option>
-                  <option value="Oman">Oman</option>
+                  <option value="Dubai">Dubai (UAE)</option>
                   <option value="Qatar">Qatar</option>
                   <option value="Kuwait">Kuwait</option>
+                  <option value="Oman">Oman</option>
+                  <option value="Bahrain">Bahrain</option>
+                  <option value="Malaysia">Malaysia</option>
+                  <option value="Singapore">Singapore</option>
+                  <option value="Romania">Romania</option>
+                  <option value="Italy">Italy</option>
+                  <option value="Poland">Poland</option>
+                  <option value="Other Country">Other Country</option>
                 </select>
               </label>
               <label>

@@ -16,7 +16,20 @@ export type AdminOperationsData = {
   recentFiles: { id: string; fileNo: string; name: string; country: string; stage: string; status: string; owner: string; deadline: string | null }[];
 };
 
-const countryOptions = ["Saudi Arabia", "Dubai", "Oman", "Qatar", "Kuwait", "Bahrain", "Malaysia", "Romania"];
+const countryOptions = [
+  "Saudi Arabia",
+  "Dubai",
+  "Qatar",
+  "Kuwait",
+  "Oman",
+  "Bahrain",
+  "Malaysia",
+  "Singapore",
+  "Romania",
+  "Italy",
+  "Poland",
+  "Other Country",
+];
 function countryHref(country: string) { const value=country.toLowerCase(); if(value.includes("saudi"))return "/module/ksa/passport-list"; if(value.includes("dubai")||value.includes("uae"))return "/module/dubai/passport-list"; return "/module/other-country/passport-list"; }
 
 export function AdminOperationsDashboard({ data }: { data: AdminOperationsData }) {

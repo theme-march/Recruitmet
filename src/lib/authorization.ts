@@ -13,8 +13,10 @@ export async function can(session: AwaitedSession, module: string, action = "*",
 
   // Comprehensive bidirectional module alias mapping
   const moduleAliases: Record<string, string[]> = {
-    partners: ["partners", "office-vendor", "demands"],
-    "office-vendor": ["office-vendor", "partners", "demands"],
+    partners: ["partners", "office-vendor", "demands", "agents"],
+    "office-vendor": ["office-vendor", "partners", "demands", "agents"],
+    agents: ["agents", "agent", "office-vendor", "partners"],
+    agent: ["agent", "agents", "office-vendor", "partners"],
     demands: ["demands", "partners", "office-vendor"],
     registration: ["registration", "interviews", "call-center"],
     interviews: ["interviews", "registration", "call-center"],

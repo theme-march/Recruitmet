@@ -39,8 +39,10 @@ type Person = {
   candidateNo: string;
   name: string;
   phone: string;
+  passportNo?: string;
   interviewDate: string;
   category: string;
+  agent: string;
   fileStatus: string;
   interviewStatus: string;
   rating?: number | null;
@@ -85,8 +87,18 @@ type Attendance = {
   registered: number;
   waiting: number;
   present: number;
+  rejected: number;
   absent: number;
   other: number;
+};
+
+type AgentBreakdownItem = {
+  agent: string;
+  total: number;
+  selected: number;
+  rejected: number;
+  waiting: number;
+  absent: number;
 };
 
 type DetailPayload = {
@@ -94,6 +106,8 @@ type DetailPayload = {
     schedule: Schedule;
     demand: DemandInfo;
     attendance: Attendance;
+    agentBreakdown?: AgentBreakdownItem[];
+    allAgents?: Array<{ id: string; name: string; code: string }>;
     fileStatusCounts: Record<string, number>;
     people: Person[];
     meta: { page: number; pageSize: number; total: number; totalPages: number };
@@ -112,8 +126,8 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
   const [convertingId, setConvertingId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [filters, setFilters] = useState({ fileStatus: "", interviewStatus: "", q: "" });
-  const [applied, setApplied] = useState({ fileStatus: "", interviewStatus: "", q: "" });
+  const [filters, setFilters] = useState({ fileStatus: "", interviewStatus: "", agent: "", q: "" });
+  const [applied, setApplied] = useState({ fileStatus: "", interviewStatus: "", agent: "", q: "" });
 
   // Add Candidate to Interview States
   const [addOpen, setAddOpen] = useState(false);
@@ -128,6 +142,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
         pageSize: String(pageSize),
         fileStatus: applied.fileStatus,
         interviewStatus: applied.interviewStatus,
+        agent: applied.agent,
         q: applied.q,
       });
       const response = await fetch(`/api/interview-schedules/${scheduleId}?${searchParams}`);
@@ -158,7 +173,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
   };
 
   const reset = () => {
-    const cleared = { fileStatus: "", interviewStatus: "", q: "" };
+    const cleared = { fileStatus: "", interviewStatus: "", agent: "", q: "" };
     setFilters(cleared);
     setApplied(cleared);
     setPage(1);
@@ -168,6 +183,20 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
     const nextStatus = applied.fileStatus === status ? "" : status;
     setFilters((prev) => ({ ...prev, fileStatus: nextStatus }));
     setApplied((prev) => ({ ...prev, fileStatus: nextStatus }));
+    setPage(1);
+  };
+
+  const filterInterviewStatus = (status: string) => {
+    const nextStatus = applied.interviewStatus === status ? "" : status;
+    setFilters((prev) => ({ ...prev, interviewStatus: nextStatus }));
+    setApplied((prev) => ({ ...prev, interviewStatus: nextStatus }));
+    setPage(1);
+  };
+
+  const filterAgent = (ag: string) => {
+    const nextAgent = applied.agent === ag ? "" : ag;
+    setFilters((prev) => ({ ...prev, agent: nextAgent }));
+    setApplied((prev) => ({ ...prev, agent: nextAgent }));
     setPage(1);
   };
 
@@ -315,7 +344,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px", flexWrap: "wrap", gap: "12px" }}>
         <div>
           <div className="breadcrumb" style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-            Dashboard / Officer Dashboard / All Interviews / Detail
+            Candidates / Registration &amp; Interviews / Detail
           </div>
           <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--ink)", margin: "4px 0" }}>
             Interview: {schedule?.title || "Loading..."}
@@ -326,7 +355,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
         </div>
 
         <Link
-          href={moduleItemPath("call-center", "Registration & Interviews")}
+          href={moduleItemPath("call-center", "Registration & interviews")}
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -401,11 +430,11 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
                 textDecoration: "none",
               }}
             >
-              <Plus size={14} /> Create New Lead (this schedule)
+              <Plus size={14} /> Create Work Call (this schedule)
             </Link>
 
             <Link
-              href={moduleItemPath("call-center", "Work Call List")}
+              href={moduleItemPath("call-center", "Registration & interviews")}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -420,7 +449,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
                 textDecoration: "none",
               }}
             >
-              <UsersRound size={14} /> Work Call List
+              <UsersRound size={14} /> All Interview Drives
             </Link>
           </div>
 
@@ -621,75 +650,200 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
           {/* 2. ATTENDANCE SUMMARY SECTION */}
           <section style={{ marginBottom: "18px" }}>
             <h3 style={{ fontSize: "14px", fontWeight: 800, color: "var(--ink)", margin: "0 0 10px 0" }}>
-              Interview Attendance <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 500 }}>(registration done only)</span>
+              Interview Attendance Summary
             </h3>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "12px" }}>
-              <div style={{ ...attendanceCardStyle, background: "#eff6ff", borderColor: "#bfdbfe" }}>
-                <span style={{ fontSize: "11px", fontWeight: 700, color: "#1d4ed8" }}>Registered</span>
+              <div
+                onClick={() => filterInterviewStatus("")}
+                style={{
+                  ...attendanceCardStyle,
+                  background: !applied.interviewStatus ? "#f0edff" : "#eff6ff",
+                  borderColor: !applied.interviewStatus ? "#7258e8" : "#bfdbfe",
+                  cursor: "pointer",
+                }}
+              >
+                <span style={{ fontSize: "11px", fontWeight: 700, color: "#1d4ed8" }}>Total Registered</span>
                 <b style={{ fontSize: "20px", fontWeight: 800, color: "#1e40af", marginTop: "2px" }}>{data.attendance.registered}</b>
               </div>
-              <div style={{ ...attendanceCardStyle, background: "#fffbeb", borderColor: "#fde68a" }}>
-                <span style={{ fontSize: "11px", fontWeight: 700, color: "#b45309" }}>Waiting</span>
+
+              <div
+                onClick={() => filterInterviewStatus("Waiting")}
+                style={{
+                  ...attendanceCardStyle,
+                  background: applied.interviewStatus === "Waiting" ? "#fef3c7" : "#fffbeb",
+                  borderColor: applied.interviewStatus === "Waiting" ? "#f59e0b" : "#fde68a",
+                  cursor: "pointer",
+                }}
+              >
+                <span style={{ fontSize: "11px", fontWeight: 700, color: "#b45309" }}>⏳ Waiting / Scheduled</span>
                 <b style={{ fontSize: "20px", fontWeight: 800, color: "#92400e", marginTop: "2px" }}>{data.attendance.waiting}</b>
               </div>
-              <div style={{ ...attendanceCardStyle, background: "#ecfdf5", borderColor: "#a7f3d0" }}>
-                <span style={{ fontSize: "11px", fontWeight: 700, color: "#047857" }}>Present / Selected</span>
+
+              <div
+                onClick={() => filterInterviewStatus("Selected")}
+                style={{
+                  ...attendanceCardStyle,
+                  background: applied.interviewStatus === "Selected" ? "#d1fae5" : "#ecfdf5",
+                  borderColor: applied.interviewStatus === "Selected" ? "#10b981" : "#a7f3d0",
+                  cursor: "pointer",
+                }}
+              >
+                <span style={{ fontSize: "11px", fontWeight: 700, color: "#047857" }}>✅ Selected / Passed</span>
                 <b style={{ fontSize: "20px", fontWeight: 800, color: "#065f46", marginTop: "2px" }}>{data.attendance.present}</b>
               </div>
-              <div style={{ ...attendanceCardStyle, background: "#fff1f2", borderColor: "#fecdd3" }}>
-                <span style={{ fontSize: "11px", fontWeight: 700, color: "#be123c" }}>Absent / Reschedule</span>
-                <b style={{ fontSize: "20px", fontWeight: 800, color: "#9f1239", marginTop: "2px" }}>{data.attendance.absent}</b>
+
+              <div
+                onClick={() => filterInterviewStatus("Rejected")}
+                style={{
+                  ...attendanceCardStyle,
+                  background: applied.interviewStatus === "Rejected" ? "#ffe4e6" : "#fff1f2",
+                  borderColor: applied.interviewStatus === "Rejected" ? "#f43f5e" : "#fecdd3",
+                  cursor: "pointer",
+                }}
+              >
+                <span style={{ fontSize: "11px", fontWeight: 700, color: "#be123c" }}>❌ Rejected</span>
+                <b style={{ fontSize: "20px", fontWeight: 800, color: "#9f1239", marginTop: "2px" }}>{data.attendance.rejected ?? 0}</b>
               </div>
-              <div style={{ ...attendanceCardStyle, background: "#f8fafc", borderColor: "var(--line)" }}>
-                <span style={{ fontSize: "11px", fontWeight: 700, color: "#475569" }}>Other</span>
-                <b style={{ fontSize: "20px", fontWeight: 800, color: "var(--ink)", marginTop: "2px" }}>{data.attendance.other}</b>
+
+              <div
+                onClick={() => filterInterviewStatus("Absent")}
+                style={{
+                  ...attendanceCardStyle,
+                  background: applied.interviewStatus === "Absent" ? "#f1f5f9" : "#f8fafc",
+                  borderColor: applied.interviewStatus === "Absent" ? "#64748b" : "var(--line)",
+                  cursor: "pointer",
+                }}
+              >
+                <span style={{ fontSize: "11px", fontWeight: 700, color: "#475569" }}>⚠️ Absent / Reschedule</span>
+                <b style={{ fontSize: "20px", fontWeight: 800, color: "var(--ink)", marginTop: "2px" }}>{data.attendance.absent}</b>
               </div>
             </div>
           </section>
 
-          {/* 3. FILE STATUS FILTER PILLS */}
-          <section style={{ marginBottom: "18px" }}>
-            <h3 style={{ fontSize: "14px", fontWeight: 800, color: "var(--ink)", margin: "0 0 10px 0" }}>
-              File Status <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 500 }}>(click a card to filter; same as Work create)</span>
-            </h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px" }}>
-              {fileStatuses.map((st) => {
-                const isSelected = applied.fileStatus === st;
-                return (
+          {/* 3. AGENT BREAKDOWN & SELECTION/REJECTION TRACKING */}
+          {data.agentBreakdown && data.agentBreakdown.length > 0 && (
+            <section
+              style={{
+                background: "#fff",
+                border: "1px solid var(--line)",
+                borderRadius: "16px",
+                padding: "18px 22px",
+                marginBottom: "18px",
+                boxShadow: "var(--shadow)",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <UsersRound size={18} color="#7258e8" />
+                  <h3 style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink)", margin: 0 }}>
+                    Agent Candidate Attribution &amp; Selection Stats
+                  </h3>
+                  <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)" }}>
+                    (Select agent to filter candidates)
+                  </span>
+                </div>
+
+                {applied.agent && (
                   <button
-                    key={st}
                     type="button"
-                    onClick={() => filterStatus(st)}
+                    onClick={() => filterAgent("")}
                     style={{
-                      background: isSelected ? "#f0edff" : "#fff",
-                      border: "2px solid",
-                      borderColor: isSelected ? "#7258e8" : "var(--line)",
-                      borderRadius: "12px",
-                      padding: "12px 14px",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
+                      padding: "4px 10px",
+                      borderRadius: "6px",
+                      background: "#fef2f2",
+                      border: "1px solid #fecaca",
+                      color: "#dc2626",
+                      fontSize: "11px",
+                      fontWeight: 700,
                       cursor: "pointer",
-                      textAlign: "left",
-                      boxShadow: isSelected ? "0 2px 8px rgba(114,88,232,0.2)" : "none",
-                      transition: "all 0.15s ease",
                     }}
                   >
-                    <span style={{ fontSize: "12px", fontWeight: 700, color: isSelected ? "#7258e8" : "var(--ink)" }}>
-                      {st}
-                    </span>
-                    <b style={{ fontSize: "16px", fontWeight: 800, color: isSelected ? "#7258e8" : "var(--muted)" }}>
-                      {data.fileStatusCounts[st] ?? 0}
-                    </b>
+                    Clear Agent Filter ({applied.agent}) ×
                   </button>
-                );
-              })}
-            </div>
-          </section>
+                )}
+              </div>
 
-          {/* 4. SEARCH & FILTERS BAR */}
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
+                  <thead>
+                    <tr style={{ background: "#f8fafc", borderBottom: "1px solid var(--line)", color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>
+                      <th style={{ padding: "10px 14px" }}>Agent / Source Partner</th>
+                      <th style={{ padding: "10px 14px", textAlign: "center" }}>Referred</th>
+                      <th style={{ padding: "10px 14px", textAlign: "center" }}>✅ Selected</th>
+                      <th style={{ padding: "10px 14px", textAlign: "center" }}>❌ Rejected</th>
+                      <th style={{ padding: "10px 14px", textAlign: "center" }}>⏳ Waiting</th>
+                      <th style={{ padding: "10px 14px", textAlign: "center" }}>⚠️ Absent</th>
+                      <th style={{ padding: "10px 14px", textAlign: "center" }}>Selection Rate</th>
+                      <th style={{ padding: "10px 14px", textAlign: "right" }}>Filter</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.agentBreakdown.map((ag) => {
+                      const isSelected = applied.agent === ag.agent;
+                      const rate = ag.total > 0 ? Math.round((ag.selected / ag.total) * 100) : 0;
+                      return (
+                        <tr
+                          key={ag.agent}
+                          style={{
+                            borderBottom: "1px solid var(--line)",
+                            background: isSelected ? "#f0edff" : "transparent",
+                          }}
+                        >
+                          <td style={{ padding: "10px 14px" }}>
+                            <div style={{ fontWeight: 800, color: "var(--ink)" }}>
+                              {ag.agent !== "Direct Office" ? `🤝 ${ag.agent}` : `🏢 Direct Office Candidates`}
+                            </div>
+                          </td>
+                          <td style={{ padding: "10px 14px", textAlign: "center", fontWeight: 700 }}>{ag.total}</td>
+                          <td style={{ padding: "10px 14px", textAlign: "center", fontWeight: 800, color: "#16a34a" }}>{ag.selected}</td>
+                          <td style={{ padding: "10px 14px", textAlign: "center", fontWeight: 800, color: "#dc2626" }}>{ag.rejected}</td>
+                          <td style={{ padding: "10px 14px", textAlign: "center", fontWeight: 700, color: "#d97706" }}>{ag.waiting}</td>
+                          <td style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, color: "#64748b" }}>{ag.absent}</td>
+                          <td style={{ padding: "10px 14px", textAlign: "center" }}>
+                            <span
+                              style={{
+                                display: "inline-block",
+                                padding: "2px 8px",
+                                borderRadius: "6px",
+                                fontSize: "11px",
+                                fontWeight: 800,
+                                background: rate >= 50 ? "#dcfce7" : rate > 0 ? "#fef3c7" : "#f1f5f9",
+                                color: rate >= 50 ? "#166534" : rate > 0 ? "#92400e" : "#64748b",
+                              }}
+                            >
+                              {rate}%
+                            </span>
+                          </td>
+                          <td style={{ padding: "10px 14px", textAlign: "right" }}>
+                            <button
+                              type="button"
+                              onClick={() => filterAgent(ag.agent)}
+                              style={{
+                                padding: "4px 10px",
+                                borderRadius: "6px",
+                                background: isSelected ? "#7258e8" : "#f0edff",
+                                color: isSelected ? "#fff" : "#7258e8",
+                                border: "1px solid #dcd5fb",
+                                fontSize: "11px",
+                                fontWeight: 700,
+                                cursor: "pointer",
+                              }}
+                            >
+                              {isSelected ? "Filtered" : "View Candidates"}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
+          {/* SEARCH & FILTERS BAR */}
           <section style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "16px", padding: "18px 22px", marginBottom: "18px", boxShadow: "var(--shadow)" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px", alignItems: "flex-end" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px", alignItems: "flex-end" }}>
               <label style={filterLabelStyle}>
                 File Status
                 <select
@@ -712,9 +866,33 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
                   style={inputStyle}
                 >
                   <option value="">All Interview Statuses</option>
-                  {interviewStatuses.map((st) => (
-                    <option key={st}>{st}</option>
-                  ))}
+                  <option value="Selected">✅ Selected / Passed</option>
+                  <option value="Rejected">❌ Rejected</option>
+                  <option value="Waiting">⏳ Waiting For Interview</option>
+                  <option value="Absent">⚠️ Absent / Rescheduled</option>
+                </select>
+              </label>
+
+              <label style={filterLabelStyle}>
+                Agent / Source
+                <select
+                  value={filters.agent}
+                  onChange={(e) => setFilters({ ...filters, agent: e.target.value })}
+                  style={inputStyle}
+                >
+                  <option value="">All Agents / Sources</option>
+                  <option value="HAS_AGENT">🤝 All Agent Partner Files</option>
+                  <option value="Direct">🏢 Direct Office Candidates</option>
+                  <optgroup label="── Registered Agency Partners ──">
+                    {(data.allAgents && data.allAgents.length > 0
+                      ? data.allAgents
+                      : (data.agentBreakdown || []).filter((a) => a.agent !== "Direct Office").map((a) => ({ id: a.agent, name: a.agent, code: "AGT" }))
+                    ).map((ag) => (
+                      <option key={ag.id} value={ag.name}>
+                        🤝 {ag.name} {ag.code ? `(${ag.code})` : ""}
+                      </option>
+                    ))}
+                  </optgroup>
                 </select>
               </label>
 
@@ -723,7 +901,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
                 <input
                   value={filters.q}
                   onChange={(e) => setFilters({ ...filters, q: e.target.value })}
-                  placeholder="Candidate name or phone..."
+                  placeholder="Name, phone, passport, agent..."
                   style={inputStyle}
                 />
               </label>
@@ -752,7 +930,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
                     display: "inline-flex",
                     alignItems: "center",
                     gap: "6px",
-                    padding: "0 22px",
+                    padding: "0 20px",
                     height: "40px",
                     borderRadius: "10px",
                     background: "#7258e8",
@@ -770,7 +948,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
                   type="button"
                   onClick={reset}
                   style={{
-                    padding: "0 16px",
+                    padding: "0 14px",
                     height: "40px",
                     borderRadius: "10px",
                     background: "#f1f5f9",
@@ -787,7 +965,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
             </div>
           </section>
 
-          {/* 5. PEOPLE LIST TABLE SECTION */}
+          {/* 6. PEOPLE LIST TABLE SECTION */}
           <section
             style={{
               background: "#fff",
@@ -800,12 +978,22 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", flexWrap: "wrap", gap: "10px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                 <UsersRound size={18} color="#7258e8" />
                 <h3 style={{ fontSize: "16px", fontWeight: 800, color: "var(--ink)", margin: 0 }}>People List</h3>
                 <span style={{ fontSize: "11px", fontWeight: 800, background: "#f0edff", color: "#7258e8", padding: "2px 8px", borderRadius: "9999px" }}>
                   {data.meta.total} candidates
                 </span>
+                {applied.interviewStatus && (
+                  <span style={{ fontSize: "11px", fontWeight: 700, background: "#ecfdf5", color: "#059669", padding: "2px 8px", borderRadius: "6px" }}>
+                    Status: {applied.interviewStatus}
+                  </span>
+                )}
+                {applied.agent && (
+                  <span style={{ fontSize: "11px", fontWeight: 700, background: "#f5f3ff", color: "#7c3aed", padding: "2px 8px", borderRadius: "6px" }}>
+                    Agent: {applied.agent}
+                  </span>
+                )}
               </div>
 
               <button
@@ -834,12 +1022,12 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
                 <thead>
                   <tr style={{ background: "#f8fafc", borderBottom: "1px solid var(--line)", color: "var(--muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                     <th style={{ padding: "12px 14px" }}>Name &amp; Candidate ID</th>
-                    <th style={{ padding: "12px 14px" }}>Phone</th>
-                    <th style={{ padding: "12px 14px" }}>Interview Date</th>
+                    <th style={{ padding: "12px 14px" }}>Phone &amp; Passport</th>
                     <th style={{ padding: "12px 14px" }}>Category</th>
+                    <th style={{ padding: "12px 14px" }}>Agent / Source</th>
                     <th style={{ padding: "12px 14px" }}>File Status</th>
                     <th style={{ padding: "12px 14px" }}>Interview Status</th>
-                    <th style={{ padding: "12px 14px", textAlign: "center" }}>Action / File Processing</th>
+                    <th style={{ padding: "12px 14px", textAlign: "center" }}>Action / Dossier Workspace</th>
                   </tr>
                 </thead>
                 <tbody style={{ opacity: query.isFetching ? 0.75 : 1, transition: "opacity 0.15s ease" }}>
@@ -854,16 +1042,79 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
                       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                     >
                       <td style={{ padding: "12px 14px" }}>
-                        <b style={{ color: "var(--ink)", display: "block" }}>{person.name}</b>
-                        <small style={{ color: "var(--muted)", fontSize: "11px" }}>{person.candidateNo}</small>
+                        <Link
+                          prefetch={true}
+                          href={person.processingFileId ? `/file/${person.processingFileId}` : `/candidate/${person.candidateId}`}
+                          style={{
+                            color: "var(--ink)",
+                            fontWeight: 800,
+                            display: "block",
+                            textDecoration: "none",
+                            fontSize: "14px",
+                          }}
+                        >
+                          {person.name} ➔
+                        </Link>
+                        <div style={{ display: "flex", gap: "6px", alignItems: "center", marginTop: "2px" }}>
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              color: "var(--purple)",
+                              background: "var(--purple-soft)",
+                              padding: "1px 6px",
+                              borderRadius: "4px",
+                            }}
+                          >
+                            {person.candidateNo}
+                          </span>
+                        </div>
                       </td>
-                      <td style={{ padding: "12px 14px", fontWeight: 600 }}>{person.phone}</td>
-                      <td style={{ padding: "12px 14px", color: "var(--muted)" }}>{dateLabel(person.interviewDate)}</td>
+
+                      <td style={{ padding: "12px 14px" }}>
+                        <div style={{ fontWeight: 700, color: "var(--ink)" }}>{person.phone}</div>
+                        <small style={{ color: "var(--muted)", fontSize: "11px", fontFamily: "monospace" }}>
+                          {person.passportNo || "No Passport"}
+                        </small>
+                      </td>
+
                       <td style={{ padding: "12px 14px" }}>
                         <span style={{ display: "inline-block", padding: "3px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: 700, background: "#f1f5f9", color: "var(--ink)" }}>
                           {person.category}
                         </span>
                       </td>
+
+                      {/* AGENT / SOURCE COLUMN */}
+                      <td style={{ padding: "12px 14px" }}>
+                        {person.agent && person.agent !== "Direct" ? (
+                          <button
+                            type="button"
+                            onClick={() => filterAgent(person.agent)}
+                            title={`Filter candidates for ${person.agent}`}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              background: applied.agent === person.agent ? "#7258e8" : "#f0edff",
+                              color: applied.agent === person.agent ? "#fff" : "#7258e8",
+                              padding: "3px 8px",
+                              borderRadius: "6px",
+                              fontSize: "11px",
+                              fontWeight: 800,
+                              border: "1px solid #dcd5fb",
+                              whiteSpace: "nowrap",
+                              cursor: "pointer",
+                            }}
+                          >
+                            🤝 {person.agent}
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600 }}>
+                            🏢 Direct Office
+                          </span>
+                        )}
+                      </td>
+
                       <td style={{ padding: "12px 14px" }}>
                         <span
                           style={{
@@ -880,6 +1131,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
                           {person.fileStatus}
                         </span>
                       </td>
+
                       <td style={{ padding: "12px 14px" }}>
                         {editing === person.id ? (
                           <select
@@ -905,25 +1157,38 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
                               padding: "3px 8px",
                               borderRadius: "6px",
                               fontSize: "11px",
-                              fontWeight: 700,
+                              fontWeight: 800,
                               background:
                                 person.interviewStatus === "Selected" || person.interviewStatus === "Passed"
                                   ? "#ecfdf5"
-                                  : person.interviewStatus === "Rejected" || person.interviewStatus === "Absent"
+                                  : person.interviewStatus === "Rejected"
+                                  ? "#fee2e2"
+                                  : person.interviewStatus === "Absent"
                                   ? "#fff1f2"
                                   : "#fffbeb",
                               color:
                                 person.interviewStatus === "Selected" || person.interviewStatus === "Passed"
                                   ? "#059669"
-                                  : person.interviewStatus === "Rejected" || person.interviewStatus === "Absent"
+                                  : person.interviewStatus === "Rejected"
+                                  ? "#b91c1c"
+                                  : person.interviewStatus === "Absent"
                                   ? "#e11d48"
                                   : "#d97706",
+                              border:
+                                person.interviewStatus === "Selected" || person.interviewStatus === "Passed"
+                                  ? "1px solid #a7f3d0"
+                                  : person.interviewStatus === "Rejected"
+                                  ? "1px solid #fecaca"
+                                  : "1px solid #fde68a",
                             }}
                           >
-                            {person.interviewStatus}
+                            {person.interviewStatus === "Selected" || person.interviewStatus === "Passed" ? "✅ Selected" :
+                             person.interviewStatus === "Rejected" ? "❌ Rejected" :
+                             person.interviewStatus === "Absent" ? "⚠️ Absent" : "⏳ " + person.interviewStatus}
                           </span>
                         )}
                       </td>
+
                       <td style={{ padding: "12px 14px", textAlign: "center" }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", flexWrap: "wrap" }}>
                           {editing === person.id ? (
@@ -981,7 +1246,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
                                 cursor: "pointer",
                               }}
                             >
-                              <Pencil size={12} /> Edit
+                              <Pencil size={12} /> Status
                             </button>
                           )}
 
@@ -1004,7 +1269,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
                               }}
                               title="Open 360° Processing Dossier Workspace"
                             >
-                              <FolderOpen size={12} /> {person.fileNo || "View File"}
+                              <FolderOpen size={12} /> {person.fileNo || "Dossier ➔"}
                             </Link>
                           ) : (
                             <button
@@ -1015,10 +1280,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
                                 display: "inline-flex",
                                 alignItems: "center",
                                 gap: "4px",
-                                background:
-                                  person.interviewStatus === "Selected" || person.interviewStatus === "Passed"
-                                    ? "#7258e8"
-                                    : "#64748b",
+                                background: "#7258e8",
                                 color: "#ffffff",
                                 fontSize: "11px",
                                 fontWeight: 700,
@@ -1026,6 +1288,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
                                 borderRadius: "8px",
                                 border: "none",
                                 cursor: "pointer",
+                                boxShadow: "0 2px 6px rgba(114,88,232,0.25)",
                               }}
                               title="Create Processing File and send to Candidate 360 Workspace"
                             >
