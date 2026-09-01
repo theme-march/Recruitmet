@@ -284,12 +284,46 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       }
     } catch {}
 
+    const paymentsList = (file.payments || []).map((p) => ({ ...p, amount: Number(p.amount) }));
+    const totalPaid = paymentsList.reduce((sum, p) => sum + (p.amount || 0), 0);
+    const isDubai = /dubai|uae/i.test(file.country || "");
+    const demandPkg = Number((file.demandRecord as any)?.packagePrice || 0);
+    const packageCost = demandPkg > 0 ? demandPkg : (isDubai ? 300000 : 350000);
+    const dueAmount = Math.max(0, packageCost - totalPaid);
+    const advanceAmount = Math.max(0, totalPaid - packageCost);
+
+    const resolvedPassportNumber = file.passport?.passportNumber || file.candidate?.passportNo || null;
+
     return NextResponse.json({
       data: {
         ...file,
         agent: resolvedAgentName,
         agentRecord,
-        payments: (file.payments || []).map((p) => ({ ...p, amount: Number(p.amount) })),
+        packageCost,
+        totalPaid,
+        dueAmount,
+        advanceAmount,
+        passport: file.passport
+          ? {
+              ...file.passport,
+              passportNo: file.passport.passportNumber,
+              passportNumber: file.passport.passportNumber,
+            }
+          : resolvedPassportNumber
+          ? {
+              passportNo: resolvedPassportNumber,
+              passportNumber: resolvedPassportNumber,
+              verificationStatus: "Verified",
+            }
+          : null,
+        candidate: file.candidate
+          ? {
+              ...file.candidate,
+              passportNo: resolvedPassportNumber,
+              passportNumber: resolvedPassportNumber,
+            }
+          : null,
+        payments: paymentsList,
         holds: (file.holds || []).map((h) => ({ ...h, financialImpact: h.financialImpact ? Number(h.financialImpact) : null })),
         workflow: workflowList,
       },
@@ -367,6 +401,102 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         session,
       });
       return NextResponse.json({ ok: true, data: updated });
+    }
+
+    // 0. Update Candidate Bio-Data & Master Registration Info
+    if (action === "update-candidate-bio" || action === "update-bio") {
+      const bioSchema = z.object({
+        fullName: z.string().min(2, "Full name is required"),
+        phone: z.string().min(5, "Phone number is required"),
+        alternatePhone: z.string().nullish(),
+        nationalId: z.string().nullish(),
+        email: z.string().nullish(),
+        dob: z.string().nullish(),
+        gender: z.string().nullish(),
+        maritalStatus: z.string().nullish(),
+        district: z.string().nullish(),
+        address: z.string().nullish(),
+        profession: z.string().nullish(),
+        country: z.string().nullish(),
+        preferredCountry: z.string().nullish(),
+        agent: z.string().nullish(),
+        source: z.string().nullish(),
+      });
+
+      const bioData = bioSchema.parse(body);
+      const parsedDob = bioData.dob ? parseSafeDate(bioData.dob) : undefined;
+      const targetCountry = bioData.country || bioData.preferredCountry || file.country;
+      const targetProfession = bioData.profession?.trim() || file.profession || "General Worker";
+      const targetAgent = (bioData.agent || bioData.source || "").trim() || file.agent || "Direct";
+
+      // 1. Update Candidate Master
+      await prisma.candidate.update({
+        where: { id: file.candidateId },
+        data: {
+          fullName: bioData.fullName.trim(),
+          phone: bioData.phone.trim(),
+          nationalId: bioData.nationalId?.trim() || null,
+          email: bioData.email?.trim() || null,
+          dob: parsedDob || file.candidate.dob,
+          gender: bioData.gender || file.candidate.gender || "Male",
+          maritalStatus: bioData.maritalStatus || file.candidate.maritalStatus || "Single",
+          district: bioData.district?.trim() || file.candidate.district || "Dhaka",
+          address: bioData.address?.trim() || file.candidate.address || null,
+          profession: targetProfession,
+          preferredCountry: targetCountry,
+          source: targetAgent,
+        },
+      });
+
+      // 2. Update File Level Details
+      await prisma.processingFile.update({
+        where: { id: file.id },
+        data: {
+          profession: targetProfession,
+          country: targetCountry,
+          agent: targetAgent,
+        },
+      });
+
+      // 3. Update or create Alternate Phone
+      if (bioData.alternatePhone?.trim()) {
+        const alt = bioData.alternatePhone.trim();
+        const existingAlt = await prisma.candidatePhone.findFirst({
+          where: { candidateId: file.candidateId, isPrimary: false },
+        });
+
+        if (existingAlt) {
+          await prisma.candidatePhone.update({
+            where: { id: existingAlt.id },
+            data: { phone: alt },
+          }).catch(() => {});
+        } else {
+          await prisma.candidatePhone.create({
+            data: {
+              candidateId: file.candidateId,
+              phone: alt,
+              label: "Alternate",
+              isPrimary: false,
+            },
+          }).catch(() => {});
+        }
+      }
+
+      // 4. Also update WorkCall lead fullName / phone if exists
+      await prisma.workCall.updateMany({
+        where: { candidateId: file.candidateId },
+        data: {
+          fullName: bioData.fullName.trim(),
+          phone: bioData.phone.trim(),
+          country: targetCountry,
+          workCategory: targetProfession,
+        },
+      }).catch(() => {});
+
+      return NextResponse.json({
+        ok: true,
+        message: "Candidate registration details & bio-data updated successfully!",
+      });
     }
 
     // 2. Update Passport
@@ -908,6 +1038,55 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       const { noteId } = z.object({ noteId: z.string() }).parse(body);
       await prisma.workflowEvent.delete({ where: { id: noteId } }).catch(() => {});
       return NextResponse.json({ ok: true, message: "Note removed successfully." });
+    }
+
+    // 15. Update Custom Pipeline Stage
+    if (action === "update-custom-stage") {
+      const { stageCode, stageName, verificationStatus, formData } = z.object({
+        stageCode: z.string().min(1),
+        stageName: z.string().nullish(),
+        verificationStatus: z.string().nullish(),
+        formData: z.record(z.string(), z.any()).nullish(),
+      }).parse(body);
+
+      const statusVal = verificationStatus?.trim() || "Completed / Verified";
+      const customData = (formData || {}) as any;
+
+      const existingEvent = await prisma.workflowEvent.findFirst({
+        where: {
+          fileId,
+          stage: stageCode,
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (existingEvent) {
+        await prisma.workflowEvent.update({
+          where: { id: existingEvent.id },
+          data: {
+            status: statusVal,
+            completedBy: session.user.name,
+            completedAt: new Date(),
+            data: customData,
+          },
+        });
+      } else {
+        await prisma.workflowEvent.create({
+          data: {
+            fileId,
+            stage: stageCode,
+            status: statusVal,
+            completedBy: session.user.name,
+            completedAt: new Date(),
+            data: customData,
+          },
+        });
+      }
+
+      return NextResponse.json({
+        ok: true,
+        message: `${stageName || "Custom stage"} details saved successfully!`,
+      });
     }
 
     return NextResponse.json({ ok: false, error: "Unknown action" }, { status: 400 });

@@ -20,14 +20,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [navCounts, setNavCounts] = useState<Record<string, Record<string, number>>>({});
   const [dbCountries, setDbCountries] = useState<Array<{ id: string; name: string; code: string; active: boolean; candidateCount: number }>>([]);
   const path = usePathname();
+  const isPortalRoute = path.startsWith("/portal");
   const routeParts = path.split("/").filter(Boolean);
   const selectedModule = routeParts[0] === "module" ? routeParts[1] : null;
   const selectedPage = routeParts[0] === "module" ? routeParts[2] : null;
 
   const visible = useMemo(() => {
-    const allowed = profile?.roleKey === "SUPER_ADMIN"
+    if (!profile || profile?.roleKey === "AGENT" || isPortalRoute) {
+      return [];
+    }
+
+    const allowed = profile.roleKey === "SUPER_ADMIN"
       ? allModuleIds
-      : (profile?.allowedModules || (profile ? moduleIdsForRole(profile.roleKey) : allModuleIds));
+      : (profile.allowedModules || moduleIdsForRole(profile.roleKey));
 
     const nonCountryModules = modules.filter(
       (m) => !["ksa", "dubai", "other-country"].includes(m.id) && !m.hidden && allowed.includes(m.id as any)
@@ -97,7 +102,106 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     location.href = "/login";
   }
 
-  const initials = profile?.name.split(" ").map((part) => part[0]).slice(0, 2).join("") ?? "CC";
+  const initials = profile?.name.split(" ").map((part) => part[0]).slice(0, 2).join("") ?? "AG";
+
+  if (isPortalRoute) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#f8fafc", display: "flex", flexDirection: "column" }}>
+        <header
+          style={{
+            background: "#ffffff",
+            borderBottom: "1px solid var(--line)",
+            height: "64px",
+            padding: "0 28px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            position: "sticky",
+            top: 0,
+            zIndex: 50,
+            boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <div
+              style={{
+                width: "38px",
+                height: "38px",
+                borderRadius: "10px",
+                background: "#7258e8",
+                color: "#ffffff",
+                display: "grid",
+                placeItems: "center",
+                fontWeight: 900,
+                fontSize: "15px",
+              }}
+            >
+              <Users size={18} />
+            </div>
+            <div>
+              <b style={{ fontSize: "14.5px", letterSpacing: "-0.01em", color: "var(--ink)", display: "block" }}>
+                ORBIT
+              </b>
+              <span style={{ fontSize: "10.5px", fontWeight: 800, color: "#7258e8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                Agent Partner Portal
+              </span>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "4px 12px", background: "#f8fafc", borderRadius: "10px", border: "1px solid var(--line)" }}>
+              <div
+                style={{
+                  width: "30px",
+                  height: "30px",
+                  borderRadius: "8px",
+                  background: "#f0edff",
+                  color: "#7258e8",
+                  display: "grid",
+                  placeItems: "center",
+                  fontWeight: 800,
+                  fontSize: "11.5px",
+                }}
+              >
+                {initials}
+              </div>
+              <div style={{ textAlign: "left" }}>
+                <b style={{ fontSize: "12px", color: "var(--ink)", display: "block" }}>
+                  {profile?.name || "Agent Partner"}
+                </b>
+                <span style={{ fontSize: "10.5px", color: "#10b981", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "3px" }}>
+                  <ShieldCheck size={11} /> Verified Agent
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={logout}
+              title="Logout from Portal"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "7px 13px",
+                borderRadius: "8px",
+                background: "#fff1f2",
+                color: "#e11d48",
+                border: "1px solid #fecdd3",
+                fontSize: "12px",
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              <LogOut size={13} /> Logout
+            </button>
+          </div>
+        </header>
+
+        <main style={{ flex: 1, width: "100%", maxWidth: "100%" }}>{children}</main>
+      </div>
+    );
+  }
 
   return (
     <div className="app-shell">

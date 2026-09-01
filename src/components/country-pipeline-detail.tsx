@@ -62,23 +62,35 @@ export function parseStageDescription(raw: string | null | undefined): {
   fields: CustomStageField[];
 } {
   if (!raw) return { text: "", fields: [] };
-  if (raw.startsWith("{") && raw.includes('"fields"')) {
-    try {
-      const parsed = JSON.parse(raw);
-      return {
-        text: parsed.text || "",
-        fields: Array.isArray(parsed.fields) ? parsed.fields : [],
-      };
-    } catch {}
+  let str = String(raw).trim();
+
+  // Robust multi-level JSON unwrapper
+  for (let i = 0; i < 3; i++) {
+    if (str.startsWith("{") || str.startsWith('"')) {
+      try {
+        const parsed = JSON.parse(str);
+        if (typeof parsed === "object" && parsed !== null) {
+          return {
+            text: parsed.text || "",
+            fields: Array.isArray(parsed.fields) ? parsed.fields : [],
+          };
+        }
+        if (typeof parsed === "string") {
+          str = parsed.trim();
+          continue;
+        }
+      } catch (e) {
+        break;
+      }
+    }
   }
   return { text: raw, fields: [] };
 }
 
 export function serializeStageDescription(text: string, fields: CustomStageField[]): string {
-  if (!fields || fields.length === 0) return text || "";
   return JSON.stringify({
     text: text || "",
-    fields,
+    fields: Array.isArray(fields) ? fields : [],
   });
 }
 
@@ -244,32 +256,68 @@ export function CountryPipelineDetail() {
     }
   }, [id]);
 
+  const persistStagesDirectly = async (stagesToSave: typeof stagesState, showToast = false) => {
+    if (!country) return;
+    try {
+      const allOrderedStages = stagesToSave.map((s, idx) => ({
+        code: s.code,
+        name: s.label,
+        subtitle: s.subtitle || "",
+        description: serializeStageDescription(s.description, s.fields),
+        icon: s.iconName,
+        isCustom: Boolean(s.isCustom),
+        sortOrder: idx + 1,
+        active: Boolean(s.active),
+        terminal: s.code === "FLIGHT",
+      }));
+
+      const res = await fetch("/api/countries", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: country.id,
+          workflowType: selectedTemplate,
+          stages: allOrderedStages,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || "Failed to save pipeline configuration");
+
+      if (showToast) {
+        toast.success(`Pipeline saved & synced to database!`);
+      }
+    } catch (err: any) {
+      console.error("Auto-persist error:", err);
+    }
+  };
+
   const applyTemplateToStages = (templateKey: string) => {
     setSelectedTemplate(templateKey);
     const template = PIPELINE_TEMPLATES[templateKey] || PIPELINE_TEMPLATES.GENERAL;
 
-    setStagesState((prev) =>
-      prev.map((s) => ({
-        ...s,
-        active: s.required || template.stageCodes.includes(s.code as any),
-      }))
-    );
+    const nextStages = stagesState.map((s) => ({
+      ...s,
+      active: s.required || template.stageCodes.includes(s.code as any),
+    }));
+    setStagesState(nextStages);
+    persistStagesDirectly(nextStages, false);
     toast.info(`Applied "${template.name}" workflow preset (${template.stageCodes.length} stages)`);
   };
 
   const toggleStageActive = (code: string) => {
-    setStagesState((prev) =>
-      prev.map((s) => {
-        if (s.code === code) {
-          if (s.required) {
-            toast.info(`Stage "${s.label}" is mandatory for compliance.`);
-            return s;
-          }
-          return { ...s, active: !s.active };
+    const nextStages = stagesState.map((s) => {
+      if (s.code === code) {
+        if (s.required) {
+          toast.info(`Stage "${s.label}" is mandatory for compliance.`);
+          return s;
         }
-        return s;
-      })
-    );
+        return { ...s, active: !s.active };
+      }
+      return s;
+    });
+    setStagesState(nextStages);
+    persistStagesDirectly(nextStages, false);
   };
 
   const openAddModal = () => {
@@ -291,21 +339,22 @@ export function CountryPipelineDetail() {
     setEditingCode(stage.code);
     setStageForm({
       label: stage.label,
-      subtitle: stage.subtitle,
-      description: stage.description,
-      fields: stage.fields ? [...stage.fields] : [],
-      iconName: stage.iconName,
+      subtitle: stage.subtitle || "",
+      description: stage.description || "",
+      fields: Array.isArray(stage.fields) ? [...stage.fields] : [],
+      iconName: stage.iconName || "FileText",
       active: stage.active,
     });
     setModalOpen(true);
   };
 
   const addCustomField = () => {
+    const count = stageForm.fields.length + 1;
     const newField: CustomStageField = {
       id: `field_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
-      label: "",
+      label: `Field ${count}`,
       type: "text",
-      placeholder: "",
+      placeholder: `Enter field ${count} value...`,
       required: false,
       options: "",
     };
@@ -338,14 +387,28 @@ export function CountryPipelineDetail() {
       return;
     }
 
-    // Filter valid fields
-    const validFields = stageForm.fields
-      .map((f) => ({
+    // Ensure all fields have valid labels and fallback if blank
+    const validFields = stageForm.fields.map((f, idx) => {
+      let label = (f.label || "").trim();
+      if (!label) {
+        label = (f.placeholder || "").trim() || (
+          f.type === "file" ? `Document Attachment ${idx + 1}` :
+          f.type === "number" ? `Amount / Number ${idx + 1}` :
+          f.type === "date" ? `Date Selection ${idx + 1}` :
+          f.type === "textarea" ? `Remarks / Notes ${idx + 1}` :
+          f.type === "select" ? `Selection Option ${idx + 1}` :
+          `Input Field ${idx + 1}`
+        );
+      }
+      return {
         ...f,
-        label: f.label.trim(),
+        label,
         placeholder: f.placeholder?.trim() || "",
-      }))
-      .filter((f) => Boolean(f.label));
+        options: f.options?.trim() || "",
+      };
+    });
+
+    let updatedStagesList: typeof stagesState = [];
 
     if (modalMode === "ADD") {
       const customCode = `CUSTOM_${Date.now()}_${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
@@ -367,30 +430,33 @@ export function CountryPipelineDetail() {
       if (flightIdx !== -1) {
         const copy = [...stagesState];
         copy.splice(flightIdx, 0, newStageItem);
-        setStagesState(copy);
+        updatedStagesList = copy;
       } else {
-        setStagesState([...stagesState, newStageItem]);
+        updatedStagesList = [...stagesState, newStageItem];
       }
 
-      toast.success(`Custom stage "${newStageItem.label}" added (${validFields.length} input fields configured)`);
+      setStagesState(updatedStagesList);
+      persistStagesDirectly(updatedStagesList, true);
+      toast.success(`Custom stage "${newStageItem.label}" added & saved (${validFields.length} input fields configured)`);
     } else if (modalMode === "EDIT" && editingCode) {
-      setStagesState((prev) =>
-        prev.map((s) =>
-          s.code === editingCode
-            ? {
-                ...s,
-                id: stageForm.label.trim(),
-                label: stageForm.label.trim(),
-                subtitle: stageForm.subtitle.trim() || s.subtitle,
-                description: stageForm.description.trim() || s.description,
-                fields: validFields,
-                iconName: stageForm.iconName,
-                active: s.required ? true : stageForm.active,
-              }
-            : s
-        )
+      updatedStagesList = stagesState.map((s) =>
+        s.code === editingCode
+          ? {
+              ...s,
+              id: stageForm.label.trim(),
+              label: stageForm.label.trim(),
+              subtitle: stageForm.subtitle.trim() || s.subtitle,
+              description: stageForm.description.trim() || s.description,
+              fields: validFields,
+              iconName: stageForm.iconName,
+              active: s.required ? true : stageForm.active,
+            }
+          : s
       );
-      toast.success(`Stage "${stageForm.label}" updated!`);
+
+      setStagesState(updatedStagesList);
+      persistStagesDirectly(updatedStagesList, true);
+      toast.success(`Stage "${stageForm.label}" updated & saved (${validFields.length} input fields configured)`);
     }
 
     setModalOpen(false);
@@ -398,61 +464,37 @@ export function CountryPipelineDetail() {
 
   const handleDeleteStage = (code: string, label: string) => {
     if (!confirm(`Are you sure you want to delete stage "${label}"?`)) return;
-    setStagesState((prev) => prev.filter((s) => s.code !== code));
+    const nextStages = stagesState.filter((s) => s.code !== code);
+    setStagesState(nextStages);
+    persistStagesDirectly(nextStages, true);
     toast.success(`Stage "${label}" removed from pipeline`);
   };
 
   const moveStageUp = (index: number) => {
     if (index === 0) return;
-    setStagesState((prev) => {
-      const copy = [...prev];
-      const temp = copy[index - 1];
-      copy[index - 1] = copy[index];
-      copy[index] = temp;
-      return copy;
-    });
+    const copy = [...stagesState];
+    const temp = copy[index - 1];
+    copy[index - 1] = copy[index];
+    copy[index] = temp;
+    setStagesState(copy);
+    persistStagesDirectly(copy, false);
   };
 
   const moveStageDown = (index: number) => {
     if (index >= stagesState.length - 1) return;
-    setStagesState((prev) => {
-      const copy = [...prev];
-      const temp = copy[index + 1];
-      copy[index + 1] = copy[index];
-      copy[index] = temp;
-      return copy;
-    });
+    const copy = [...stagesState];
+    const temp = copy[index + 1];
+    copy[index + 1] = copy[index];
+    copy[index] = temp;
+    setStagesState(copy);
+    persistStagesDirectly(copy, false);
   };
 
   const handleSavePipelineConfig = async () => {
     if (!country) return;
     setSavingPipeline(true);
     try {
-      const allOrderedStages = stagesState.map((s, idx) => ({
-        code: s.code,
-        name: s.label,
-        subtitle: s.subtitle,
-        description: serializeStageDescription(s.description, s.fields),
-        icon: s.iconName,
-        isCustom: Boolean(s.isCustom),
-        sortOrder: idx + 1,
-        active: Boolean(s.active),
-        terminal: s.code === "FLIGHT",
-      }));
-
-      const res = await fetch("/api/countries", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: country.id,
-          workflowType: selectedTemplate,
-          stages: allOrderedStages,
-        }),
-      });
-
-      const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.error || "Failed to save pipeline configuration");
-
+      await persistStagesDirectly(stagesState, false);
       const activeCount = stagesState.filter((s) => s.active).length;
       toast.success(`Pipeline for "${country.name}" saved with ${activeCount} active stages!`);
       await fetchCountryData();
@@ -1351,7 +1393,19 @@ export function CountryPipelineDetail() {
                           {/* Field Type Selector */}
                           <select
                             value={field.type}
-                            onChange={(e) => updateCustomField(fIdx, { type: e.target.value as any })}
+                            onChange={(e) => {
+                              const newType = e.target.value as any;
+                              const patch: any = { type: newType };
+                              if (!field.label || field.label.startsWith("Field ")) {
+                                if (newType === "file") patch.label = "Document / File Upload";
+                                else if (newType === "number") patch.label = "Amount / Number";
+                                else if (newType === "date") patch.label = "Appointment / Milestone Date";
+                                else if (newType === "textarea") patch.label = "Special Remarks & Notes";
+                                else if (newType === "select") patch.label = "Status / Result Option";
+                                else patch.label = "Text Input Field";
+                              }
+                              updateCustomField(fIdx, patch);
+                            }}
                             style={{
                               height: "36px",
                               padding: "0 10px",

@@ -136,6 +136,8 @@ model User {
   followUps     FollowUp[]
   callRecords   CallRecord[]
   verifications DocumentVerification[]
+  agentId       String?
+  agent         Agent?                 @relation(fields: [agentId], references: [id], onDelete: SetNull)
   createdAt     DateTime               @default(now())
   updatedAt     DateTime               @updatedAt
 }
@@ -812,6 +814,7 @@ model Agent {
   commissionRule Json?
   agreementKey   String?
   status         String   @default("Active")
+  users          User[]
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 }

@@ -28,7 +28,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
 type AgentItem = {
@@ -47,6 +47,8 @@ type AgentItem = {
   totalCandidates: number;
   activeDossiers: number;
   completedDossiers: number;
+  hasPortalAccess?: boolean;
+  portalLoginEmail?: string | null;
   createdAt: string;
 };
 
@@ -81,6 +83,9 @@ type AgentDetail = {
   status: "Active" | "Inactive" | "Blocked";
   commissionRate: string;
   agreementKey: string;
+  hasPortalAccess?: boolean;
+  portalLoginEmail?: string | null;
+  portalLastLoginAt?: string | null;
   createdAt: string;
   updatedAt: string;
   metrics: {
@@ -99,9 +104,14 @@ export function AgentsPage() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [createPortalLogin, setCreatePortalLogin] = useState(true);
+  const [createPassword, setCreatePassword] = useState("Agent@2026");
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [activeProfileTab, setActiveProfileTab] = useState<"candidates" | "edit">("candidates");
   const [updatingAgent, setUpdatingAgent] = useState(false);
+  const [editPortalLogin, setEditPortalLogin] = useState(true);
+  const [editPortalEmail, setEditPortalEmail] = useState("");
+  const [editPortalPassword, setEditPortalPassword] = useState("");
 
   // Fetch agents list
   const { data, isLoading, isRefetching, refetch } = useQuery({
@@ -137,6 +147,14 @@ export function AgentsPage() {
     enabled: Boolean(selectedAgentId),
   });
 
+  useEffect(() => {
+    if (agentDetailQuery.data) {
+      setEditPortalLogin(agentDetailQuery.data.hasPortalAccess ?? true);
+      setEditPortalEmail(agentDetailQuery.data.portalLoginEmail || agentDetailQuery.data.email || "");
+      setEditPortalPassword("");
+    }
+  }, [agentDetailQuery.data, selectedAgentId]);
+
   // Handle Create Agent Form Submit
   const handleCreateAgent = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -155,6 +173,9 @@ export function AgentsPage() {
         commissionRate: String(form.get("commissionRate") || "").trim() || undefined,
         agreementKey: String(form.get("agreementKey") || "").trim() || undefined,
         status: String(form.get("status") || "Active"),
+        enablePortalLogin: createPortalLogin,
+        portalEmail: String(form.get("portalEmail") || form.get("email") || "").trim() || undefined,
+        portalPassword: createPassword.trim() || "Agent@2026",
       };
 
       const res = await fetch("/api/agents", {
@@ -195,6 +216,9 @@ export function AgentsPage() {
         commissionRate: String(form.get("commissionRate") || "").trim() || "Standard",
         agreementKey: String(form.get("agreementKey") || "").trim() || null,
         status: String(form.get("status") || "Active"),
+        enablePortalLogin: editPortalLogin,
+        portalEmail: editPortalEmail.trim() || undefined,
+        portalPassword: editPortalPassword.trim() || undefined,
       };
 
       const res = await fetch(`/api/agents/${selectedAgentId}`, {
@@ -696,6 +720,26 @@ export function AgentsPage() {
                           {agent.email !== "N/A" && (
                             <span style={{ fontSize: "11px", color: "var(--muted)" }}>{agent.email}</span>
                           )}
+                          {agent.hasPortalAccess && (
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "3px",
+                                fontSize: "10px",
+                                fontWeight: 700,
+                                color: "#059669",
+                                background: "#ecfdf5",
+                                border: "1px solid #a7f3d0",
+                                padding: "1px 6px",
+                                borderRadius: "4px",
+                                width: "fit-content",
+                                marginTop: "2px",
+                              }}
+                            >
+                              🔑 Portal Active
+                            </span>
+                          )}
                         </div>
                       </td>
 
@@ -765,6 +809,25 @@ export function AgentsPage() {
                             }}
                           >
                             <Eye size={13} /> View Profile
+                          </Link>
+                          <Link
+                            href={`/portal/agent?agentId=${agent.id}`}
+                            title="Preview Agent Self-Service Portal"
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "3px",
+                              padding: "6px 9px",
+                              borderRadius: "8px",
+                              background: "#ecfdf5",
+                              color: "#059669",
+                              border: "1px solid #a7f3d0",
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              textDecoration: "none",
+                            }}
+                          >
+                            <span>🔑</span> Portal
                           </Link>
                           <button
                             type="button"
@@ -987,25 +1050,6 @@ export function AgentsPage() {
                   </div>
                 </div>
 
-                <div>
-                  <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "var(--ink)", marginBottom: "5px" }}>
-                    Office Address
-                  </label>
-                  <input
-                    name="address"
-                    placeholder="e.g. Suite 402, Paltan Tower, Dhaka"
-                    style={{
-                      width: "100%",
-                      height: "40px",
-                      borderRadius: "8px",
-                      border: "1px solid #cbd5e1",
-                      padding: "0 12px",
-                      fontSize: "13px",
-                      outline: "none",
-                    }}
-                  />
-                </div>
-
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                   <div>
                     <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "var(--ink)", marginBottom: "5px" }}>
@@ -1015,6 +1059,45 @@ export function AgentsPage() {
                       name="commissionRate"
                       defaultValue="৳ 25,000 / candidate"
                       placeholder="e.g. ৳ 25,000 / candidate"
+                      style={{
+                        width: "100%",
+                        height: "40px",
+                        borderRadius: "8px",
+                        border: "1px solid #cbd5e1",
+                        padding: "0 12px",
+                        fontSize: "13px",
+                        outline: "none",
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "var(--ink)", marginBottom: "5px" }}>
+                      Agreement Reference / Key
+                    </label>
+                    <input
+                      name="agreementKey"
+                      placeholder="e.g. AGR-2026-005"
+                      style={{
+                        width: "100%",
+                        height: "40px",
+                        borderRadius: "8px",
+                        border: "1px solid #cbd5e1",
+                        padding: "0 12px",
+                        fontSize: "13px",
+                        outline: "none",
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "12px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "var(--ink)", marginBottom: "5px" }}>
+                      Office Address
+                    </label>
+                    <input
+                      name="address"
+                      placeholder="e.g. Suite 402, Paltan Tower, Dhaka"
                       style={{
                         width: "100%",
                         height: "40px",
@@ -1042,6 +1125,8 @@ export function AgentsPage() {
                         fontSize: "13px",
                         outline: "none",
                         background: "#fff",
+                        fontWeight: 700,
+                        cursor: "pointer",
                       }}
                     >
                       <option value="Active">Active (Verified)</option>
@@ -1049,6 +1134,115 @@ export function AgentsPage() {
                       <option value="Blocked">Blocked</option>
                     </select>
                   </div>
+                </div>
+
+                {/* 🔐 AGENT PORTAL LOGIN CREDENTIALS */}
+                <div
+                  style={{
+                    background: "linear-gradient(135deg, #f8f7ff 0%, #f5f3ff 100%)",
+                    border: "1px solid #ddd6fe",
+                    borderRadius: "12px",
+                    padding: "14px 16px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "10px",
+                    marginTop: "4px",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ fontSize: "18px" }}>🔐</span>
+                      <div>
+                        <b style={{ fontSize: "12.5px", color: "var(--ink)", display: "block" }}>
+                          Agent Portal Self-Service Login
+                        </b>
+                        <span style={{ fontSize: "11px", color: "var(--muted)" }}>
+                          Agent can log in with Email &amp; Password to view their candidates in read-only mode.
+                        </span>
+                      </div>
+                    </div>
+                    <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "12px", fontWeight: 700, color: "#7258e8" }}>
+                      <input
+                        type="checkbox"
+                        name="enablePortalLogin"
+                        checked={createPortalLogin}
+                        onChange={(e) => setCreatePortalLogin(e.target.checked)}
+                        style={{ width: "16px", height: "16px", accentColor: "#7258e8" }}
+                      />
+                      Enable Login
+                    </label>
+                  </div>
+
+                  {createPortalLogin && (
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", paddingTop: "4px" }}>
+                      <div>
+                        <label style={{ display: "block", fontSize: "11.5px", fontWeight: 700, color: "var(--ink)", marginBottom: "4px" }}>
+                          Portal Login Email
+                        </label>
+                        <input
+                          name="portalEmail"
+                          type="email"
+                          placeholder="Uses Main Email if blank"
+                          style={{
+                            width: "100%",
+                            height: "38px",
+                            borderRadius: "8px",
+                            border: "1px solid #cbd5e1",
+                            padding: "0 10px",
+                            fontSize: "12.5px",
+                            outline: "none",
+                            background: "#fff",
+                          }}
+                        />
+                      </div>
+
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                          <label style={{ fontSize: "11.5px", fontWeight: 700, color: "var(--ink)" }}>
+                            Portal Password
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$";
+                              let pwd = "";
+                              for (let i = 0; i < 6; i++) pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+                              setCreatePassword(`Agent@${pwd}`);
+                            }}
+                            style={{
+                              background: "none",
+                              border: "none",
+                              color: "#7258e8",
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              cursor: "pointer",
+                              padding: 0,
+                            }}
+                          >
+                            🎲 Auto-generate
+                          </button>
+                        </div>
+                        <input
+                          name="portalPassword"
+                          value={createPassword}
+                          onChange={(e) => setCreatePassword(e.target.value)}
+                          placeholder="e.g. Agent@2026"
+                          style={{
+                            width: "100%",
+                            height: "38px",
+                            borderRadius: "8px",
+                            border: "1px solid #cbd5e1",
+                            padding: "0 10px",
+                            fontSize: "12.5px",
+                            outline: "none",
+                            background: "#fff",
+                            fontFamily: "monospace",
+                            fontWeight: 700,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1522,6 +1716,24 @@ export function AgentsPage() {
                         </div>
                         <div>
                           <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "var(--ink)", marginBottom: "5px" }}>
+                            Agreement Reference / Key
+                          </label>
+                          <input
+                            name="agreementKey"
+                            defaultValue={agentDetailQuery.data.agreementKey || `AGR-${agentDetailQuery.data.code}`}
+                            style={{
+                              width: "100%",
+                              height: "40px",
+                              borderRadius: "8px",
+                              border: "1px solid #cbd5e1",
+                              padding: "0 12px",
+                              fontSize: "13px",
+                              outline: "none",
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "var(--ink)", marginBottom: "5px" }}>
                             Account Status
                           </label>
                           <select
@@ -1536,6 +1748,8 @@ export function AgentsPage() {
                               fontSize: "13px",
                               outline: "none",
                               background: "#fff",
+                              fontWeight: 700,
+                              cursor: "pointer",
                             }}
                           >
                             <option value="Active">Active (Verified)</option>
@@ -1543,6 +1757,118 @@ export function AgentsPage() {
                             <option value="Blocked">Blocked</option>
                           </select>
                         </div>
+                      </div>
+
+                      {/* 🔐 AGENT PORTAL SELF-SERVICE LOGIN */}
+                      <div
+                        style={{
+                          background: "linear-gradient(135deg, #f8f7ff 0%, #f5f3ff 100%)",
+                          border: "1px solid #ddd6fe",
+                          borderRadius: "12px",
+                          padding: "14px 16px",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "10px",
+                          marginTop: "16px",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <span style={{ fontSize: "18px" }}>🔐</span>
+                            <div>
+                              <b style={{ fontSize: "12.5px", color: "var(--ink)", display: "block" }}>
+                                Agent Portal Self-Service Login
+                              </b>
+                              <span style={{ fontSize: "11px", color: "var(--muted)" }}>
+                                Agent can log in with Email &amp; Password to view their candidates in read-only mode.
+                              </span>
+                            </div>
+                          </div>
+                          <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "12px", fontWeight: 700, color: "#7258e8" }}>
+                            <input
+                              type="checkbox"
+                              name="enablePortalLogin"
+                              checked={editPortalLogin}
+                              onChange={(e) => setEditPortalLogin(e.target.checked)}
+                              style={{ width: "16px", height: "16px", accentColor: "#7258e8" }}
+                            />
+                            Enable Login
+                          </label>
+                        </div>
+
+                        {editPortalLogin && (
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", paddingTop: "4px" }}>
+                            <div>
+                              <label style={{ display: "block", fontSize: "11.5px", fontWeight: 700, color: "var(--ink)", marginBottom: "4px" }}>
+                                Portal Login Email
+                              </label>
+                              <input
+                                name="portalEmail"
+                                type="email"
+                                value={editPortalEmail}
+                                onChange={(e) => setEditPortalEmail(e.target.value)}
+                                placeholder="Uses Main Email if blank"
+                                style={{
+                                  width: "100%",
+                                  height: "38px",
+                                  borderRadius: "8px",
+                                  border: "1px solid #cbd5e1",
+                                  padding: "0 10px",
+                                  fontSize: "12.5px",
+                                  outline: "none",
+                                  background: "#fff",
+                                }}
+                              />
+                            </div>
+
+                            <div>
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                                <label style={{ fontSize: "11.5px", fontWeight: 700, color: "var(--ink)" }}>
+                                  Reset Password
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$";
+                                    let pwd = "";
+                                    for (let i = 0; i < 6; i++) pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+                                    setEditPortalPassword(`Agent@${pwd}`);
+                                  }}
+                                  style={{
+                                    background: "none",
+                                    border: "none",
+                                    color: "#7258e8",
+                                    fontSize: "11px",
+                                    fontWeight: 700,
+                                    cursor: "pointer",
+                                    padding: 0,
+                                  }}
+                                >
+                                  🎲 Auto-generate
+                                </button>
+                              </div>
+                              <input
+                                name="portalPassword"
+                                type="text"
+                                value={editPortalPassword}
+                                onChange={(e) => setEditPortalPassword(e.target.value)}
+                                placeholder="Leave blank to keep current"
+                                style={{
+                                  width: "100%",
+                                  height: "38px",
+                                  borderRadius: "8px",
+                                  border: "1px solid #cbd5e1",
+                                  padding: "0 10px",
+                                  fontSize: "12.5px",
+                                  outline: "none",
+                                  background: "#fff",
+                                  fontFamily: "monospace",
+                                  fontWeight: 700,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "20px" }}>

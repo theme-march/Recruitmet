@@ -1,8 +1,86 @@
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
-import { Dashboard, type DashboardData } from "@/components/dashboard";
+import { Dashboard, type DashboardData, type ActiveCountryCard } from "@/components/dashboard";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
+
+const FLAG_MAP: Record<string, string> = {
+  sa: "🇸🇦",
+  ksa: "🇸🇦",
+  ae: "🇦🇪",
+  uae: "🇦🇪",
+  om: "🇴🇲",
+  qa: "🇶🇦",
+  kw: "🇰🇼",
+  bh: "🇧🇭",
+  my: "🇲🇾",
+  sg: "🇸🇬",
+  ro: "🇷🇴",
+  it: "🇮🇹",
+  pl: "🇵🇱",
+  jp: "🇯🇵",
+  hr: "🇭🇷",
+  ca: "🇨🇦",
+  mv: "🇲🇻",
+  bd: "🇧🇩",
+  in: "🇮🇳",
+};
+
+function getCountryFlag(code: string, name: string): string {
+  const cLower = (code || "").trim().toLowerCase();
+  if (FLAG_MAP[cLower]) return FLAG_MAP[cLower];
+  const nLower = (name || "").trim().toLowerCase();
+  if (nLower.includes("saudi") || nLower.includes("ksa") || cLower === "sa" || cLower === "ksa") return "🇸🇦";
+  if (nLower.includes("dubai") || nLower.includes("uae") || nLower.includes("emirates") || cLower === "ae") return "🇦🇪";
+  if (nLower.includes("oman") || cLower === "om") return "🇴🇲";
+  if (nLower.includes("qatar") || cLower === "qa") return "🇶🇦";
+  if (nLower.includes("kuwait") || cLower === "kw") return "🇰🇼";
+  if (nLower.includes("bahrain") || cLower === "bh") return "🇧🇭";
+  if (nLower.includes("malaysia") || cLower === "my") return "🇲🇾";
+  if (nLower.includes("singapore") || cLower === "sg") return "🇸🇬";
+  if (nLower.includes("romania") || cLower === "ro") return "🇷🇴";
+  if (nLower.includes("italy") || cLower === "it") return "🇮🇹";
+  return "🌍";
+}
+
+function matchesCountry(countryName: string, countryCode: string, targetCountry: string): boolean {
+  const cn = (countryName || "").trim().toLowerCase();
+  const code = (countryCode || "").trim().toLowerCase();
+  const tn = (targetCountry || "").trim().toLowerCase();
+  if (!tn) return false;
+
+  if (cn.includes("saudi") || code === "sa" || code === "ksa") {
+    return tn.includes("saudi") || tn === "sa" || tn === "ksa";
+  }
+  if (cn.includes("dubai") || code === "ae" || code === "uae") {
+    return tn.includes("dubai") || tn.includes("uae") || tn.includes("emirates") || tn === "ae";
+  }
+  if (cn === "other" || cn === "other country" || code === "other") {
+    return tn === "other" || tn === "other country" || tn === "others";
+  }
+  if (cn.includes("oman") || code === "om") {
+    return tn.includes("oman") || tn === "om";
+  }
+  if (cn.includes("malaysia") || code === "my") {
+    return tn.includes("malaysia") || tn === "my";
+  }
+  if (cn.includes("singapore") || code === "sg") {
+    return tn.includes("singapore") || tn === "sg";
+  }
+  if (cn.includes("qatar") || code === "qa") {
+    return tn.includes("qatar") || tn === "qa";
+  }
+  if (cn.includes("kuwait") || code === "kw") {
+    return tn.includes("kuwait") || tn === "kw";
+  }
+  if (cn.includes("bahrain") || code === "bh") {
+    return tn.includes("bahrain") || tn === "bh";
+  }
+  if (cn.includes("romania") || code === "ro") {
+    return tn.includes("romania") || tn === "ro";
+  }
+  return tn === cn || tn === code || tn.includes(cn) || cn.includes(tn);
+}
 
 export default async function Page() {
   await connection();
@@ -25,6 +103,7 @@ export default async function Page() {
     processingFiles,
     payments,
     interviewSchedules,
+    activeCountriesFromDb,
   ] = await Promise.all([
     prisma.workCall.count(),
     prisma.workCall.count({
@@ -63,25 +142,30 @@ export default async function Page() {
     }),
     prisma.processingFile.findMany({
       orderBy: { updatedAt: "desc" },
-      take: 500,
       include: {
         candidate: true,
-        passport: true,
-        visas: true,
-        manpower: true,
         companyRecord: true,
-        payments: { orderBy: { createdAt: "desc" } },
+        passport: true,
+        manpower: true,
+        visas: true,
+        payments: true,
       },
     }),
-    prisma.payment.findMany({
-      select: { amount: true, status: true },
-    }),
+    prisma.payment.findMany(),
     prisma.interviewSchedule.findMany({
+      where: { scheduledAt: { gte: startOfToday } },
       take: 4,
       orderBy: { scheduledAt: "asc" },
+      include: { interviews: true },
+    }),
+    prisma.country.findMany({
+      where: { active: true },
       include: {
-        interviews: true,
+        workflow: {
+          orderBy: { sortOrder: "asc" },
+        },
       },
+      orderBy: { name: "asc" },
     }),
   ]);
 
@@ -242,6 +326,56 @@ export default async function Page() {
     },
   ];
 
+  // Compute dynamic active country cards with candidate counts and agent counts
+  const activeCountryCards: ActiveCountryCard[] = activeCountriesFromDb.map((country) => {
+    const matchedFiles = processingFiles.filter((f) => matchesCountry(country.name, country.code, f.country || ""));
+    const uniqueAgents = new Set<string>();
+    matchedFiles.forEach((f) => {
+      if (f.agent && f.agent !== "Direct" && f.agent !== "Direct Office") {
+        uniqueAgents.add(f.agent.trim());
+      }
+    });
+
+    const inProcess = matchedFiles.filter((f) => f.currentStage !== "flight" && f.status !== "COMPLETED").length;
+    const completed = matchedFiles.filter((f) => f.currentStage === "flight" || f.status === "COMPLETED").length;
+
+    const lower = country.name.toLowerCase();
+    const href = lower.includes("saudi")
+      ? "/module/ksa/candidates-list"
+      : lower.includes("dubai")
+      ? "/module/dubai/candidates-list"
+      : lower === "other" || lower === "other country"
+      ? "/module/other-country/candidates-list"
+      : `/module/${country.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}/candidates-list`;
+
+    const flag = getCountryFlag(country.code, country.name);
+
+    let subtitle = "";
+    if (lower.includes("saudi")) {
+      subtitle = "Medical · Takamul · MOFA · Manpower";
+    } else if (lower.includes("dubai")) {
+      subtitle = "Offer Letter · E-Visa · Departure";
+    } else if (country.workflow && country.workflow.length > 0) {
+      subtitle = country.workflow.slice(0, 3).map((w) => w.name).join(" · ");
+    } else {
+      subtitle = "Standard Visa & Recruitment Pipeline";
+    }
+
+    return {
+      id: country.id,
+      code: country.code,
+      name: country.name,
+      flag,
+      currency: country.currency,
+      href,
+      filesCount: matchedFiles.length,
+      inProcessCount: inProcess,
+      completedCount: completed,
+      agentsCount: uniqueAgents.size,
+      subtitle,
+    };
+  });
+
   const data: DashboardData = {
     userName: session.user.name,
     officeName: session.user.office?.name ?? "Dhaka Head Office",
@@ -261,6 +395,7 @@ export default async function Page() {
     },
     stageCounts,
     countryBreakdown,
+    activeCountries: activeCountryCards,
     recentCalls: recentCalls.map((c) => ({
       id: c.id,
       leadNo: c.leadNo,

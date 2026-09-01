@@ -25,6 +25,20 @@ import Link from "next/link";
 import { useState } from "react";
 import { moduleItemPath } from "@/lib/modules";
 
+export type ActiveCountryCard = {
+  id: string;
+  code: string;
+  name: string;
+  flag: string;
+  currency: string;
+  href: string;
+  filesCount: number;
+  inProcessCount: number;
+  completedCount: number;
+  agentsCount: number;
+  subtitle: string;
+};
+
 export type DashboardData = {
   userName: string;
   officeName: string;
@@ -57,6 +71,7 @@ export type DashboardData = {
     dubai: { count: number; inProcess: number; completed: number };
     other: { count: number; inProcess: number; completed: number };
   };
+  activeCountries?: ActiveCountryCard[];
   recentCalls: Array<{
     id: string;
     leadNo: string;
@@ -447,109 +462,187 @@ export function Dashboard({ data }: { data: DashboardData }) {
         </Link>
       </section>
 
-      {/* 3. COUNTRY DESTINATION HUBS */}
-      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "12px" }}>
-        <Link
-          href={moduleItemPath("ksa", "Candidates List")}
-          style={{
-            background: "#ffffff",
-            border: "1px solid var(--line)",
-            borderRadius: "14px",
-            padding: "14px 18px",
-            textDecoration: "none",
-            boxShadow: "var(--shadow)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            transition: "border-color 0.15s ease",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#7258e8")}
-          onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--line)")}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <span style={{ fontSize: "24px" }}>🇸🇦</span>
-            <div>
-              <b style={{ fontSize: "13.5px", fontWeight: 800, color: "var(--ink)", display: "block" }}>Saudi Arabia Pipeline</b>
-              <small style={{ fontSize: "11px", color: "var(--muted)" }}>Medical · Takamul · MOFA · Manpower</small>
-            </div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <span style={{ fontSize: "14px", fontWeight: 900, color: "#7258e8", display: "block" }}>
-              {data.countryBreakdown.saudi.count || 7} Files
-            </span>
-            <small style={{ fontSize: "10.5px", color: "#059669", fontWeight: 700 }}>
-              {data.countryBreakdown.saudi.inProcess || 5} Active
-            </small>
-          </div>
-        </Link>
+      {/* 3. DYNAMIC ACTIVE COUNTRY DESTINATION HUBS */}
+      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(330px, 1fr))", gap: "16px" }}>
+        {(data.activeCountries && data.activeCountries.length > 0
+          ? data.activeCountries
+          : [
+              {
+                id: "saudi",
+                code: "KSA",
+                name: "Saudi Arabia",
+                flag: "🇸🇦",
+                currency: "SAR",
+                href: moduleItemPath("ksa", "Candidates List"),
+                filesCount: data.countryBreakdown.saudi.count || 4,
+                inProcessCount: data.countryBreakdown.saudi.inProcess || 4,
+                completedCount: data.countryBreakdown.saudi.completed || 0,
+                agentsCount: 1,
+                subtitle: "Medical · Takamul · MOFA · Manpower",
+              },
+              {
+                id: "dubai",
+                code: "UAE",
+                name: "Dubai",
+                flag: "🇦🇪",
+                currency: "AED",
+                href: moduleItemPath("dubai", "Candidates List"),
+                filesCount: data.countryBreakdown.dubai.count || 3,
+                inProcessCount: data.countryBreakdown.dubai.inProcess || 3,
+                completedCount: data.countryBreakdown.dubai.completed || 0,
+                agentsCount: 2,
+                subtitle: "Offer Letter · E-Visa · Departure",
+              },
+              {
+                id: "other",
+                code: "OTHER",
+                name: "Other Destinations",
+                flag: "🌐",
+                currency: "USD",
+                href: moduleItemPath("other-country", "Candidates List"),
+                filesCount: data.countryBreakdown.other.count || 2,
+                inProcessCount: data.countryBreakdown.other.inProcess || 2,
+                completedCount: data.countryBreakdown.other.completed || 0,
+                agentsCount: 1,
+                subtitle: "Oman, Qatar, Kuwait & Europe",
+              },
+            ]
+        ).map((c) => (
+          <Link
+            key={c.id}
+            href={c.href}
+            style={{
+              background: "#ffffff",
+              border: "1px solid #e2e8f0",
+              borderRadius: "16px",
+              padding: "16px 18px",
+              textDecoration: "none",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(114, 88, 232, 0.03)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "12px",
+              transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = "#7258e8";
+              e.currentTarget.style.transform = "translateY(-3px)";
+              e.currentTarget.style.boxShadow = "0 12px 28px rgba(114, 88, 232, 0.12)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = "#e2e8f0";
+              e.currentTarget.style.transform = "none";
+              e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(114, 88, 232, 0.03)";
+            }}
+          >
+            {/* Top Row: Country Info & Files Metric */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
+                <div
+                  style={{
+                    width: "44px",
+                    height: "44px",
+                    borderRadius: "12px",
+                    background: "linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)",
+                    border: "1px solid #ddd6fe",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "22px",
+                    flexShrink: 0,
+                    boxShadow: "0 2px 6px rgba(114, 88, 232, 0.08)",
+                  }}
+                >
+                  {c.flag}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "2px" }}>
+                    <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 800, color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {c.name} Pipeline
+                    </h4>
+                    <span
+                      style={{
+                        fontSize: "9.5px",
+                        fontWeight: 800,
+                        background: "#ecfdf5",
+                        color: "#059669",
+                        padding: "1px 6px",
+                        borderRadius: "5px",
+                        border: "1px solid #a7f3d0",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "3px",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <span style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#10b981" }} />
+                      Active
+                    </span>
+                  </div>
+                  <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 500, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {c.subtitle}
+                  </span>
+                </div>
+              </div>
 
-        <Link
-          href={moduleItemPath("dubai", "Candidates List")}
-          style={{
-            background: "#ffffff",
-            border: "1px solid var(--line)",
-            borderRadius: "14px",
-            padding: "14px 18px",
-            textDecoration: "none",
-            boxShadow: "var(--shadow)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            transition: "border-color 0.15s ease",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#7258e8")}
-          onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--line)")}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <span style={{ fontSize: "24px" }}>🇦🇪</span>
-            <div>
-              <b style={{ fontSize: "13.5px", fontWeight: 800, color: "var(--ink)", display: "block" }}>Dubai &amp; UAE Pipeline</b>
-              <small style={{ fontSize: "11px", color: "var(--muted)" }}>Offer Letter · E-Visa · Departure</small>
+              {/* Candidate Count Pill */}
+              <div
+                style={{
+                  textAlign: "right",
+                  background: "linear-gradient(135deg, #fbfaff 0%, #f5f3ff 100%)",
+                  border: "1px solid #e9d5ff",
+                  borderRadius: "10px",
+                  padding: "5px 10px",
+                  flexShrink: 0,
+                }}
+              >
+                <div style={{ fontSize: "14px", fontWeight: 900, color: "#7258e8", lineHeight: 1.2 }}>
+                  {c.filesCount} <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b" }}>{c.filesCount === 1 ? "File" : "Files"}</span>
+                </div>
+                <div style={{ fontSize: "10px", color: "#059669", fontWeight: 700, marginTop: "1px" }}>
+                  ● {c.inProcessCount} Active
+                </div>
+              </div>
             </div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <span style={{ fontSize: "14px", fontWeight: 900, color: "#7258e8", display: "block" }}>
-              {data.countryBreakdown.dubai.count || 3} Files
-            </span>
-            <small style={{ fontSize: "10.5px", color: "#059669", fontWeight: 700 }}>
-              {data.countryBreakdown.dubai.inProcess || 3} Active
-            </small>
-          </div>
-        </Link>
 
-        <Link
-          href={moduleItemPath("other-country", "Candidates List")}
-          style={{
-            background: "#ffffff",
-            border: "1px solid var(--line)",
-            borderRadius: "14px",
-            padding: "14px 18px",
-            textDecoration: "none",
-            boxShadow: "var(--shadow)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            transition: "border-color 0.15s ease",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#7258e8")}
-          onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--line)")}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <span style={{ fontSize: "24px" }}>🌐</span>
-            <div>
-              <b style={{ fontSize: "13.5px", fontWeight: 800, color: "var(--ink)", display: "block" }}>Other Destinations</b>
-              <small style={{ fontSize: "11px", color: "var(--muted)" }}>Oman, Qatar, Kuwait &amp; Europe</small>
+            {/* Bottom Row: Working Agents & Navigation Arrow */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                paddingTop: "9px",
+                borderTop: "1px dashed #f1f5f9",
+                fontSize: "11px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    background: "#f0f4ff",
+                    color: "#3b82f6",
+                    fontWeight: 700,
+                    fontSize: "10.5px",
+                    padding: "2px 7px",
+                    borderRadius: "5px",
+                    border: "1px solid #dbeafe",
+                  }}
+                >
+                  🤝 {c.agentsCount} {c.agentsCount === 1 ? "Agent" : "Agents"} Assigned
+                </span>
+                <span style={{ color: "#94a3b8", fontSize: "10.5px" }}>
+                  ({c.completedCount} Completed)
+                </span>
+              </div>
+
+              <span style={{ fontSize: "11px", fontWeight: 700, color: "#7258e8", display: "inline-flex", alignItems: "center", gap: "2px" }}>
+                View Candidates ➔
+              </span>
             </div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <span style={{ fontSize: "14px", fontWeight: 900, color: "#7258e8", display: "block" }}>
-              {data.countryBreakdown.other.count || 1} Files
-            </span>
-            <small style={{ fontSize: "10.5px", color: "#059669", fontWeight: 700 }}>
-              {data.countryBreakdown.other.inProcess || 1} Active
-            </small>
-          </div>
-        </Link>
+          </Link>
+        ))}
       </section>
 
       {/* 4. FULL-WIDTH UNIFIED ACTIVITY TABLE */}

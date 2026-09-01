@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { AppError, errorResponse } from "@/lib/errors";
 import { z } from "zod";
+import bcrypt from "bcryptjs";
 
 const createAgentSchema = z.object({
   name: z.string().min(2, "Agent name is required"),
@@ -15,6 +16,9 @@ const createAgentSchema = z.object({
   status: z.enum(["Active", "Inactive", "Blocked"]).default("Active"),
   commissionRate: z.string().optional(),
   agreementKey: z.string().optional(),
+  enablePortalLogin: z.boolean().optional(),
+  portalEmail: z.string().email().optional().or(z.literal("")),
+  portalPassword: z.string().optional().or(z.literal("")),
 });
 
 export async function GET(request: Request) {
@@ -29,8 +33,28 @@ export async function GET(request: Request) {
     const pageSize = Math.max(1, parseInt(searchParams.get("pageSize") || "50", 10));
 
     // Fetch all agents
-    const allAgents = await prisma.agent.findMany({
+    let allAgents = await prisma.agent.findMany({
       orderBy: { createdAt: "desc" },
+    });
+
+    let agentUsers: any[] = [];
+    try {
+      agentUsers = await prisma.user.findMany({
+        select: {
+          id: true,
+          email: true,
+          username: true,
+          status: true,
+          lastLoginAt: true,
+        },
+      });
+    } catch {
+      agentUsers = [];
+    }
+
+    const userByEmail = new Map<string, any>();
+    agentUsers.forEach((u) => {
+      if (u.email) userByEmail.set(u.email.toLowerCase().trim(), u);
     });
 
     // If database is empty, provide initial seed agents so table looks populated and ready
@@ -98,15 +122,40 @@ export async function GET(request: Request) {
         },
       ];
 
-      for (const seed of defaultSeeds) {
-        await prisma.agent.create({ data: seed }).catch(() => {});
+      for (const s of defaultSeeds) {
+        await prisma.agent.create({
+          data: {
+            code: s.code,
+            name: s.name,
+            contactPerson: s.contactPerson,
+            phone: s.phone,
+            email: s.email,
+            address: s.address,
+            country: s.country,
+            status: s.status,
+            commissionRule: s.commissionRule,
+            agreementKey: s.agreementKey,
+          },
+        }).catch(() => {});
       }
+
+      allAgents = await prisma.agent.findMany({
+        orderBy: { createdAt: "desc" },
+        include: {
+          users: {
+            select: {
+              id: true,
+              email: true,
+              username: true,
+              status: true,
+              lastLoginAt: true,
+            },
+          },
+        },
+      });
     }
 
-    // Re-fetch agents after seeding if needed
-    const agents = await prisma.agent.findMany({
-      orderBy: { createdAt: "desc" },
-    });
+    const agents = allAgents;
 
     // Query initial files
     const initialFiles = await prisma.processingFile.findMany({
@@ -178,6 +227,8 @@ export async function GET(request: Request) {
       const rule = agent.commissionRule as { rate?: string } | null;
       const rateText = rule?.rate || "Standard";
 
+      const portalUser = (agent.email ? userByEmail.get(agent.email.toLowerCase().trim()) : null) || null;
+
       return {
         id: agent.id,
         code: agent.code,
@@ -194,6 +245,9 @@ export async function GET(request: Request) {
         totalCandidates,
         activeDossiers,
         completedDossiers,
+        hasPortalAccess: !!portalUser,
+        portalLoginEmail: portalUser?.email || agent.email || null,
+        portalLastLoginAt: portalUser?.lastLoginAt ? portalUser.lastLoginAt.toISOString() : null,
         createdAt: agent.createdAt.toISOString(),
       };
     });
@@ -238,6 +292,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
+    console.error("GET /api/agents error:", error);
     return errorResponse(error);
   }
 }
@@ -287,6 +342,51 @@ export async function POST(request: Request) {
       },
     });
 
+    // Handle portal login user creation
+    let portalUserCreated = false;
+    let portalLoginEmail = "";
+    if (input.enablePortalLogin !== false && (input.portalEmail || input.email || input.portalPassword)) {
+      const loginEmail = (input.portalEmail || input.email || `${agentCode.toLowerCase()}@agent.orbit.com`).trim().toLowerCase();
+      portalLoginEmail = loginEmail;
+      const rawPassword = input.portalPassword?.trim() || "Agent@2026";
+      const passwordHash = await bcrypt.hash(rawPassword, 10);
+      const username = `${agentCode.toLowerCase().replace(/[^a-z0-9]/g, "")}_agent`;
+
+      let agentRole = await prisma.role.findFirst({
+        where: { OR: [{ name: "Agent Partner" }, { name: "Agent Portal" }, { name: "Agent" }] },
+      });
+      if (!agentRole) {
+        agentRole = await prisma.role.create({
+          data: {
+            name: "Agent Partner",
+            description: "Read-only access for agent partners to view their candidates and commissions.",
+          },
+        });
+      }
+
+      await prisma.user.upsert({
+        where: { email: loginEmail },
+        update: {
+          name: agent.name,
+          username,
+          passwordHash,
+          status: input.status === "Active" ? "ACTIVE" : "INACTIVE",
+          roleId: agentRole.id,
+          agentId: agent.id,
+        },
+        create: {
+          name: agent.name,
+          email: loginEmail,
+          username,
+          passwordHash,
+          status: input.status === "Active" ? "ACTIVE" : "INACTIVE",
+          roleId: agentRole.id,
+          agentId: agent.id,
+        },
+      });
+      portalUserCreated = true;
+    }
+
     // Log audit
     await prisma.auditLog.create({
       data: {
@@ -295,7 +395,7 @@ export async function POST(request: Request) {
         module: "Agents",
         recordId: agent.id,
         action: "CREATE_AGENT",
-        newValue: { name: agent.name, code: agent.code, phone: agent.phone },
+        newValue: { name: agent.name, code: agent.code, phone: agent.phone, portalUserCreated, portalLoginEmail },
         correlationId: crypto.randomUUID(),
       },
     }).catch(() => {});
@@ -303,8 +403,9 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         ok: true,
-        message: `Agent "${agent.name}" (${agent.code}) created successfully!`,
+        message: `Agent "${agent.name}" (${agent.code}) created successfully!${portalUserCreated ? ` Login Email: ${portalLoginEmail}` : ""}`,
         data: agent,
+        portalLoginEmail: portalUserCreated ? portalLoginEmail : null,
       },
       { status: 201 }
     );

@@ -278,34 +278,34 @@ type ProcessingFileData = {
 };
 
 const saudiStages = [
-  { id: "Passport Entry", stepNo: 1, label: "Passport", subtitle: "Entry & Expiry", icon: FileText },
-  { id: "Medical", stepNo: 2, label: "Medical", subtitle: "Fit Result & Bio", icon: ShieldCheck },
-  { id: "Police Clearance", stepNo: 3, label: "Police PCC", subtitle: "Clearance Cert", icon: ShieldCheck },
-  { id: "Payment", stepNo: 4, label: "Payment", subtitle: "Deposits & Fee", icon: CreditCard },
-  { id: "Takamul", stepNo: 5, label: "Takamul", subtitle: "SVP Skill Test", icon: GraduationCap },
-  { id: "Mofa", stepNo: 6, label: "Visa / MOFA", subtitle: "Embassy Stamp", icon: Globe },
-  { id: "Manpower", stepNo: 7, label: "Manpower", subtitle: "BMET Smart Card", icon: FileCheck },
-  { id: "Flight", stepNo: 8, label: "Flight", subtitle: "Ticket & Depart", icon: Plane },
+  { id: "Passport Entry", stepNo: 1, label: "Passport", subtitle: "Entry & Expiry", description: "", fields: [], isCustom: false, code: "PASSPORT", icon: FileText },
+  { id: "Medical", stepNo: 2, label: "Medical", subtitle: "Fit Result & Bio", description: "", fields: [], isCustom: false, code: "MEDICAL", icon: ShieldCheck },
+  { id: "Police Clearance", stepNo: 3, label: "Police PCC", subtitle: "Clearance Cert", description: "", fields: [], isCustom: false, code: "PCC", icon: ShieldCheck },
+  { id: "Payment", stepNo: 4, label: "Payment", subtitle: "Deposits & Fee", description: "", fields: [], isCustom: false, code: "PAYMENT", icon: CreditCard },
+  { id: "Takamul", stepNo: 5, label: "Takamul", subtitle: "SVP Skill Test", description: "", fields: [], isCustom: false, code: "TAKAMUL", icon: GraduationCap },
+  { id: "Mofa", stepNo: 6, label: "Visa / MOFA", subtitle: "Embassy Stamp", description: "", fields: [], isCustom: false, code: "MOFA", icon: Globe },
+  { id: "Manpower", stepNo: 7, label: "Manpower", subtitle: "BMET Smart Card", description: "", fields: [], isCustom: false, code: "MANPOWER", icon: FileCheck },
+  { id: "Flight", stepNo: 8, label: "Flight", subtitle: "Ticket & Depart", description: "", fields: [], isCustom: false, code: "FLIGHT", icon: Plane },
 ];
 
 const dubaiStages = [
-  { id: "Passport Entry", stepNo: 1, label: "Passport", subtitle: "Entry & Expiry", icon: FileText },
-  { id: "Medical", stepNo: 2, label: "Medical", subtitle: "Fitness & Bio", icon: ShieldCheck },
-  { id: "Payment", stepNo: 3, label: "Payment", subtitle: "Deposits & Fee", icon: CreditCard },
-  { id: "Approval Application", stepNo: 4, label: "Labor Approval", subtitle: "Offer & MOHRE", icon: FileCheck },
-  { id: "E-Visa Stamping", stepNo: 5, label: "E-Visa / Permit", subtitle: "Dubai Entry Visa", icon: Globe },
-  { id: "Manpower", stepNo: 6, label: "Manpower", subtitle: "BMET Clearance", icon: FileCheck },
-  { id: "Flight", stepNo: 7, label: "Flight", subtitle: "Ready & Depart", icon: Plane },
+  { id: "Passport Entry", stepNo: 1, label: "Passport", subtitle: "Entry & Expiry", description: "", fields: [], isCustom: false, code: "PASSPORT", icon: FileText },
+  { id: "Medical", stepNo: 2, label: "Medical", subtitle: "Fitness & Bio", description: "", fields: [], isCustom: false, code: "MEDICAL", icon: ShieldCheck },
+  { id: "Payment", stepNo: 3, label: "Payment", subtitle: "Deposits & Fee", description: "", fields: [], isCustom: false, code: "PAYMENT", icon: CreditCard },
+  { id: "Approval Application", stepNo: 4, label: "Labor Approval", subtitle: "Offer & MOHRE", description: "", fields: [], isCustom: false, code: "APPROVAL", icon: FileCheck },
+  { id: "E-Visa Stamping", stepNo: 5, label: "E-Visa / Permit", subtitle: "Dubai Entry Visa", description: "", fields: [], isCustom: false, code: "VISA_STAMPING", icon: Globe },
+  { id: "Manpower", stepNo: 6, label: "Manpower", subtitle: "BMET Clearance", description: "", fields: [], isCustom: false, code: "MANPOWER", icon: FileCheck },
+  { id: "Flight", stepNo: 7, label: "Flight", subtitle: "Ready & Depart", description: "", fields: [], isCustom: false, code: "FLIGHT", icon: Plane },
 ];
 
 const otherStages = [
-  { id: "Passport Entry", stepNo: 1, label: "Passport", subtitle: "Entry & Expiry", description: "", fields: [], isCustom: false, icon: FileText },
-  { id: "Medical", stepNo: 2, label: "Medical", subtitle: "Fitness & Bio", description: "", fields: [], isCustom: false, icon: ShieldCheck },
-  { id: "Police Clearance", stepNo: 3, label: "Police PCC", subtitle: "Clearance Cert", description: "", fields: [], isCustom: false, icon: ShieldCheck },
-  { id: "Payment", stepNo: 4, label: "Payment", subtitle: "Deposits & Fee", description: "", fields: [], isCustom: false, icon: CreditCard },
-  { id: "E-Visa Stamping", stepNo: 5, label: "Visa Stamping", subtitle: "Embassy Stamp", description: "", fields: [], isCustom: false, icon: Globe },
-  { id: "Manpower", stepNo: 6, label: "Manpower", subtitle: "BMET Clearance", description: "", fields: [], isCustom: false, icon: FileCheck },
-  { id: "Flight", stepNo: 7, label: "Flight", subtitle: "Ticket & Depart", description: "", fields: [], isCustom: false, icon: Plane },
+  { id: "Passport Entry", stepNo: 1, label: "Passport", subtitle: "Entry & Expiry", description: "", fields: [], isCustom: false, code: "PASSPORT", icon: FileText },
+  { id: "Medical", stepNo: 2, label: "Medical", subtitle: "Fitness & Bio", description: "", fields: [], isCustom: false, code: "MEDICAL", icon: ShieldCheck },
+  { id: "Police Clearance", stepNo: 3, label: "Police PCC", subtitle: "Clearance Cert", description: "", fields: [], isCustom: false, code: "PCC", icon: ShieldCheck },
+  { id: "Payment", stepNo: 4, label: "Payment", subtitle: "Deposits & Fee", description: "", fields: [], isCustom: false, code: "PAYMENT", icon: CreditCard },
+  { id: "E-Visa Stamping", stepNo: 5, label: "Visa Stamping", subtitle: "Embassy Stamp", description: "", fields: [], isCustom: false, code: "VISA_STAMPING", icon: Globe },
+  { id: "Manpower", stepNo: 6, label: "Manpower", subtitle: "BMET Clearance", description: "", fields: [], isCustom: false, code: "MANPOWER", icon: FileCheck },
+  { id: "Flight", stepNo: 7, label: "Flight", subtitle: "Ticket & Depart", description: "", fields: [], isCustom: false, code: "FLIGHT", icon: Plane },
 ];
 
 function FileUploadField({
@@ -405,6 +405,8 @@ export default function FileProcessingPage() {
   const [saving, setSaving] = useState(false);
   const [showHoldModal, setShowHoldModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
+  const [showEditBioModal, setShowEditBioModal] = useState(false);
+  const [savingBio, setSavingBio] = useState(false);
   const [deductionAmount, setDeductionAmount] = useState(20000);
   const [actionLoading, setActionLoading] = useState(false);
   const [activeReceipt, setActiveReceipt] = useState<ReceiptData | null>(null);
@@ -513,16 +515,17 @@ export default function FileProcessingPage() {
           const masterDef = MASTER_STAGES.find((m) => m.code === w.code);
           const iconName = w.icon || masterDef?.iconName || "FileText";
           const parsed = parseStageDescription(w.description || masterDef?.description);
+          const isCustomStage = Boolean(w.isCustom || !masterDef);
           return {
-            id: w.name || masterDef?.id || "Stage",
+            id: masterDef ? masterDef.id : (w.name || w.code),
             stepNo: idx + 1,
             label: w.name || masterDef?.label || "Stage",
             subtitle: w.subtitle || masterDef?.subtitle || "Milestone",
-            description: parsed.text,
-            fields: parsed.fields,
+            description: parsed.text || "",
+            fields: parsed.fields || [],
             icon: getStageIcon(iconName),
             code: w.code,
-            isCustom: Boolean(w.isCustom || !masterDef),
+            isCustom: isCustomStage,
           };
         });
       }
@@ -591,8 +594,12 @@ export default function FileProcessingPage() {
         return Boolean(file.manpower && file.manpower.length > 0);
       case "Flight":
         return Boolean((file.flights && file.flights.length > 0) || file.status === "COMPLETED");
-      default:
-        return false;
+      default: {
+        const customEvent = file.workflowEvents?.find(
+          (e) => e.stage === stageId || e.stage === (stages.find((s) => s.id === stageId) as any)?.code
+        );
+        return Boolean(customEvent && customEvent.status !== "Rejected" && customEvent.status !== "Pending");
+      }
     }
   };
 
@@ -647,6 +654,10 @@ export default function FileProcessingPage() {
       if (file?.id && file.id !== id) {
         await queryClient.invalidateQueries({ queryKey: ["processing-file-detail", file.id] });
       }
+      await queryClient.invalidateQueries({ queryKey: ["agent-candidate-dossier"] });
+      await queryClient.invalidateQueries({ queryKey: ["agent-portal-data"] });
+      await queryClient.invalidateQueries({ queryKey: ["agent-full-details"] });
+      await queryClient.invalidateQueries({ queryKey: ["agent-candidates"] });
       void query.refetch();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error saving stage");
@@ -2139,111 +2150,287 @@ export default function FileProcessingPage() {
                   );
                   if (!currentCustomStage) return null;
                   const IconC = currentCustomStage.icon || FileText;
-                  const fields = (currentCustomStage as any).fields || [];
+                  const fields: any[] = (currentCustomStage as any).fields || [];
+
+                  // Extract latest saved custom stage data from file.workflowEvents
+                  const customStageEvents = (file?.workflowEvents || []).filter(
+                    (e: any) =>
+                      e.stage === currentCustomStage.code ||
+                      e.stage === currentCustomStage.id ||
+                      e.stage === currentCustomStage.label
+                  );
+                  const latestCustomEvent = customStageEvents[0];
+                  const savedCustomData = (latestCustomEvent?.data as Record<string, any>) || {};
+
+                  const regularFields = fields.filter((f) => ["text", "number", "date", "select"].includes(f.type));
+                  const textareaFields = fields.filter((f) => f.type === "textarea");
+                  const fileFields = fields.filter((f) => f.type === "file");
 
                   return (
-                    <div className="tab-pane active">
-                      <div className="section-title">
-                        <IconC size={20} className="text-purple-600" />
-                        <div>
-                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                            <h2>{currentCustomStage.label}</h2>
-                            <span style={{ fontSize: "11px", fontWeight: 800, background: "#f0edff", color: "#7258e8", padding: "2px 8px", borderRadius: "6px" }}>
-                              Custom Stage
-                            </span>
+                    <div className="stage-card">
+                      {/* Header */}
+                      <div className="stage-card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                          <div
+                            style={{
+                              width: "44px",
+                              height: "44px",
+                              borderRadius: "12px",
+                              background: "linear-gradient(135deg, #f0edff 0%, #e0e7ff 100%)",
+                              color: "#7258e8",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              border: "1px solid #dcd5fb",
+                              boxShadow: "0 2px 8px rgba(114, 88, 232, 0.12)",
+                              flexShrink: 0,
+                            }}
+                          >
+                            <IconC size={22} />
                           </div>
-                          <p>{currentCustomStage.description || "Custom processing milestone and requirements."}</p>
+                          <div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "3px" }}>
+                              <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "#0f172a" }}>
+                                {currentCustomStage.stepNo}. {currentCustomStage.label}
+                              </h2>
+                              <span
+                                style={{
+                                  fontSize: "11px",
+                                  fontWeight: 800,
+                                  background: "#f0edff",
+                                  color: "#7258e8",
+                                  padding: "2px 8px",
+                                  borderRadius: "6px",
+                                  border: "1px solid #dcd5fb",
+                                }}
+                              >
+                                Custom Stage
+                              </span>
+                            </div>
+                            <p style={{ margin: 0, fontSize: "13px", color: "#64748b" }}>
+                              {currentCustomStage.subtitle || "Processing milestone and candidate requirements."}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <span style={{ fontSize: "11.5px", fontWeight: 700, background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0", padding: "4px 10px", borderRadius: "8px" }}>
+                            📌 Step #{currentCustomStage.stepNo} of {stages.length}
+                          </span>
                         </div>
                       </div>
 
-                      <form
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          toast.success(`${currentCustomStage.label} processing record updated!`);
+                      {/* Guidance Banner */}
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                          padding: "12px 16px",
+                          background: "linear-gradient(135deg, #faf5ff 0%, #f0edff 100%)",
+                          border: "1px solid #e9d5ff",
+                          borderRadius: "10px",
+                          marginBottom: "22px",
+                          color: "#581c87",
+                          fontSize: "12.5px",
                         }}
-                        className="form-grid"
                       >
+                        <Sparkles size={16} className="text-purple-600 shrink-0" />
+                        <span>
+                          <b>Milestone Instructions:</b> {currentCustomStage.description || "Enter and verify candidate custom milestone parameters and save."}
+                        </span>
+                      </div>
+
+                      <form
+                        onSubmit={async (e) => {
+                          e.preventDefault();
+                          const form = new FormData(e.currentTarget);
+                          const formDataObj: Record<string, any> = {};
+                          form.forEach((value, key) => {
+                            formDataObj[key] = value;
+                          });
+                          fields.forEach((fld: any) => {
+                            formDataObj[fld.id] = form.get(`field_${fld.id}`) ?? form.get(fld.id) ?? "";
+                            formDataObj[fld.label] = form.get(`field_${fld.id}`) ?? form.get(fld.id) ?? "";
+                          });
+                          formDataObj["verificationStatus"] = form.get("verificationStatus") || "Completed / Verified";
+
+                          await handleStageUpdate("update-custom-stage", {
+                            stageCode: currentCustomStage.code,
+                            stageName: currentCustomStage.label,
+                            verificationStatus: form.get("verificationStatus") || "Completed / Verified",
+                            formData: formDataObj,
+                          });
+                        }}
+                        style={{ display: "flex", flexDirection: "column", gap: "22px" }}
+                      >
+                        {/* 1. Main Form Fields Grid */}
                         {fields.length === 0 ? (
-                          <div style={{ gridColumn: "1 / -1", padding: "24px", background: "#f8fafc", borderRadius: "12px", border: "1px solid var(--line)" }}>
+                          <div style={{ padding: "24px", background: "#f8fafc", borderRadius: "12px", border: "1px solid var(--line)" }}>
                             <label style={{ fontSize: "12px", fontWeight: 700, color: "var(--ink)", display: "block", marginBottom: "6px" }}>
                               Status / Milestone Remarks
                             </label>
                             <textarea
                               rows={3}
+                              name="remarks"
+                              defaultValue={savedCustomData["remarks"] || ""}
                               placeholder="Enter stage processing notes, reference numbers, or verification status..."
                               style={{ width: "100%", padding: "10px 14px", borderRadius: "8px", border: "1px solid var(--line)", background: "#ffffff" }}
                             />
                           </div>
                         ) : (
-                          fields.map((fld: any) => (
-                            <div key={fld.id} style={{ gridColumn: fld.type === "textarea" ? "1 / -1" : "auto" }}>
-                              <label style={{ fontSize: "12px", fontWeight: 700, color: "var(--ink)", display: "block", marginBottom: "6px" }}>
-                                {fld.label} {fld.required && <span style={{ color: "#e11d48" }}>*</span>}
-                              </label>
+                          <>
+                            {/* Regular Inputs (Text, Number, Date, Select) */}
+                            {regularFields.length > 0 && (
+                              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
+                                {regularFields.map((fld: any) => {
+                                  const savedVal = savedCustomData[`field_${fld.id}`] ?? savedCustomData[fld.id] ?? savedCustomData[fld.label] ?? "";
+                                  return (
+                                    <label key={fld.id} style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px", fontWeight: 700, color: "#334155" }}>
+                                      <span>
+                                        {fld.type === "date" ? "📅 " : fld.type === "number" ? "🔢 " : fld.type === "select" ? "📋 " : "🔤 "}
+                                        {fld.label} {fld.required && <span className="text-rose-500">*</span>}
+                                      </span>
+                                      {fld.type === "select" ? (
+                                        <select
+                                          name={`field_${fld.id}`}
+                                          defaultValue={savedVal}
+                                          required={fld.required}
+                                          style={{ height: "42px", borderRadius: "10px", border: "1px solid #cbd5e1", padding: "0 12px", background: "#f8fafc", fontSize: "13px" }}
+                                        >
+                                          <option value="">Select an option...</option>
+                                          {(fld.options || "").split(",").map((opt: string) => (
+                                            <option key={opt.trim()} value={opt.trim()}>
+                                              {opt.trim()}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      ) : (
+                                        <input
+                                          type={fld.type === "number" ? "number" : fld.type === "date" ? "date" : "text"}
+                                          name={`field_${fld.id}`}
+                                          defaultValue={savedVal}
+                                          placeholder={fld.placeholder || `Enter ${fld.label}...`}
+                                          required={fld.required}
+                                          style={{ height: "42px", borderRadius: "10px", border: "1px solid #cbd5e1", padding: "0 12px", background: "#f8fafc", fontSize: "13px" }}
+                                        />
+                                      )}
+                                    </label>
+                                  );
+                                })}
 
-                              {fld.type === "text" && (
-                                <input
-                                  type="text"
-                                  placeholder={fld.placeholder || `Enter ${fld.label}...`}
-                                  required={fld.required}
-                                  style={{ width: "100%", height: "40px", padding: "0 12px", borderRadius: "8px", border: "1px solid var(--line)", background: "#ffffff" }}
-                                />
-                              )}
+                                {/* Verification Status select */}
+                                <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px", fontWeight: 700, color: "#334155" }}>
+                                  <span>⚖️ Verification &amp; Processing Status</span>
+                                  <select
+                                    name="verificationStatus"
+                                    defaultValue={savedCustomData["verificationStatus"] || latestCustomEvent?.status || "Completed / Verified"}
+                                    style={{ height: "42px", borderRadius: "10px", border: "1px solid #cbd5e1", padding: "0 12px", background: "#f8fafc", fontSize: "13px", fontWeight: 600 }}
+                                  >
+                                    <option value="Completed / Verified">✅ Completed / Verified</option>
+                                    <option value="In Progress">⏳ Processing / In Progress</option>
+                                    <option value="Pending">🕒 Pending Submission</option>
+                                    <option value="Rejected">❌ Rejected / Resubmit</option>
+                                  </select>
+                                </label>
+                              </div>
+                            )}
 
-                              {fld.type === "number" && (
-                                <input
-                                  type="number"
-                                  placeholder={fld.placeholder || `Enter amount or number...`}
-                                  required={fld.required}
-                                  style={{ width: "100%", height: "40px", padding: "0 12px", borderRadius: "8px", border: "1px solid var(--line)", background: "#ffffff" }}
-                                />
-                              )}
+                            {/* Textarea fields */}
+                            {textareaFields.length > 0 && (
+                              <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                                {textareaFields.map((fld: any) => {
+                                  const savedVal = savedCustomData[`field_${fld.id}`] ?? savedCustomData[fld.id] ?? savedCustomData[fld.label] ?? "";
+                                  return (
+                                    <label key={fld.id} style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px", fontWeight: 700, color: "#334155" }}>
+                                      <span>
+                                        📝 {fld.label} {fld.required && <span className="text-rose-500">*</span>}
+                                      </span>
+                                      <textarea
+                                        rows={3}
+                                        name={`field_${fld.id}`}
+                                        defaultValue={savedVal}
+                                        placeholder={fld.placeholder || `Enter ${fld.label} details...`}
+                                        required={fld.required}
+                                        style={{ width: "100%", padding: "12px 14px", borderRadius: "10px", border: "1px solid #cbd5e1", background: "#f8fafc", fontSize: "13px" }}
+                                      />
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            )}
 
-                              {fld.type === "textarea" && (
-                                <textarea
-                                  rows={3}
-                                  placeholder={fld.placeholder || `Enter details...`}
-                                  required={fld.required}
-                                  style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid var(--line)", background: "#ffffff" }}
-                                />
-                              )}
+                            {/* File Upload fields */}
+                            {fileFields.length > 0 && (
+                              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                                {fileFields.map((fld: any) => (
+                                  <FileUploadField
+                                    key={fld.id}
+                                    label={fld.label || "Attach File / Document Scan"}
+                                    category={`custom_${currentCustomStage.code}_${fld.id}`}
+                                    attachedFile={attachedFiles[`custom_${currentCustomStage.code}_${fld.id}`]}
+                                    onFileSelect={(f) => handleLocalFileUpload(`custom_${currentCustomStage.code}_${fld.id}`, f)}
+                                    onPreview={() =>
+                                      setActiveDoc({
+                                        candidateName: file.candidate.fullName,
+                                        passportNo: file.candidate.passportNo || file.passport?.passportNumber,
+                                        candidateNo: file.candidate.candidateNo,
+                                        country: file.country,
+                                        profession: file.profession,
+                                        company: file.company,
+                                        title: `${fld.label} Scan`,
+                                        category: `custom_${currentCustomStage.code}_${fld.id}`,
+                                        url: attachedFiles[`custom_${currentCustomStage.code}_${fld.id}`]?.url,
+                                        fileNumber: file.fileNo,
+                                        verifiedStatus: "Attached Scan",
+                                      })
+                                    }
+                                    onRemove={() => handleRemoveFile(`custom_${currentCustomStage.code}_${fld.id}`)}
+                                  />
+                                ))}
+                              </div>
+                            )}
 
-                              {fld.type === "date" && (
-                                <input
-                                  type="date"
-                                  required={fld.required}
-                                  style={{ width: "100%", height: "40px", padding: "0 12px", borderRadius: "8px", border: "1px solid var(--line)", background: "#ffffff" }}
-                                />
-                              )}
-
-                              {fld.type === "file" && (
-                                <input
-                                  type="file"
-                                  required={fld.required}
-                                  style={{ width: "100%", padding: "8px", borderRadius: "8px", border: "1px solid var(--line)", background: "#ffffff" }}
-                                />
-                              )}
-
-                              {fld.type === "select" && (
-                                <select
-                                  required={fld.required}
-                                  style={{ width: "100%", height: "40px", padding: "0 12px", borderRadius: "8px", border: "1px solid var(--line)", background: "#ffffff" }}
-                                >
-                                  <option value="">Select an option...</option>
-                                  {(fld.options || "").split(",").map((opt: string) => (
-                                    <option key={opt.trim()} value={opt.trim()}>
-                                      {opt.trim()}
-                                    </option>
-                                  ))}
-                                </select>
-                              )}
-                            </div>
-                          ))
+                            {/* Fallback verification status if no regular fields */}
+                            {regularFields.length === 0 && (
+                              <div style={{ maxWidth: "320px" }}>
+                                <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px", fontWeight: 700, color: "#334155" }}>
+                                  <span>⚖️ Verification &amp; Processing Status</span>
+                                  <select
+                                    name="verificationStatus"
+                                    defaultValue={savedCustomData["verificationStatus"] || latestCustomEvent?.status || "Completed / Verified"}
+                                    style={{ height: "42px", borderRadius: "10px", border: "1px solid #cbd5e1", padding: "0 12px", background: "#f8fafc", fontSize: "13px", fontWeight: 600 }}
+                                  >
+                                    <option value="Completed / Verified">✅ Completed / Verified</option>
+                                    <option value="In Progress">⏳ Processing / In Progress</option>
+                                    <option value="Pending">🕒 Pending Submission</option>
+                                    <option value="Rejected">❌ Rejected / Resubmit</option>
+                                  </select>
+                                </label>
+                              </div>
+                            )}
+                          </>
                         )}
 
-                        <div className="form-actions" style={{ gridColumn: "1 / -1", marginTop: "12px" }}>
-                          <button type="submit" className="primary-action-btn" style={{ background: "#7258e8", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                            <Save size={15} /> Save {currentCustomStage.label} Details
+                        {/* Action Buttons */}
+                        <div className="form-actions" style={{ margin: 0, paddingTop: "18px", borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                          <button
+                            type="submit"
+                            disabled={saving}
+                            className="primary-action-btn"
+                            style={{
+                              background: "linear-gradient(135deg, #7258e8 0%, #5e43e2 100%)",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "8px",
+                              padding: "0 22px",
+                              height: "44px",
+                              borderRadius: "10px",
+                              fontWeight: 700,
+                              boxShadow: "0 4px 14px rgba(114, 88, 232, 0.25)",
+                            }}
+                          >
+                            <Save size={16} /> {saving ? "Saving..." : `Save ${currentCustomStage.label} Details`}
                           </button>
                         </div>
                       </form>
@@ -2378,66 +2565,65 @@ export default function FileProcessingPage() {
               <span className="dossier-jump-label">
                 <Filter size={14} /> Quick Filter Table:
               </span>
-              {(isDubai
-                ? [
-                    { id: "all", label: "🌟 Show All Tables" },
-                    { id: "candidate_bio", label: "👤 1. Candidate Bio-Data" },
-                    { id: "passport", label: "📘 2. Passport List & Entry" },
-                    { id: "medical", label: "🏥 3. Medical & Fitness" },
-                    { id: "payment", label: "💵 4. Payment Deposits & Invoices" },
-                    { id: "approval", label: "📋 5. MOHRE Labor Approval" },
-                    { id: "visa", label: "🛂 6. Dubai E-Visa Stamping" },
-                    { id: "manpower", label: "📜 7. BMET Manpower Clearance" },
-                    { id: "flight", label: "✈️ 8. Flight Booking & Departure" },
-                    { id: "holds_returns", label: "⏸️ 9. Hold & Return History" },
-                    { id: "education_exp", label: "🎓 10. Education & Experience" },
-                    { id: "calls", label: "📞 11. Call Center Leads & Logs" },
-                    { id: "documents", label: "📁 12. Document Scans Repository" },
-                  ]
-                : isOtherCountry
-                ? [
-                    { id: "all", label: "🌟 Show All Tables" },
-                    { id: "candidate_bio", label: "👤 1. Candidate Bio-Data" },
-                    { id: "passport", label: "📘 2. Passport List & Entry" },
-                    { id: "medical", label: "🏥 3. Medical Fitness" },
-                    { id: "police", label: "🛡️ 4. Police Clearance (PCC)" },
-                    { id: "payment", label: "💵 5. Payment Deposits & Invoices" },
-                    { id: "visa", label: "🛂 6. Embassy Visa Stamping" },
-                    { id: "manpower", label: "📜 7. BMET Manpower Clearance" },
-                    { id: "flight", label: "✈️ 8. Flight Booking & Departure" },
-                    { id: "holds_returns", label: "⏸️ 9. Hold & Return History" },
-                    { id: "education_exp", label: "🎓 10. Education & Experience" },
-                    { id: "calls", label: "📞 11. Call Center Leads & Logs" },
-                    { id: "documents", label: "📁 12. Document Scans Repository" },
-                  ]
-                : [
-                    { id: "all", label: "🌟 Show All Tables" },
-                    { id: "candidate_bio", label: "👤 1. Candidate Bio-Data" },
-                    { id: "passport", label: "📘 2. Passport List & Entry" },
-                    { id: "medical", label: "🏥 3. Medical & GAMCA" },
-                    { id: "police", label: "🛡️ 4. Police Clearance (PCC)" },
-                    { id: "payment", label: "💵 5. Payment Deposits & Invoices" },
+              {(() => {
+                const pills: { id: string; label: string }[] = [
+                  { id: "all", label: "🌟 Show All Tables" },
+                  { id: "candidate_bio", label: "👤 1. Candidate Bio-Data" },
+                  { id: "passport", label: "📘 2. Passport List & Entry" },
+                  { id: "medical", label: "🏥 3. Medical & Fitness" },
+                ];
+
+                if (!isDubai) {
+                  pills.push({ id: "police", label: "🛡️ 4. Police Clearance (PCC)" });
+                }
+
+                pills.push({ id: "payment", label: "💵 5. Payment Deposits & Invoices" });
+
+                if (isDubai) {
+                  pills.push(
+                    { id: "approval", label: "📋 6. MOHRE Labor Approval" },
+                    { id: "visa", label: "🛂 7. Dubai E-Visa Stamping" }
+                  );
+                } else if (isSaudi) {
+                  pills.push(
                     { id: "takamul", label: "🏅 6. Saudi Takamul SVP" },
                     { id: "bio", label: "🖐️ 7. KSA Bio-Finger" },
                     { id: "mofa", label: "🌐 8. Saudi MOFA & Kafeel" },
-                    { id: "visa", label: "🛂 9. E-Visa Stamping & Hold" },
-                    { id: "manpower", label: "📜 10. BMET Manpower Clearance" },
-                    { id: "flight", label: "✈️ 11. Flight Booking & Departure" },
-                    { id: "holds_returns", label: "⏸️ 12. Hold & Return History" },
-                    { id: "education_exp", label: "🎓 13. Education & Experience" },
-                    { id: "calls", label: "📞 14. Call Center Leads & Logs" },
-                    { id: "documents", label: "📁 15. Document Scans Repository" },
-                  ]
-              ).map((pill) => (
-                <button
-                  key={pill.id}
-                  type="button"
-                  onClick={() => setActiveDossierSection(pill.id)}
-                  className={`dossier-jump-pill ${activeDossierSection === pill.id ? "active" : ""}`}
-                >
-                  {pill.label}
-                </button>
-              ))}
+                    { id: "visa", label: "🛂 9. E-Visa Stamping" }
+                  );
+                } else {
+                  pills.push({ id: "visa", label: "🛂 6. Embassy Visa Stamping" });
+                }
+
+                // Add Custom Stages to Jump Bar Pills
+                const customStagesList = stages.filter((s: any) => s.isCustom);
+                customStagesList.forEach((cSt: any) => {
+                  pills.push({
+                    id: `custom_${cSt.code}`,
+                    label: `✨ Step ${cSt.stepNo}. ${cSt.label}`,
+                  });
+                });
+
+                pills.push(
+                  { id: "manpower", label: "📜 BMET Manpower Clearance" },
+                  { id: "flight", label: "✈️ Flight Booking & Departure" },
+                  { id: "holds_returns", label: "⏸️ Hold & Return History" },
+                  { id: "education_exp", label: "🎓 Education & Experience" },
+                  { id: "calls", label: "📞 Call Center Leads & Logs" },
+                  { id: "documents", label: "📁 Document Scans Repository" }
+                );
+
+                return pills.map((pill) => (
+                  <button
+                    key={pill.id}
+                    type="button"
+                    onClick={() => setActiveDossierSection(pill.id)}
+                    className={`dossier-jump-pill ${activeDossierSection === pill.id ? "active" : ""}`}
+                  >
+                    {pill.label}
+                  </button>
+                ));
+              })()}
             </div>
 
             {/* SECTION 1: CANDIDATE BIO-DATA & MASTER PROFILE */}
@@ -2448,7 +2634,30 @@ export default function FileProcessingPage() {
                     <span className="dossier-table-num">TABLE 1</span>
                     <h3 className="dossier-table-title">👤 Candidate Bio-Data &amp; Master Registration Profile</h3>
                   </div>
-                  <span className="dossier-badge-done">● Registered Candidate</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span className="dossier-badge-done">● Registered Candidate</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowEditBioModal(true)}
+                      style={{
+                        background: "linear-gradient(135deg, #f0edff 0%, #ede9fe 100%)",
+                        color: "#6d28d9",
+                        border: "1px solid #c4b5fd",
+                        fontWeight: 800,
+                        padding: "5px 12px",
+                        borderRadius: "8px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        fontSize: "11.5px",
+                        cursor: "pointer",
+                        boxShadow: "0 2px 4px rgba(109, 40, 217, 0.08)",
+                      }}
+                      title="Edit Candidate Registration Details"
+                    >
+                      ✏️ Edit Registration Info
+                    </button>
+                  </div>
                 </div>
                 <div className="dossier-grid-4">
                   <div className="dossier-field"><span className="dossier-field-label">Candidate ID</span><b className="dossier-field-value highlight-purple">{file.candidate.candidateNo}</b></div>
@@ -2960,6 +3169,121 @@ export default function FileProcessingPage() {
                 </div>
               </div>
             )}
+
+            {/* DYNAMIC CUSTOM RECRUITMENT STAGES SECTIONS IN DOSSIER */}
+            {stages
+              .filter((s: any) => s.isCustom)
+              .map((cStage: any) => {
+                if (!showSection("all") && !showSection(`custom_${cStage.code}`)) return null;
+
+                const customEvents = (file?.workflowEvents || []).filter(
+                  (e: any) =>
+                    e.stage === cStage.code ||
+                    e.stage === cStage.id ||
+                    e.stage === cStage.label
+                );
+                const latestEvt = customEvents[0];
+                const stageData = (latestEvt?.data as Record<string, any>) || {};
+                const fields: any[] = cStage.fields || [];
+                const isDone = isStageCompleted(cStage.id);
+
+                return (
+                  <div key={cStage.code} className="dossier-section-card">
+                    <div className="dossier-section-header">
+                      <div className="dossier-title-group">
+                        <span className="dossier-table-num">CUSTOM STEP {cStage.stepNo}</span>
+                        <h3 className="dossier-table-title">
+                          ✨ {cStage.label} ({cStage.subtitle || "Custom Processing Milestone"})
+                        </h3>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span className={isDone ? "dossier-badge-done" : "dossier-badge-pending"}>
+                          {isDone ? `✓ ${stageData["verificationStatus"] || latestEvt?.status || "Completed / Verified"}` : "● Pending Processing"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {fields.length === 0 ? (
+                      <div className="dossier-grid-4">
+                        <div className="dossier-field">
+                          <span className="dossier-field-label">Stage Status</span>
+                          <b className="dossier-field-value highlight-purple">{stageData["verificationStatus"] || latestEvt?.status || "Pending Submission"}</b>
+                        </div>
+                        <div className="dossier-field" style={{ gridColumn: "span 2" }}>
+                          <span className="dossier-field-label">Status / Milestone Remarks</span>
+                          <b className="dossier-field-value">{stageData["remarks"] || "No notes entered yet."}</b>
+                        </div>
+                        <div className="dossier-field">
+                          <span className="dossier-field-label">Last Updated</span>
+                          <b className="dossier-field-value">{latestEvt?.createdAt ? new Date(latestEvt.createdAt).toLocaleDateString("en-GB") : "N/A"}</b>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="dossier-grid-4">
+                        <div className="dossier-field">
+                          <span className="dossier-field-label">Verification &amp; Processing Status</span>
+                          <b className={`dossier-field-value ${isDone ? "highlight-green" : "highlight-purple"}`}>
+                            {stageData["verificationStatus"] || latestEvt?.status || "Pending Submission"}
+                          </b>
+                        </div>
+
+                        {fields.map((fld: any) => {
+                          const val = stageData[`field_${fld.id}`] ?? stageData[fld.id] ?? stageData[fld.label];
+                          const displayVal = val ? (fld.type === "date" ? new Date(val).toLocaleDateString("en-GB") : String(val)) : "N/A";
+                          const isFile = fld.type === "file";
+                          const isTextarea = fld.type === "textarea";
+
+                          return (
+                            <div
+                              key={fld.id}
+                              className="dossier-field"
+                              style={{ gridColumn: isTextarea ? "span 2" : "span 1" }}
+                            >
+                              <span className="dossier-field-label">{fld.label}</span>
+                              <b className={`dossier-field-value ${val ? "highlight-purple" : ""}`}>
+                                {isFile && attachedFiles[`custom_${cStage.code}_${fld.id}`] ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setActiveDoc({
+                                        candidateName: file.candidate.fullName,
+                                        passportNo: file.candidate.passportNo || file.passport?.passportNumber,
+                                        candidateNo: file.candidate.candidateNo,
+                                        country: file.country,
+                                        profession: file.profession,
+                                        company: file.company,
+                                        title: `${fld.label} Scan`,
+                                        category: `custom_${cStage.code}_${fld.id}`,
+                                        url: attachedFiles[`custom_${cStage.code}_${fld.id}`]?.url,
+                                        fileNumber: file.fileNo,
+                                        verifiedStatus: "Attached Scan",
+                                      })
+                                    }
+                                    style={{ color: "#7258e8", textDecoration: "underline", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 800 }}
+                                  >
+                                    📎 View Attached Document ✓
+                                  </button>
+                                ) : (
+                                  displayVal
+                                )}
+                              </b>
+                            </div>
+                          );
+                        })}
+
+                        <div className="dossier-field">
+                          <span className="dossier-field-label">Processed By</span>
+                          <b className="dossier-field-value">{latestEvt?.completedBy || "Processing Desk"}</b>
+                        </div>
+                        <div className="dossier-field">
+                          <span className="dossier-field-label">Last Updated Date</span>
+                          <b className="dossier-field-value">{latestEvt?.createdAt ? new Date(latestEvt.createdAt).toLocaleDateString("en-GB") : "N/A"}</b>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
 
             {/* SECTION 10: BMET MANPOWER SMART CARD */}
             {showSection("manpower") && (
@@ -3779,6 +4103,308 @@ export default function FileProcessingPage() {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* EDIT CANDIDATE REGISTRATION BIO-DATA MODAL */}
+        {showEditBioModal && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(15, 23, 42, 0.65)",
+              backdropFilter: "blur(5px)",
+              display: "grid",
+              placeItems: "center",
+              zIndex: 9999,
+              padding: "20px",
+            }}
+            onClick={() => setShowEditBioModal(false)}
+          >
+            <div
+              style={{
+                background: "#ffffff",
+                borderRadius: "18px",
+                maxWidth: "680px",
+                width: "100%",
+                maxHeight: "92vh",
+                overflowY: "auto",
+                padding: "24px 28px",
+                boxShadow: "0 25px 60px rgba(0,0,0,0.3)",
+                border: "1px solid #e2e8f0",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px", borderBottom: "1px solid #f1f5f9", paddingBottom: "12px" }}>
+                <div>
+                  <h3 style={{ fontSize: "17px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
+                    👤 Edit Candidate Registration Bio-Data
+                  </h3>
+                  <p style={{ fontSize: "12px", color: "var(--muted)", margin: "3px 0 0" }}>
+                    Update primary registration profile, contact numbers, NID, DOB, trade &amp; assigned partner.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowEditBioModal(false)}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: "4px" }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setSavingBio(true);
+                  const form = new FormData(e.currentTarget);
+                  try {
+                    await handleStageUpdate("update-candidate-bio", {
+                      fullName: form.get("fullName"),
+                      phone: form.get("phone"),
+                      alternatePhone: form.get("alternatePhone"),
+                      nationalId: form.get("nationalId"),
+                      email: form.get("email"),
+                      dob: form.get("dob"),
+                      gender: form.get("gender"),
+                      maritalStatus: form.get("maritalStatus"),
+                      district: form.get("district"),
+                      address: form.get("address"),
+                      profession: form.get("profession"),
+                      preferredCountry: form.get("country"),
+                      agent: form.get("agent"),
+                    });
+                    setShowEditBioModal(false);
+                  } finally {
+                    setSavingBio(false);
+                  }
+                }}
+                style={{ display: "flex", flexDirection: "column", gap: "14px" }}
+              >
+                {/* Row 1: Candidate ID (readonly) & Full Name */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "12px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11.5px", fontWeight: 800, color: "var(--muted)", marginBottom: "4px" }}>
+                      Candidate ID
+                    </label>
+                    <input
+                      type="text"
+                      defaultValue={file.candidate.candidateNo}
+                      readOnly
+                      style={{ width: "100%", height: "38px", padding: "0 10px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", background: "#f1f5f9", fontFamily: "monospace", fontWeight: 700, color: "#475569", cursor: "not-allowed" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11.5px", fontWeight: 800, color: "var(--ink)", marginBottom: "4px" }}>
+                      Full Name *
+                    </label>
+                    <input
+                      name="fullName"
+                      defaultValue={file.candidate.fullName}
+                      required
+                      style={{ width: "100%", height: "38px", padding: "0 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", outline: "none", fontWeight: 600 }}
+                    />
+                  </div>
+                </div>
+
+                {/* Row 2: Primary Phone & Alternate Phone */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11.5px", fontWeight: 800, color: "var(--ink)", marginBottom: "4px" }}>
+                      Primary Phone Number *
+                    </label>
+                    <input
+                      name="phone"
+                      defaultValue={file.candidate.phone}
+                      required
+                      placeholder="e.g. +8801700000000"
+                      style={{ width: "100%", height: "38px", padding: "0 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", outline: "none", fontWeight: 600 }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11.5px", fontWeight: 800, color: "var(--muted)", marginBottom: "4px" }}>
+                      Alternate Phone / Emergency
+                    </label>
+                    <input
+                      name="alternatePhone"
+                      defaultValue={file.candidate.phones?.[0]?.phone || ""}
+                      placeholder="e.g. +8801800000000"
+                      style={{ width: "100%", height: "38px", padding: "0 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", outline: "none" }}
+                    />
+                  </div>
+                </div>
+
+                {/* Row 3: National ID & Email Address */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11.5px", fontWeight: 800, color: "var(--muted)", marginBottom: "4px" }}>
+                      National ID (NID / Smart Card)
+                    </label>
+                    <input
+                      name="nationalId"
+                      defaultValue={file.candidate.nationalId || ""}
+                      placeholder="e.g. 19961234567890"
+                      style={{ width: "100%", height: "38px", padding: "0 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", outline: "none" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11.5px", fontWeight: 800, color: "var(--muted)", marginBottom: "4px" }}>
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      defaultValue={file.candidate.email || ""}
+                      placeholder="e.g. candidate@gmail.com"
+                      style={{ width: "100%", height: "38px", padding: "0 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", outline: "none" }}
+                    />
+                  </div>
+                </div>
+
+                {/* Row 4: Date of Birth, Gender, Marital Status */}
+                <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr", gap: "12px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11.5px", fontWeight: 800, color: "var(--muted)", marginBottom: "4px" }}>
+                      Date of Birth
+                    </label>
+                    <input
+                      type="date"
+                      name="dob"
+                      defaultValue={file.candidate.dob ? new Date(file.candidate.dob).toISOString().slice(0, 10) : ""}
+                      style={{ width: "100%", height: "38px", padding: "0 10px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", outline: "none" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11.5px", fontWeight: 800, color: "var(--muted)", marginBottom: "4px" }}>
+                      Gender
+                    </label>
+                    <select
+                      name="gender"
+                      defaultValue={file.candidate.gender || "Male"}
+                      style={{ width: "100%", height: "38px", padding: "0 10px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", outline: "none", background: "#fff" }}
+                    >
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11.5px", fontWeight: 800, color: "var(--muted)", marginBottom: "4px" }}>
+                      Marital Status
+                    </label>
+                    <select
+                      name="maritalStatus"
+                      defaultValue={file.candidate.maritalStatus || "Single"}
+                      style={{ width: "100%", height: "38px", padding: "0 10px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", outline: "none", background: "#fff" }}
+                    >
+                      <option value="Single">Single</option>
+                      <option value="Married">Married</option>
+                      <option value="Divorced">Divorced</option>
+                      <option value="Widowed">Widowed</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Row 5: District / Hometown & Present Address */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: "12px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11.5px", fontWeight: 800, color: "var(--muted)", marginBottom: "4px" }}>
+                      District / Hometown
+                    </label>
+                    <input
+                      name="district"
+                      defaultValue={file.candidate.district || "Dhaka"}
+                      placeholder="e.g. Brahmanbaria, Sylhet, Dhaka"
+                      style={{ width: "100%", height: "38px", padding: "0 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", outline: "none" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11.5px", fontWeight: 800, color: "var(--muted)", marginBottom: "4px" }}>
+                      Village / Present Address
+                    </label>
+                    <input
+                      name="address"
+                      defaultValue={file.candidate.address || ""}
+                      placeholder="e.g. House 12, Road 4, Paltan, Dhaka"
+                      style={{ width: "100%", height: "38px", padding: "0 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", outline: "none" }}
+                    />
+                  </div>
+                </div>
+
+                {/* Row 6: Profession Category & Target Country */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11.5px", fontWeight: 800, color: "var(--ink)", marginBottom: "4px" }}>
+                      Profession / Applied Trade *
+                    </label>
+                    <input
+                      name="profession"
+                      defaultValue={file.profession || file.candidate.profession || "General Worker"}
+                      required
+                      placeholder="e.g. Driver, Electrician, Plumber"
+                      style={{ width: "100%", height: "38px", padding: "0 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", outline: "none", fontWeight: 600 }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11.5px", fontWeight: 800, color: "var(--ink)", marginBottom: "4px" }}>
+                      Target Country / Destination *
+                    </label>
+                    <input
+                      name="country"
+                      defaultValue={file.country || file.candidate.preferredCountry || "Saudi Arabia"}
+                      required
+                      placeholder="e.g. Saudi Arabia, UAE, Qatar, Oman"
+                      style={{ width: "100%", height: "38px", padding: "0 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", outline: "none", fontWeight: 600 }}
+                    />
+                  </div>
+                </div>
+
+                {/* Row 7: Agent / Referral Partner */}
+                <div>
+                  <label style={{ display: "block", fontSize: "11.5px", fontWeight: 800, color: "var(--muted)", marginBottom: "4px" }}>
+                    Agent / Referral Partner / Source
+                  </label>
+                  <input
+                    name="agent"
+                    defaultValue={file.agent || file.candidate.source || "Direct"}
+                    placeholder="e.g. Brahmanbaria Talent Supply, Direct Office, AGT-105"
+                    style={{ width: "100%", height: "38px", padding: "0 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", outline: "none" }}
+                  />
+                  <small style={{ fontSize: "11px", color: "var(--muted)", display: "block", marginTop: "3px" }}>
+                    Assigning or changing agent partner will automatically route commissions and candidate ledger to their portal.
+                  </small>
+                </div>
+
+                {/* Modal Buttons */}
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "8px", paddingTop: "14px", borderTop: "1px solid #f1f5f9" }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowEditBioModal(false)}
+                    style={{ padding: "8px 18px", borderRadius: "8px", border: "1px solid #cbd5e1", background: "#fff", color: "var(--ink)", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingBio}
+                    style={{
+                      padding: "8px 22px",
+                      borderRadius: "8px",
+                      border: "none",
+                      background: "linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)",
+                      color: "#fff",
+                      fontSize: "13px",
+                      fontWeight: 800,
+                      cursor: "pointer",
+                      boxShadow: "0 4px 12px rgba(124, 58, 237, 0.3)",
+                    }}
+                  >
+                    {savingBio ? "Saving Changes..." : "💾 Save Registration Info"}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

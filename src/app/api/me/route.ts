@@ -49,10 +49,12 @@ export async function GET() {
     return Response.json({
       data: {
         name: session.user.name,
+        email: session.user.email,
         role: roleLabel(roleKey),
         roleKey,
         home: roleHome(roleKey),
         office: session.user.office?.name ?? null,
+        agentId: session.user.agentId ?? null,
         unreadNotifications,
         allowedModules,
         permissions: {

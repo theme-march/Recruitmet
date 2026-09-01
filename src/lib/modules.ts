@@ -69,6 +69,9 @@ export const getModuleItemBySlug = (moduleId: string, slug: string) => {
   if (found) return found;
   return { id: "1", label: "Candidates List" };
 };
-export const moduleItemPath = (moduleId: string, label: string) => `/module/${moduleId}/${moduleItemSlug(label)}`;
+export const moduleItemPath = (moduleId: string, label: string) => {
+  if (moduleId === "portal-agent" || moduleId === "portal/agent") return "/portal/agent";
+  return `/module/${moduleId}/${moduleItemSlug(label)}`;
+};
 
 

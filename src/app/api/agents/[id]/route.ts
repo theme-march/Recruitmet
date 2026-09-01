@@ -4,6 +4,7 @@ import { getSession } from "@/lib/session";
 import { AppError, errorResponse } from "@/lib/errors";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
+import bcrypt from "bcryptjs";
 
 const updateAgentSchema = z.object({
   action: z.string().optional(),
@@ -16,6 +17,9 @@ const updateAgentSchema = z.object({
   status: z.enum(["Active", "Inactive", "Blocked"]).optional(),
   commissionRate: z.string().optional(),
   agreementKey: z.string().nullable().optional(),
+  enablePortalLogin: z.boolean().optional(),
+  portalEmail: z.string().email().nullable().optional().or(z.literal("")),
+  portalPassword: z.string().optional().or(z.literal("")),
   candidateId: z.string().optional(),
   fileId: z.string().optional(),
   title: z.string().optional(),
@@ -87,6 +91,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
             fullName: true,
             phone: true,
             passportNo: true,
+            nationalId: true,
             preferredCountry: true,
             profession: true,
             district: true,
@@ -101,8 +106,10 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
           },
         },
         passport: { select: { passportNumber: true, expiryDate: true, verificationStatus: true } },
-        medical: { select: { result: true, testDate: true }, take: 1, orderBy: { createdAt: "desc" } },
-        visas: { select: { visaNumber: true, status: true }, take: 1, orderBy: { createdAt: "desc" } },
+        medical: { select: { result: true, testDate: true, expiryDate: true }, take: 1, orderBy: { createdAt: "desc" } },
+        police: { select: { applicationNumber: true, expiryDate: true, status: true }, take: 1, orderBy: { createdAt: "desc" } },
+        visas: { select: { visaNumber: true, status: true, expiryDate: true }, take: 1, orderBy: { createdAt: "desc" } },
+        manpower: { select: { reference: true, status: true }, take: 1, orderBy: { createdAt: "desc" } },
         flights: { select: { ticketNo: true, flight: { select: { flightNo: true, departureAt: true } } }, take: 1 },
         workflowEvents: { where: { stage: "AGENT_NOTE" }, orderBy: { createdAt: "desc" } },
         payments: {
@@ -133,22 +140,6 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       },
       include: {
         schedule: true,
-        candidate: {
-          include: {
-            files: {
-              select: {
-                id: true,
-                fileNo: true,
-                currentStage: true,
-                status: true,
-                country: true,
-                profession: true,
-              },
-              take: 1,
-              orderBy: { updatedAt: "desc" },
-            },
-          },
-        },
       },
       orderBy: { scheduledAt: "desc" },
     });
@@ -189,9 +180,18 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     let grandTotalDue = 0;
     let grandTotalAdvance = 0;
 
+    const normalizeCountry = (c: string) => /saudi/i.test(c) ? "Saudi Arabia" : /dubai|uae|emirates/i.test(c) ? "Dubai" : c || "Other Country";
+    const getPackageCostForCountry = (c: string) => /dubai/i.test(c) ? 300000 : 350000;
+
     const candidateLedger = files.map((f) => {
+      const isCompleted =
+        f.status === "COMPLETED" ||
+        f.currentStage === "Flight" ||
+        f.flights.length > 0;
+
+      const normCountry = normalizeCountry(f.country || f.candidate.preferredCountry || "Other");
+      const candidatePackage = 350000; // Simplified default
       const candidatePaid = f.payments.reduce((sum, p) => sum + Number(p.amount), 0);
-      const candidatePackage = /dubai/i.test(f.country) ? 300000 : 350000;
       const dueAmount = Math.max(0, candidatePackage - candidatePaid);
       const advanceAmount = Math.max(0, candidatePaid - candidatePackage);
 
@@ -199,12 +199,6 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       grandTotalPackage += candidatePackage;
       grandTotalDue += dueAmount;
       grandTotalAdvance += advanceAmount;
-
-      const normCountry = /saudi/i.test(f.country)
-        ? "Saudi Arabia"
-        : /dubai|uae|emirates/i.test(f.country)
-        ? "Dubai"
-        : f.country || "Other Country";
 
       if (!countryMap[normCountry]) {
         countryMap[normCountry] = {
@@ -225,14 +219,6 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       countryMap[normCountry].totalDue += dueAmount;
       countryMap[normCountry].totalAdvance += advanceAmount;
 
-      const isCompleted =
-        f.status === "COMPLETED" ||
-        f.currentStage === "Flight" ||
-        f.currentStage === "Ready To Flight" ||
-        f.currentStage === "Visa Done" ||
-        f.flights.length > 0 ||
-        f.visas.some((v) => v.status === "Done" || v.status === "Approved" || v.status === "Issued");
-
       if (isCompleted) {
         countryMap[normCountry].completed += 1;
       } else {
@@ -251,6 +237,178 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
           : latestInterview.result
         : "Not Scheduled";
 
+      // Evaluate Missing & Completed Documents
+      const missingDocs: Array<{
+        id: string;
+        name: string;
+        category: "PASSPORT" | "MEDICAL" | "POLICE" | "NID" | "VISA" | "MANPOWER" | "FLIGHT";
+        stage: string;
+        severity: "CRITICAL" | "HIGH" | "MEDIUM";
+        reason: string;
+        actionRequired: string;
+      }> = [];
+
+      const completedDocs: Array<{
+        name: string;
+        category: string;
+        value: string;
+        status: string;
+      }> = [];
+
+      // 1. Passport
+      const passportNum = f.passport?.passportNumber || f.candidate.passportNo;
+      if (!passportNum || passportNum === "N/A" || passportNum === "—") {
+        missingDocs.push({
+          id: "passport",
+          name: "Original Passport Copy / Scan",
+          category: "PASSPORT",
+          stage: "Passport Entry",
+          severity: "CRITICAL",
+          reason: "Passport number or scan copy not entered in file.",
+          actionRequired: "Collect original 10-year MRP/E-Passport copy from candidate.",
+        });
+      } else {
+        completedDocs.push({
+          name: "Passport",
+          category: "PASSPORT",
+          value: passportNum,
+          status: f.passport?.verificationStatus || "Verified",
+        });
+      }
+
+      // 2. GAMCA Medical Slip
+      const med = f.medical[0];
+      const hasMedical = Boolean(med?.result && med.result !== "Pending" && med.result !== "UNFIT");
+      if (!hasMedical && f.currentStage !== "Passport Entry" && f.currentStage !== "Passport") {
+        missingDocs.push({
+          id: "medical",
+          name: "GCC GAMCA Medical Fitness Certificate",
+          category: "MEDICAL",
+          stage: "Medical",
+          severity: "CRITICAL",
+          reason: med?.result === "Pending" ? "Medical test result still pending." : "GAMCA medical checkup slip/fit result missing.",
+          actionRequired: "Ensure candidate completes GAMCA medical at authorized GCC center.",
+        });
+      } else if (hasMedical) {
+        completedDocs.push({
+          name: "GAMCA Medical",
+          category: "MEDICAL",
+          value: `Fit Result (${med?.result || "FIT"})`,
+          status: "FIT",
+        });
+      }
+
+      // 3. Police Clearance (PCC)
+      const pcc = f.police[0];
+      const hasPolice = Boolean(pcc?.applicationNumber || pcc?.status === "Clear" || pcc?.status === "Verified");
+      const pccNeededStages = ["Police Clearance", "PCC", "Mofa", "Visa Stamping", "Manpower", "Flight"];
+      if (!hasPolice && pccNeededStages.includes(f.currentStage)) {
+        missingDocs.push({
+          id: "police",
+          name: "Police Clearance Certificate (PCC)",
+          category: "POLICE",
+          stage: "Police Clearance",
+          severity: "HIGH",
+          reason: "Police verification certificate / MOFA attested PCC missing.",
+          actionRequired: "Submit candidate online police verification slip / SP office clearance.",
+        });
+      } else if (hasPolice) {
+        completedDocs.push({
+          name: "Police PCC",
+          category: "POLICE",
+          value: pcc?.applicationNumber || "PCC Verified",
+          status: "Clear",
+        });
+      }
+
+      // 4. National ID Card (NID)
+      const nid = f.candidate.nationalId;
+      if (!nid) {
+        missingDocs.push({
+          id: "nid",
+          name: "National ID (NID / Smart Card)",
+          category: "NID",
+          stage: "Registration",
+          severity: "MEDIUM",
+          reason: "NID / Smart card number not provided during registration.",
+          actionRequired: "Collect copy of 10 or 17 digit Bangladesh National ID card.",
+        });
+      } else {
+        completedDocs.push({
+          name: "National ID",
+          category: "NID",
+          value: nid,
+          status: "Registered",
+        });
+      }
+
+      // 5. Visa Stamped Copy
+      const visa = f.visas[0];
+      const hasVisa = Boolean(visa?.visaNumber && visa.visaNumber !== "Pending");
+      const visaNeededStages = ["Mofa", "Visa Stamping", "E-Visa Stamping", "Manpower", "Flight"];
+      if (!hasVisa && visaNeededStages.includes(f.currentStage)) {
+        missingDocs.push({
+          id: "visa",
+          name: "Electronic Visa / Stamped Visa Copy",
+          category: "VISA",
+          stage: "Visa Stamping",
+          severity: "HIGH",
+          reason: "Embassy Visa Stamping / Dubai E-Visa permit copy not attached.",
+          actionRequired: "Upload embassy stamped visa copy or labor entry permit.",
+        });
+      } else if (hasVisa) {
+        completedDocs.push({
+          name: "Visa Document",
+          category: "VISA",
+          value: visa?.visaNumber || "Stamped",
+          status: "Stamped",
+        });
+      }
+
+      // 6. BMET Smart Card
+      const manpower = f.manpower?.[0];
+      const hasManpower = Boolean(manpower?.reference || manpower?.status === "Issued" || manpower?.status === "Approved");
+      if (!hasManpower && (f.currentStage === "Manpower" || f.currentStage === "Flight")) {
+        missingDocs.push({
+          id: "manpower",
+          name: "BMET Manpower Emigration Smart Card",
+          category: "MANPOWER",
+          stage: "Manpower",
+          severity: "HIGH",
+          reason: "Bureau of Manpower, Employment and Training smart clearance card missing.",
+          actionRequired: "Complete BMET fingerprint briefing and issue smart card.",
+        });
+      } else if (hasManpower) {
+        completedDocs.push({
+          name: "BMET Smart Card",
+          category: "MANPOWER",
+          value: manpower?.reference || "Issued",
+          status: "Issued",
+        });
+      }
+
+      // 7. Flight Ticket
+      const flight = f.flights[0];
+      const hasFlight = Boolean(flight?.ticketNo || flight?.flight?.flightNo);
+      if (!hasFlight && f.currentStage === "Flight") {
+        missingDocs.push({
+          id: "flight",
+          name: "Confirmed Air Flight E-Ticket",
+          category: "FLIGHT",
+          stage: "Flight",
+          severity: "HIGH",
+          reason: "Airlines confirmed booking ticket not attached.",
+          actionRequired: "Book airline ticket and attach itinerary.",
+        });
+      } else if (hasFlight) {
+        completedDocs.push({
+          name: "Flight Ticket",
+          category: "FLIGHT",
+          value: flight?.ticketNo || flight?.flight?.flightNo || "Confirmed",
+          status: "Booked",
+        });
+      }
+
       return {
         fileId: f.id,
         fileNo: f.fileNo,
@@ -258,7 +416,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
         candidateNo: f.candidate.candidateNo,
         fullName: f.candidate.fullName,
         phone: f.candidate.phone,
-        passportNumber: f.passport?.passportNumber || f.candidate.passportNo || "N/A",
+        passportNumber: passportNum || "N/A",
         country: normCountry,
         profession: f.profession || f.candidate.profession || "General Worker",
         currentStage: f.currentStage || "Passport",
@@ -266,17 +424,25 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
         isCompleted,
         completionStatus,
         completionNote,
-        // Interview details on candidate row
+        missingDocs,
+        missingDocsCount: missingDocs.length,
+        completedDocs,
+        hasMissingDocs: missingDocs.length > 0,
+        documentStatus: missingDocs.length === 0 ? "Complete" : "Incomplete",
         interviewStatus,
         interviewRating: latestInterview?.rating || null,
         interviewDate: latestInterview?.scheduledAt?.toISOString() || null,
         interviewTitle: latestInterview?.schedule?.title || latestInterview?.title || null,
         interviewCompany: latestInterview?.schedule?.company || latestInterview?.company || null,
-        // Processing stages
         passportVerification: f.passport?.verificationStatus || "Pending",
+        passportExpiryDate: f.passport?.expiryDate ? f.passport.expiryDate.toISOString() : null,
         medicalResult: f.medical[0]?.result || "Pending",
+        medicalExpiryDate: f.medical[0]?.expiryDate ? f.medical[0].expiryDate.toISOString() : null,
+        medicalTestDate: f.medical[0]?.testDate ? f.medical[0].testDate.toISOString() : null,
+        policeExpiryDate: f.police?.[0]?.expiryDate ? f.police[0].expiryDate.toISOString() : null,
         visaNumber: f.visas[0]?.visaNumber || "Pending",
         visaStatus: f.visas[0]?.status || "Pending",
+        visaExpiryDate: f.visas[0]?.expiryDate ? f.visas[0].expiryDate.toISOString() : null,
         flightDate: f.flights[0]?.flight?.departureAt?.toISOString() || null,
         totalPackage: candidatePackage,
         totalPaid: candidatePaid,
@@ -319,7 +485,17 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     const completedFlights = files.filter((f) => f.status === "COMPLETED" || f.currentStage === "Flight").length;
     const visaStamped = files.filter((f) => f.visas.length > 0).length;
 
-    // 5. Structure Interviews list strictly for THIS AGENT's candidate files
+    // Missing documents metric calculation
+    const totalCandidatesWithMissingDocs = candidateLedger.filter((c) => c.hasMissingDocs).length;
+    const totalCompleteDocsCandidates = totalCandidates - totalCandidatesWithMissingDocs;
+    const totalMissingDocsCount = candidateLedger.reduce((sum, c) => sum + c.missingDocsCount, 0);
+    const missingPassports = candidateLedger.filter((c) => (c.missingDocs || []).some((d: any) => d.category === "PASSPORT")).length;
+    const missingMedicals = candidateLedger.filter((c) => (c.missingDocs || []).some((d: any) => d.category === "MEDICAL")).length;
+    const missingPolices = candidateLedger.filter((c) => (c.missingDocs || []).some((d: any) => d.category === "POLICE")).length;
+    const missingNids = candidateLedger.filter((c) => (c.missingDocs || []).some((d: any) => d.category === "NID")).length;
+    const missingVisas = candidateLedger.filter((c) => (c.missingDocs || []).some((d: any) => d.category === "VISA")).length;
+
+    // 5. Structure Interviews list
     const interviewList = files.map((f) => {
       const inv = f.candidate.interviews?.[0];
       const normResult = inv
@@ -399,6 +575,22 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       },
     ];
 
+    const portalUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { agentId: agent.id },
+          ...(agent.email ? [{ email: agent.email.toLowerCase().trim() }] : []),
+        ],
+      },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        status: true,
+        lastLoginAt: true,
+      },
+    }).catch(() => null);
+
     return NextResponse.json({
       data: {
         id: agent.id,
@@ -413,6 +605,9 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
         status: agent.status,
         commissionRate: rateString,
         agreementKey: agent.agreementKey || `AGR-${agent.code}`,
+        hasPortalAccess: !!portalUser && portalUser.status === "ACTIVE",
+        portalLoginEmail: portalUser?.email || agent.email || null,
+        portalLastLoginAt: portalUser?.lastLoginAt ? new Date(portalUser.lastLoginAt).toISOString() : null,
         totalEarnedCommission: totalCommissionEarned,
         totalCandidateCount: totalCandidates,
         completedCandidateCount: completedCount,
@@ -439,6 +634,14 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
           totalAdvance: grandTotalAdvance,
           perCandidateRate,
           totalCommissionEarned,
+          totalCandidatesWithMissingDocs,
+          totalCompleteDocsCandidates,
+          totalMissingDocsCount,
+          missingPassports,
+          missingMedicals,
+          missingPolices,
+          missingNids,
+          missingVisas,
         },
         interviewMetrics: {
           totalRegistered: totalInterviewRegistrations,
@@ -864,6 +1067,66 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       data: updateData,
     });
 
+    // Update or create portal user login credentials if provided
+    if (input.enablePortalLogin !== undefined || input.portalPassword || input.portalEmail) {
+      const loginEmail = (input.portalEmail || input.email || agent.email || `${agent.code.toLowerCase()}@agent.orbit.com`).trim().toLowerCase();
+
+      let agentRole = await prisma.role.findFirst({
+        where: { OR: [{ name: "Agent Partner" }, { name: "Agent Portal" }, { name: "Agent" }] },
+      });
+      if (!agentRole) {
+        agentRole = await prisma.role.create({
+          data: {
+            name: "Agent Partner",
+            description: "Read-only access for agent partners to view their candidates and commissions.",
+          },
+        });
+      }
+
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: loginEmail },
+            ...(agent.email ? [{ email: agent.email.toLowerCase().trim() }] : []),
+          ],
+        },
+      });
+
+      if (input.enablePortalLogin === false) {
+        if (existingUser) {
+          await prisma.user.update({
+            where: { id: existingUser.id },
+            data: { status: "INACTIVE" },
+          }).catch(() => {});
+        }
+      } else {
+        const userUpdateData: Record<string, unknown> = {
+          name: input.name?.trim() || agent.name,
+          email: loginEmail,
+          status: (input.status === "Inactive" || input.status === "Blocked") ? "INACTIVE" : "ACTIVE",
+          roleId: agentRole.id,
+        };
+
+        if (input.portalPassword?.trim()) {
+          userUpdateData.passwordHash = await bcrypt.hash(input.portalPassword.trim(), 10);
+        }
+
+        if (existingUser) {
+          await prisma.user.update({
+            where: { id: existingUser.id },
+            data: userUpdateData,
+          });
+        } else {
+          const rawPwd = input.portalPassword?.trim() || "Agent@2026";
+          userUpdateData.passwordHash = await bcrypt.hash(rawPwd, 10);
+          userUpdateData.username = `${agent.code.toLowerCase().replace(/[^a-z0-9]/g, "")}_agent`;
+          await prisma.user.create({
+            data: userUpdateData as any,
+          });
+        }
+      }
+    }
+
     await prisma.auditLog.create({
       data: {
         userId: session.userId,
@@ -882,6 +1145,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       data: updated,
     });
   } catch (error) {
+    console.error("PATCH /api/agents/[id] error:", error);
     return errorResponse(error);
   }
 }
