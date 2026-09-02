@@ -17,21 +17,32 @@ export async function GET(request: Request) {
     const page = Math.max(1, Number(url.searchParams.get("page")) || 1);
     const pageSize = Math.min(100, Math.max(10, Number(url.searchParams.get("pageSize")) || 20));
 
-    const files = await prisma.processingFile.findMany({
-      where: officeScope(session),
-      orderBy: { updatedAt: "desc" },
-      take: 5000,
-      include: {
-        candidate: true,
-        passport: true,
-        visas: true,
-        manpower: true,
-        companyRecord: true,
-        assignedTo: { select: { name: true } },
-        office: { select: { name: true } },
-        payments: { orderBy: { createdAt: "desc" }, include: { refunds: true } },
-      },
-    });
+    const [files, dbCountries] = await Promise.all([
+      prisma.processingFile.findMany({
+        where: officeScope(session),
+        orderBy: { updatedAt: "desc" },
+        take: 5000,
+        include: {
+          candidate: true,
+          passport: true,
+          visas: true,
+          manpower: true,
+          companyRecord: true,
+          assignedTo: { select: { name: true } },
+          office: { select: { name: true } },
+          payments: { orderBy: { createdAt: "desc" }, include: { refunds: true } },
+        },
+      }),
+      prisma.country.findMany({
+        where: { active: true },
+        orderBy: { name: "asc" },
+      }),
+    ]);
+
+    const activeCountryNames = [
+      ...dbCountries.map((c) => c.name),
+      "Other",
+    ].filter((name, idx, arr) => arr.indexOf(name) === idx);
 
     const rows = files.map((file) => {
       const paid = file.payments
@@ -43,13 +54,15 @@ export async function GET(request: Request) {
         .reduce((sum, r) => sum + Number(r.amount), 0);
       const latest = file.payments[0];
 
-      // Normalize country to 3 standard buckets: Saudi Arabia, Dubai, Other Country
-      const rawCountry = file.country || "";
-      const normalizedCountry = /saudi|ksa/i.test(rawCountry)
-        ? "Saudi Arabia"
-        : /dubai|uae|emirates/i.test(rawCountry)
-        ? "Dubai"
-        : "Other Country";
+      // Match against database active countries
+      const rawCountry = (file.country || "").trim();
+      const matchedDb = dbCountries.find(
+        (c) =>
+          c.name.toLowerCase() === rawCountry.toLowerCase() ||
+          (/saudi/i.test(rawCountry) && /saudi/i.test(c.name)) ||
+          (/dubai|uae/i.test(rawCountry) && /dubai/i.test(c.name))
+      );
+      const normalizedCountry = matchedDb ? matchedDb.name : rawCountry || "Other";
 
       const packageCost = /dubai/i.test(rawCountry) ? 300000 : 350000;
       const dueAmount = Math.max(0, packageCost - paid);
@@ -112,11 +125,16 @@ export async function GET(request: Request) {
           v.toLowerCase().includes(q)
         );
       const matchesStatus = !status || row.paymentStatus === status;
+      const targetCountry = country.trim().toLowerCase();
       const matchesCountry =
         !country ||
-        country === "All" ||
-        row.country === country ||
-        (country === "Other Country" && row.country === "Other Country");
+        targetCountry === "all" ||
+        targetCountry === "all countries" ||
+        row.country.toLowerCase() === targetCountry ||
+        row.rawCountry.toLowerCase() === targetCountry ||
+        (targetCountry.includes("saudi") && row.country.toLowerCase().includes("saudi")) ||
+        (targetCountry.includes("dubai") && (row.country.toLowerCase().includes("dubai") || row.rawCountry.toLowerCase().includes("dubai"))) ||
+        (targetCountry.includes("other") && !/saudi|dubai|uae|emirates/i.test(row.country));
 
       return matchesQ && matchesStatus && matchesCountry;
     });
@@ -144,7 +162,7 @@ export async function GET(request: Request) {
       },
       filters: {
         statuses: [...new Set(rows.map((r) => r.paymentStatus))].sort(),
-        countries: ["Saudi Arabia", "Dubai", "Other Country"],
+        countries: activeCountryNames,
       },
       meta: {
         page,

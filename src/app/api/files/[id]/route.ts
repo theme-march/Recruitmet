@@ -853,15 +853,109 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return NextResponse.json({ ok: true, message: "Takamul skill certificate saved and moved to Visa / MOFA stage!" });
     }
 
-    // 5. Update Visa / MOFA
-    if (action === "update-visa" || action === "update-mofa") {
-      const { visaNumber, mofaNumber, visaStatus, status, issueDate, expiryDate } = z.object({
+    // 4.5. Update Dubai / Europe MOHRE Labor Approval & Offer Letter
+    if (action === "update-approval" || action === "update-labor-approval") {
+      const { applicationNo, laborCardNo, offerLetterStatus, approvalStatus, companyName, remarks } = z.object({
+        applicationNo: z.string().nullish(),
+        laborCardNo: z.string().nullish(),
+        offerLetterStatus: z.string().nullish(),
+        approvalStatus: z.string().nullish(),
+        companyName: z.string().nullish(),
+        remarks: z.string().nullish(),
+      }).parse(body);
+
+      const safeAppNo = applicationNo?.trim() || `MB-${Date.now().toString().slice(-6)}`;
+      const safeStatus = approvalStatus?.trim() || "Approved";
+
+      // 1. Create or update WorkflowEvent for Labor Approval
+      const existingEvent = await prisma.workflowEvent.findFirst({
+        where: {
+          fileId,
+          stage: { in: ["LABOR_APPROVAL", "Approval Application", "Labor Approval"] },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      const eventData = {
+        applicationNo: safeAppNo,
+        laborCardNo: laborCardNo?.trim() || "",
+        offerLetterStatus: offerLetterStatus || "Signed & Verified",
+        approvalStatus: safeStatus,
+        companyName: companyName || "",
+        remarks: remarks || "",
+      };
+
+      if (existingEvent) {
+        await prisma.workflowEvent.update({
+          where: { id: existingEvent.id },
+          data: {
+            status: safeStatus,
+            completedBy: session.user.name,
+            completedAt: new Date(),
+            data: eventData,
+          },
+        }).catch(() => {});
+      } else {
+        await prisma.workflowEvent.create({
+          data: {
+            fileId,
+            stage: "Approval Application",
+            status: safeStatus,
+            completedBy: session.user.name,
+            completedAt: new Date(),
+            data: eventData,
+          },
+        }).catch(() => {});
+      }
+
+      // 2. Also register in VisaProcess
+      const existingVisa = await prisma.visaProcess.findFirst({ where: { fileId } });
+      if (existingVisa) {
+        await prisma.visaProcess.update({
+          where: { id: existingVisa.id },
+          data: {
+            visaNumber: safeAppNo,
+            status: safeStatus,
+          },
+        }).catch(() => {});
+      } else {
+        await prisma.visaProcess.create({
+          data: {
+            fileId,
+            visaNumber: safeAppNo,
+            status: safeStatus,
+          },
+        }).catch(() => {});
+      }
+
+      // 3. Move file stage to next stage: "E-Visa Stamping"
+      await prisma.processingFile.update({
+        where: { id: fileId },
+        data: {
+          currentStage: "E-Visa Stamping",
+          status: "ACTIVE",
+          ...(companyName ? { company: companyName.trim() } : {}),
+        },
+      });
+
+      return NextResponse.json({
+        ok: true,
+        message: "MOHRE Labor Approval saved and moved to E-Visa Stamping stage!",
+      });
+    }
+
+    // 5. Update Visa / MOFA / E-Visa
+    if (action === "update-visa" || action === "update-mofa" || action === "update-evisa") {
+      const { visaNumber, mofaNumber, uidNumber, uidNo, visaStatus, status, issueDate, expiryDate, sponsorName } = z.object({
         visaNumber: z.string().nullish(),
         mofaNumber: z.string().nullish(),
+        uidNumber: z.string().nullish(),
+        uidNo: z.string().nullish(),
         visaStatus: z.string().nullish(),
         status: z.string().nullish(),
         issueDate: z.string().nullish(),
         expiryDate: z.string().nullish(),
+        sponsorName: z.string().nullish(),
       }).parse(body);
 
       const parsedIssue = parseSafeDate(issueDate) || new Date();
@@ -905,12 +999,30 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         }).catch(() => {});
       }
 
+      // Record WorkflowEvent
+      await prisma.workflowEvent.create({
+        data: {
+          fileId,
+          stage: "E-Visa Stamping",
+          status: resolvedStatus,
+          completedBy: session.user.name,
+          completedAt: new Date(),
+          data: {
+            visaNumber: safeVisaNo,
+            uidNumber: uidNumber || uidNo || "",
+            sponsorName: sponsorName || "",
+            issueDate: parsedIssue.toISOString(),
+            expiryDate: parsedExpiry.toISOString(),
+          },
+        },
+      }).catch(() => {});
+
       await prisma.processingFile.update({
         where: { id: fileId },
         data: { currentStage: "Manpower", status: "ACTIVE" },
       });
 
-      return NextResponse.json({ ok: true, message: "Visa & MOFA updated and moved to Manpower Clearance stage!" });
+      return NextResponse.json({ ok: true, message: "Visa & Entry Permit updated and moved to Manpower Clearance stage!" });
     }
 
     // 6. Update BMET Manpower Clearance

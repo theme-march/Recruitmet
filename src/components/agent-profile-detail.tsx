@@ -192,8 +192,8 @@ type AgentProfileData = {
   address: string | null;
   country: string | null;
   district?: string | null;
-  status: string;
-  commissionRate: string;
+  status: "Active" | "Inactive" | "Blocked";
+  commissionRate?: string;
   agreementKey: string | null;
   totalEarnedCommission: number;
   totalCandidateCount: number;
@@ -781,7 +781,6 @@ export function AgentProfileDetail({
         email: String(form.get("email") || "").trim() || null,
         country: String(form.get("district") || "").trim() || "Dhaka",
         address: String(form.get("address") || "").trim() || null,
-        commissionRate: String(form.get("commissionRate") || "").trim() || "Standard",
         agreementKey: String(form.get("agreementKey") || "").trim() || null,
         status: String(form.get("status") || "Active"),
         enablePortalLogin: editPortalLogin,
@@ -1390,10 +1389,6 @@ export function AgentProfileDetail({
         </div>
 
         <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
-          <div style={{ background: "#f8fafc", border: "1px solid var(--line)", padding: "8px 14px", borderRadius: "10px" }}>
-            <small style={{ fontSize: "10.5px", color: "var(--muted)", display: "block" }}>💼 Agreed Commission</small>
-            <b style={{ fontSize: "12.5px", color: "#7258e8" }}>{agentData.commissionRate}</b>
-          </div>
           {agentData.agreementKey && (
             <div style={{ background: "#f8fafc", border: "1px solid var(--line)", padding: "8px 14px", borderRadius: "10px" }}>
               <small style={{ fontSize: "10.5px", color: "var(--muted)", display: "block" }}>📜 Agreement Ref</small>
@@ -1778,88 +1773,6 @@ export function AgentProfileDetail({
               </button>
             </div>
           )}
-
-          {/* Card 2: Missing Requirements Alert Card */}
-          {candidatesWithMissingDocs.length > 0 && (
-            <div
-              style={{
-                background: "linear-gradient(135deg, #fff1f2 0%, #ffe4e6 40%, #fdf2f8 100%)",
-                border: "1px solid #fecdd3",
-                borderLeft: "4px solid #e11d48",
-                borderRadius: "14px",
-                padding: "14px 18px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                flexWrap: "wrap",
-                gap: "12px",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1, minWidth: "260px" }}>
-                <div
-                  style={{
-                    width: "38px",
-                    height: "38px",
-                    borderRadius: "10px",
-                    background: "linear-gradient(135deg, #e11d48 0%, #be123c 100%)",
-                    color: "#ffffff",
-                    display: "grid",
-                    placeItems: "center",
-                    flexShrink: 0,
-                    boxShadow: "0 3px 8px rgba(225, 29, 72, 0.25)",
-                  }}
-                >
-                  <FileWarning size={19} />
-                </div>
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "7px", flexWrap: "wrap" }}>
-                    <b style={{ fontSize: "13.5px", color: "#881337" }}>
-                      📁 Missing Documents Alert
-                    </b>
-                    <span
-                      style={{
-                        background: "#ffe4e6",
-                        border: "1px solid #fecdd3",
-                        color: "#9f1239",
-                        padding: "1px 7px",
-                        borderRadius: "9999px",
-                        fontSize: "11px",
-                        fontWeight: 800,
-                      }}
-                    >
-                      {candidatesWithMissingDocs.length} Candidate(s) • {totalMissingDocsCount} Missing File(s)
-                    </span>
-                  </div>
-                  <p style={{ fontSize: "11.5px", color: "#9f1239", margin: "3px 0 0", lineHeight: 1.35 }}>
-                    Original Passport scans, GAMCA medical fit slips, Police PCC, or NID copies required.
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setActiveMainTab("missing")}
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: "8px",
-                  background: "linear-gradient(135deg, #e11d48 0%, #be123c 100%)",
-                  color: "#ffffff",
-                  border: "none",
-                  fontSize: "11.5px",
-                  fontWeight: 800,
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  boxShadow: "0 2px 6px rgba(225, 29, 72, 0.25)",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                <FileWarning size={13} /> View Missing ({candidatesWithMissingDocs.length})
-              </button>
-            </div>
-          )}
         </div>
       )}
 
@@ -1878,7 +1791,7 @@ export function AgentProfileDetail({
       >
         {/* Workspace Tab Switcher */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", borderBottom: "1px solid #f1f5f9", paddingBottom: "14px" }}>
-          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+          <div className="scrollable-tabs-bar" style={{ display: "flex", gap: "8px", width: "100%" }}>
             <button
               type="button"
               onClick={() => setActiveMainTab("ledger")}
@@ -2588,115 +2501,6 @@ export function AgentProfileDetail({
                   )}
                 </tbody>
               </table>
-            </div>
-
-            {/* SCREENING & INTERVIEWS PIPELINE STRIP (Moved below Candidate Processing & Financial Ledger Table) */}
-            <div
-              style={{
-                background: "#f8fafc",
-                borderRadius: "16px",
-                border: "1px solid var(--line)",
-                padding: "20px 22px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "14px",
-                marginTop: "6px",
-              }}
-            >
-              {/* Header inside Strip */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px", flexWrap: "wrap" }}>
-                    <span style={{ fontSize: "11px", fontWeight: 800, background: "#f0edff", color: "#7258e8", border: "1px solid #dcd5fb", padding: "2px 8px", borderRadius: "6px", letterSpacing: "0.5px" }}>
-                      🎙️ SCREENING &amp; INTERVIEWS PIPELINE
-                    </span>
-                    <span style={{ fontSize: "11px", fontWeight: 800, background: "#ecfdf5", color: "#059669", border: "1px solid #a7f3d0", padding: "2px 8px", borderRadius: "6px" }}>
-                      ● {passRate}% Pass Rate
-                    </span>
-                  </div>
-                  <h3 style={{ fontSize: "15.5px", fontWeight: 800, margin: 0, color: "var(--ink)" }}>
-                    Candidate Interviews Status
-                  </h3>
-                  <p style={{ fontSize: "12px", color: "var(--muted)", margin: "3px 0 0" }}>
-                    Track every candidate registered for interviews, screening outcomes, and progress through medical, visa &amp; flight.
-                  </p>
-                </div>
-              </div>
-
-              {/* 6 Sub-metrics Cards */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "12px" }}>
-                {/* Metric 1: TOTAL REGISTERED */}
-                <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "14px 16px" }}>
-                  <span style={{ fontSize: "10.5px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
-                    TOTAL REGISTERED
-                  </span>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginTop: "4px" }}>
-                    <b style={{ fontSize: "19px", fontWeight: 900, color: "var(--ink)" }}>{totalRegistered}</b>
-                    <span style={{ fontSize: "11.5px", color: "var(--muted)", fontWeight: 700 }}>Candidates</span>
-                  </div>
-                  <small style={{ fontSize: "10.5px", color: "#64748b", display: "block", marginTop: "2px" }}>Total drives applied</small>
-                </div>
-
-                {/* Metric 2: SELECTED / PASSED */}
-                <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "12px", padding: "14px 16px" }}>
-                  <span style={{ fontSize: "10.5px", fontWeight: 800, color: "#166534", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
-                    🏆 SELECTED / PASSED
-                  </span>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginTop: "4px" }}>
-                    <b style={{ fontSize: "19px", fontWeight: 900, color: "#15803d" }}>{selectedCount}</b>
-                    <span style={{ fontSize: "11.5px", color: "#15803d", fontWeight: 700 }}>Selected</span>
-                  </div>
-                  <small style={{ fontSize: "10.5px", color: "#16a34a", display: "block", marginTop: "2px", fontWeight: 600 }}>Passed screening</small>
-                </div>
-
-                {/* Metric 3: WAITING / SCHEDULED */}
-                <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "12px", padding: "14px 16px" }}>
-                  <span style={{ fontSize: "10.5px", fontWeight: 800, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
-                    ⏳ WAITING / SCHEDULED
-                  </span>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginTop: "4px" }}>
-                    <b style={{ fontSize: "19px", fontWeight: 900, color: "#b45309" }}>{waitingCount}</b>
-                    <span style={{ fontSize: "11.5px", color: "#b45309", fontWeight: 700 }}>In Queue</span>
-                  </div>
-                  <small style={{ fontSize: "10.5px", color: "#d97706", display: "block", marginTop: "2px", fontWeight: 600 }}>Upcoming interviews</small>
-                </div>
-
-                {/* Metric 4: ATTENDED / IN EVALUATION */}
-                <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "12px", padding: "14px 16px" }}>
-                  <span style={{ fontSize: "10.5px", fontWeight: 800, color: "#1e40af", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
-                    📋 ATTENDED / IN EVALUATION
-                  </span>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginTop: "4px" }}>
-                    <b style={{ fontSize: "19px", fontWeight: 900, color: "#1d4ed8" }}>{attendedCount}</b>
-                    <span style={{ fontSize: "11.5px", color: "#1d4ed8", fontWeight: 700 }}>In Review</span>
-                  </div>
-                  <small style={{ fontSize: "10.5px", color: "#2563eb", display: "block", marginTop: "2px", fontWeight: 600 }}>Under client evaluation</small>
-                </div>
-
-                {/* Metric 5: REJECTED */}
-                <div style={{ background: "#fff1f2", border: "1px solid #fecdd3", borderRadius: "12px", padding: "14px 16px" }}>
-                  <span style={{ fontSize: "10.5px", fontWeight: 800, color: "#9f1239", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
-                    ❌ REJECTED
-                  </span>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginTop: "4px" }}>
-                    <b style={{ fontSize: "19px", fontWeight: 900, color: "#e11d48" }}>{rejectedCount}</b>
-                    <span style={{ fontSize: "11.5px", color: "#e11d48", fontWeight: 700 }}>Unsuccessful</span>
-                  </div>
-                  <small style={{ fontSize: "10.5px", color: "#f43f5e", display: "block", marginTop: "2px", fontWeight: 600 }}>Need re-assessment</small>
-                </div>
-
-                {/* Metric 6: ABSENT / RESCHEDULED */}
-                <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "14px 16px" }}>
-                  <span style={{ fontSize: "10.5px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
-                    🚫 ABSENT / RESCHEDULED
-                  </span>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginTop: "4px" }}>
-                    <b style={{ fontSize: "19px", fontWeight: 900, color: "#475569" }}>{absentCount}</b>
-                    <span style={{ fontSize: "11.5px", color: "#475569", fontWeight: 700 }}>Pending</span>
-                  </div>
-                  <small style={{ fontSize: "10.5px", color: "#64748b", display: "block", marginTop: "2px" }}>Did not attend drive</small>
-                </div>
-              </div>
             </div>
           </div>
         )}
@@ -3541,10 +3345,120 @@ export function AgentProfileDetail({
         )}
       </div>
 
-      {/* 6. COMPLETE CANDIDATE PAYMENT DEPOSITS & FINANCIAL RECEIPTS MODAL */}
+      {/* 6. STANDALONE CARD: Candidate Interviews Status */}
+      <div
+        style={{
+          background: "#ffffff",
+          borderRadius: "18px",
+          border: "1px solid var(--line)",
+          padding: "24px 26px",
+          boxShadow: "var(--shadow)",
+          display: "flex",
+          flexDirection: "column",
+          gap: "16px",
+        }}
+      >
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", borderBottom: "1px solid var(--line)", paddingBottom: "16px" }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px", flexWrap: "wrap" }}>
+              <span style={{ fontSize: "11px", fontWeight: 800, background: "#f0edff", color: "#7258e8", border: "1px solid #dcd5fb", padding: "3px 10px", borderRadius: "6px", letterSpacing: "0.5px" }}>
+                🎙️ SCREENING &amp; INTERVIEWS PIPELINE
+              </span>
+              <span style={{ fontSize: "11px", fontWeight: 800, background: "#ecfdf5", color: "#059669", border: "1px solid #a7f3d0", padding: "3px 10px", borderRadius: "6px" }}>
+                ● {passRate}% Pass Rate
+              </span>
+            </div>
+            <h3 style={{ fontSize: "16px", fontWeight: 800, margin: 0, color: "var(--ink)" }}>
+              Candidate Interviews Status
+            </h3>
+            <p style={{ fontSize: "12.5px", color: "var(--muted)", margin: "4px 0 0" }}>
+              Track every candidate registered for interviews, screening outcomes, and progress through medical, visa &amp; flight.
+            </p>
+          </div>
+        </div>
+
+        {/* 6 Sub-metrics Cards */}
+        <div className="responsive-kpi-grid">
+          {/* Metric 1: TOTAL REGISTERED */}
+          <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "14px", padding: "16px 18px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
+            <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
+              TOTAL REGISTERED
+            </span>
+            <div style={{ display: "flex", alignItems: "baseline", gap: "5px", marginTop: "6px" }}>
+              <b style={{ fontSize: "22px", fontWeight: 900, color: "var(--ink)" }}>{totalRegistered}</b>
+              <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 700 }}>Candidates</span>
+            </div>
+            <small style={{ fontSize: "11px", color: "#64748b", display: "block", marginTop: "4px" }}>Total drives applied</small>
+          </div>
+
+          {/* Metric 2: SELECTED / PASSED */}
+          <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "14px", padding: "16px 18px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
+            <span style={{ fontSize: "11px", fontWeight: 800, color: "#166534", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
+              🏆 SELECTED / PASSED
+            </span>
+            <div style={{ display: "flex", alignItems: "baseline", gap: "5px", marginTop: "6px" }}>
+              <b style={{ fontSize: "22px", fontWeight: 900, color: "#15803d" }}>{selectedCount}</b>
+              <span style={{ fontSize: "12px", color: "#15803d", fontWeight: 700 }}>Selected</span>
+            </div>
+            <small style={{ fontSize: "11px", color: "#16a34a", display: "block", marginTop: "4px", fontWeight: 600 }}>Passed screening</small>
+          </div>
+
+          {/* Metric 3: WAITING / SCHEDULED */}
+          <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "14px", padding: "16px 18px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
+            <span style={{ fontSize: "11px", fontWeight: 800, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
+              ⏳ WAITING / SCHEDULED
+            </span>
+            <div style={{ display: "flex", alignItems: "baseline", gap: "5px", marginTop: "6px" }}>
+              <b style={{ fontSize: "22px", fontWeight: 900, color: "#b45309" }}>{waitingCount}</b>
+              <span style={{ fontSize: "12px", color: "#b45309", fontWeight: 700 }}>In Queue</span>
+            </div>
+            <small style={{ fontSize: "11px", color: "#d97706", display: "block", marginTop: "4px", fontWeight: 600 }}>Upcoming interviews</small>
+          </div>
+
+          {/* Metric 4: ATTENDED / IN EVALUATION */}
+          <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "14px", padding: "16px 18px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
+            <span style={{ fontSize: "11px", fontWeight: 800, color: "#1e40af", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
+              📋 ATTENDED / IN EVALUATION
+            </span>
+            <div style={{ display: "flex", alignItems: "baseline", gap: "5px", marginTop: "6px" }}>
+              <b style={{ fontSize: "22px", fontWeight: 900, color: "#1d4ed8" }}>{attendedCount}</b>
+              <span style={{ fontSize: "12px", color: "#1d4ed8", fontWeight: 700 }}>In Review</span>
+            </div>
+            <small style={{ fontSize: "11px", color: "#2563eb", display: "block", marginTop: "4px", fontWeight: 600 }}>Under client evaluation</small>
+          </div>
+
+          {/* Metric 5: REJECTED */}
+          <div style={{ background: "#fff1f2", border: "1px solid #fecdd3", borderRadius: "14px", padding: "16px 18px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
+            <span style={{ fontSize: "11px", fontWeight: 800, color: "#9f1239", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
+              ❌ REJECTED
+            </span>
+            <div style={{ display: "flex", alignItems: "baseline", gap: "5px", marginTop: "6px" }}>
+              <b style={{ fontSize: "22px", fontWeight: 900, color: "#e11d48" }}>{rejectedCount}</b>
+              <span style={{ fontSize: "12px", color: "#e11d48", fontWeight: 700 }}>Unsuccessful</span>
+            </div>
+            <small style={{ fontSize: "11px", color: "#f43f5e", display: "block", marginTop: "4px", fontWeight: 600 }}>Need re-assessment</small>
+          </div>
+
+          {/* Metric 6: ABSENT / RESCHEDULED */}
+          <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "14px", padding: "16px 18px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
+            <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
+              🚫 ABSENT / RESCHEDULED
+            </span>
+            <div style={{ display: "flex", alignItems: "baseline", gap: "5px", marginTop: "6px" }}>
+              <b style={{ fontSize: "22px", fontWeight: 900, color: "#475569" }}>{absentCount}</b>
+              <span style={{ fontSize: "12px", color: "#475569", fontWeight: 700 }}>Pending</span>
+            </div>
+            <small style={{ fontSize: "11px", color: "#64748b", display: "block", marginTop: "4px" }}>Did not attend drive</small>
+          </div>
+        </div>
+      </div>
+
+      {/* COMPLETE CANDIDATE PAYMENT DEPOSITS & FINANCIAL RECEIPTS MODAL */}
       {showPaymentModal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.65)", backdropFilter: "blur(5px)", display: "grid", placeItems: "center", zIndex: 9999, padding: "20px", overflowY: "auto" }}>
           <div
+            className="modal-responsive-card"
             style={{
               background: "#ffffff",
               borderRadius: "20px",
@@ -3653,7 +3567,7 @@ export function AgentProfileDetail({
             </div>
 
             {/* 2-Column Grid: Left Form & Right Financial Ledger */}
-            <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "24px", alignItems: "start" }}>
+            <div className="modal-2col-grid">
               {/* LEFT COLUMN: Payment Form */}
               <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
                 {/* Candidate Selection / Identity Card */}
@@ -3715,8 +3629,8 @@ export function AgentProfileDetail({
                       Payment Title / Purpose *
                     </label>
                     <input
+                      type="text"
                       name="type"
-                      list="agent-payment-title-presets"
                       placeholder="e.g. Second Payment (Visa Fee)..."
                       defaultValue={activeModalCandidate && activeModalCandidate.payments.length > 0 ? "Second Payment (Visa Fee)" : "First Payment Deposit"}
                       required
@@ -3731,16 +3645,6 @@ export function AgentProfileDetail({
                         outline: "none",
                       }}
                     />
-                    <datalist id="agent-payment-title-presets">
-                      <option value="First Payment Deposit" />
-                      <option value="Second Payment (Visa Fee)" />
-                      <option value="Medical & Processing Deposit" />
-                      <option value="Registration Fee" />
-                      <option value="Visa Stamping Deposit" />
-                      <option value="BMET Manpower Fee" />
-                      <option value="Flight Air Ticket Fee" />
-                      <option value="Final Balance Settlement" />
-                    </datalist>
                   </div>
 
                   {/* Deposit Amount (BDT) & Payment Method */}
@@ -4129,7 +4033,7 @@ export function AgentProfileDetail({
                   ✏️ Edit Agent Profile
                 </h3>
                 <p style={{ fontSize: "11.5px", color: "var(--muted)", margin: "2px 0 0" }}>
-                  Update agent partner details, commission terms, agreement deed &amp; portal login.
+                  Update agent partner details, agreement deed &amp; portal login.
                 </p>
               </div>
               <button type="button" onClick={() => setShowEditModal(false)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--muted)" }}>
@@ -4237,18 +4141,6 @@ export function AgentProfileDetail({
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                 <div>
                   <label style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", display: "block", marginBottom: "4px" }}>
-                    Commission Terms
-                  </label>
-                  <input
-                    type="text"
-                    name="commissionRate"
-                    defaultValue={agentData.commissionRate}
-                    placeholder="e.g. ৳ 20,000 / candidate"
-                    style={{ width: "100%", height: "36px", padding: "0 10px", borderRadius: "8px", border: "1px solid var(--line)", fontSize: "13px", outline: "none" }}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", display: "block", marginBottom: "4px" }}>
                     Agreement Reference / Key
                   </label>
                   <input
@@ -4256,21 +4148,6 @@ export function AgentProfileDetail({
                     name="agreementKey"
                     defaultValue={agentData.agreementKey || `AGR-${agentData.code}`}
                     placeholder="e.g. AGR-AGT-105"
-                    style={{ width: "100%", height: "36px", padding: "0 10px", borderRadius: "8px", border: "1px solid var(--line)", fontSize: "13px", outline: "none" }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "10px" }}>
-                <div>
-                  <label style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", display: "block", marginBottom: "4px" }}>
-                    Office Address
-                  </label>
-                  <input
-                    type="text"
-                    name="address"
-                    defaultValue={agentData.address || ""}
-                    placeholder="e.g. Court Road, Brahmanbaria"
                     style={{ width: "100%", height: "36px", padding: "0 10px", borderRadius: "8px", border: "1px solid var(--line)", fontSize: "13px", outline: "none" }}
                   />
                 </div>
@@ -4299,6 +4176,19 @@ export function AgentProfileDetail({
                     <option value="Blocked">Blocked</option>
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", display: "block", marginBottom: "4px" }}>
+                  Office Address
+                </label>
+                <input
+                  type="text"
+                  name="address"
+                  defaultValue={agentData.address || ""}
+                  placeholder="e.g. Court Road, Brahmanbaria"
+                  style={{ width: "100%", height: "36px", padding: "0 10px", borderRadius: "8px", border: "1px solid var(--line)", fontSize: "13px", outline: "none" }}
+                />
               </div>
 
               {/* 🔐 AGENT PORTAL SELF-SERVICE LOGIN */}

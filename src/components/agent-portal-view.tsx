@@ -158,8 +158,8 @@ type AgentProfileData = {
   email: string | null;
   address: string | null;
   country: string | null;
-  status: string;
-  commissionRate: string;
+  status: "Active" | "Inactive" | "Blocked";
+  commissionRate?: string;
   agreementKey: string | null;
   hasPortalAccess?: boolean;
   portalLoginEmail?: string | null;
@@ -888,21 +888,6 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
             {agentData.metrics?.completedFlights || agentData.completedCandidateCount}
           </div>
           <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>Successfully deployed abroad</span>
-        </div>
-
-        <div style={{ background: "#fff", borderRadius: "14px", padding: "18px 20px", border: "1px solid var(--line)", boxShadow: "var(--shadow)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
-            <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase" }}>
-              Agreed Commission Rate
-            </span>
-            <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#eff6ff", color: "#2563eb", display: "grid", placeItems: "center" }}>
-              <Coins size={18} />
-            </div>
-          </div>
-          <div style={{ fontSize: "18px", fontWeight: 900, color: "#2563eb", marginTop: "4px" }}>
-            {agentData.commissionRate}
-          </div>
-          <span style={{ fontSize: "11px", color: "var(--muted)" }}>Contract: {agentData.agreementKey || "Standard"}</span>
         </div>
 
         <div style={{ background: "#fff", borderRadius: "14px", padding: "18px 20px", border: "1px solid var(--line)", boxShadow: "var(--shadow)" }}>

@@ -192,12 +192,22 @@ export async function GET(request: Request) {
         },
       }),
       prisma.user.findMany({
-        where: { ...scope, status: "ACTIVE" },
+        where: { ...scope, status: "ACTIVE", agentId: null },
         select: { id: true, name: true },
         orderBy: { name: "asc" },
       }),
       prisma.agent.findMany({
-        select: { id: true, name: true, code: true },
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          contactPerson: true,
+          phone: true,
+          email: true,
+          address: true,
+          country: true,
+          status: true,
+        },
         orderBy: { name: "asc" },
       }),
       prisma.processingFile.findMany({
@@ -205,6 +215,8 @@ export async function GET(request: Request) {
         select: {
           currentStage: true,
           status: true,
+          agent: true,
+          candidate: { select: { source: true } },
           payments: { select: { amount: true } },
         },
       }),
@@ -218,16 +230,69 @@ export async function GET(request: Request) {
     let inFlight = 0;
     let inHold = 0;
 
+    // Country Working Agents aggregation
+    const agentMap = new Map<string, {
+      id: string;
+      code: string;
+      name: string;
+      contactPerson: string;
+      phone: string;
+      address: string;
+      status: string;
+      totalCandidates: number;
+      activeCount: number;
+      completedCount: number;
+      totalPaid: number;
+    }>();
+
     for (const item of rawStats) {
       if (/medical/i.test(item.currentStage)) inMedical++;
       if (/mofa|visa/i.test(item.currentStage)) inVisa++;
       if (/manpower/i.test(item.currentStage)) inManpower++;
       if (/flight/i.test(item.currentStage) || item.status === "COMPLETED") inFlight++;
       if (item.status === "HOLD" || /hold/i.test(item.currentStage)) inHold++;
-      for (const p of item.payments) {
-        totalDeposited += Number(p.amount) || 0;
+      
+      const filePaid = item.payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+      totalDeposited += filePaid;
+
+      const rawAgent = (item.agent || item.candidate?.source || "Direct Office").trim();
+      const isDirect = !rawAgent || /direct/i.test(rawAgent) || /walk-in|online|website|facebook|campaign/i.test(rawAgent);
+      const matchedDb = isDirect
+        ? null
+        : agents.find(
+            (a) =>
+              a.name.toLowerCase() === rawAgent.toLowerCase() ||
+              a.code.toLowerCase() === rawAgent.toLowerCase()
+          );
+
+      const key = isDirect ? "DIRECT_OFFICE" : matchedDb ? matchedDb.id : rawAgent;
+      if (!agentMap.has(key)) {
+        agentMap.set(key, {
+          id: isDirect ? "DIRECT_OFFICE" : matchedDb?.id || key,
+          code: isDirect ? "DIRECT" : matchedDb?.code || "AGT-REF",
+          name: isDirect ? "Direct Office" : matchedDb?.name || rawAgent,
+          contactPerson: isDirect ? "Head Office Desk" : matchedDb?.contactPerson || "Office Desk",
+          phone: isDirect ? "+880 1700-000000" : matchedDb?.phone || "N/A",
+          address: isDirect ? "Dhaka Head Office" : matchedDb?.address || matchedDb?.country || "Dhaka",
+          status: matchedDb?.status || "Active",
+          totalCandidates: 0,
+          activeCount: 0,
+          completedCount: 0,
+          totalPaid: 0,
+        });
       }
+
+      const entry = agentMap.get(key)!;
+      entry.totalCandidates += 1;
+      if (item.status === "COMPLETED" || /flight/i.test(item.currentStage)) {
+        entry.completedCount += 1;
+      } else {
+        entry.activeCount += 1;
+      }
+      entry.totalPaid += filePaid;
     }
+
+    const countryAgents = Array.from(agentMap.values()).sort((a, b) => b.totalCandidates - a.totalCandidates);
 
     const rows = files.map((file) => {
       const paid = file.payments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
@@ -267,6 +332,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       data: rows,
+      countryAgents,
       stats: {
         totalCandidates: rawStats.length,
         inMedical,

@@ -25,11 +25,11 @@ const list = (s: string) => s.split("|").map((label, i) => ({ id: `${i + 1}`, la
 
 export const modules: AppModule[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, items: list("Dashboard") },
-  { id: "call-center", label: "Candidates", icon: Users, items: list("Create Work Call|Registration & interviews") },
+  { id: "call-center", label: "Candidates", icon: Users, items: list("Create Candidate|Candidate List|Registration & interviews") },
   { id: "ksa", label: "Saudi Arabia", icon: Globe, items: list("Candidates List") },
   { id: "dubai", label: "Dubai", icon: Building2, items: list("Candidates List") },
   { id: "other-country", label: "Other Country", icon: Plane, items: list("Candidates List") },
-  { id: "office-vendor", label: "Office & Vendor", icon: Handshake, items: list("Works & Demands") },
+  { id: "office-vendor", label: "Works & Demands", icon: Handshake, items: list("Works & Demands") },
   { id: "agents", label: "Agents", icon: Users, items: list("Agent List") },
   { id: "payment-collection", label: "Payment Collection", icon: Receipt, items: list("Payment Collect") },
   { id: "document", label: "Document", icon: FolderGit2, items: list("Dubai Document") },

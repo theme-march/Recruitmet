@@ -55,7 +55,7 @@ export function OfficerDashboardPage() {
         <div className="officer-actions" style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
           <Link
             prefetch={true}
-            href={moduleItemPath("call-center", "Create Work Call")}
+            href={moduleItemPath("call-center", "Create Candidate")}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -70,7 +70,7 @@ export function OfficerDashboardPage() {
               boxShadow: "0 2px 8px rgba(114,88,232,0.25)",
             }}
           >
-            <PlusCircle size={15} /> New Lead
+            <PlusCircle size={15} /> New Candidate
           </Link>
 
           <Link

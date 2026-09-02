@@ -23,7 +23,6 @@ type AgentOption = {
   name: string;
   phone: string;
   district: string;
-  commissionRate?: string;
 };
 
 export function CreateWorkCallPage({ officerName }: { officerName: string }) {
@@ -171,7 +170,6 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
         contactPerson: String(form.get("contactPerson") || "").trim() || undefined,
         phone: String(form.get("phone") || "").trim(),
         country: String(form.get("district") || "").trim() || "Dhaka",
-        commissionRate: String(form.get("commissionRate") || "").trim() || "৳ 25,000 / candidate",
         status: "Active",
       };
 
@@ -209,7 +207,14 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
     const payload = Object.fromEntries(form.entries()) as Record<string, unknown>;
     payload.country = selectedCountry;
     payload.interviewOption = interviewOption;
-    payload.agent = selectedAgent || String(form.get("agent") || "") || String(form.get("callSource") || "Direct");
+    payload.agent = selectedAgent || String(form.get("agent") || "") || "Direct";
+    payload.callSource = selectedAgent ? "Agent Partner" : "Direct";
+    payload.priority = 3;
+    payload.callPurpose = "Overseas Employment";
+    payload.behaviorTag = "Highly Interested";
+    payload.callStatus = "New";
+    payload.officeVisit = "Scheduled";
+    payload.proposedRate = "350000";
     payload.additionalPhones = phones.filter(Boolean);
     payload.workerComments = workerComments;
     payload.executiveComments = executiveComments;
@@ -223,11 +228,11 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
     const body = await response.json();
     setSaving(false);
     if (!response.ok) {
-      toast.error(body.error?.message ?? body.error ?? "Could not create work call");
+      toast.error(body.error?.message ?? body.error ?? "Could not create candidate");
       return;
     }
-    toast.success(`Work call ${body.data.leadNo} created`);
-    router.push(moduleItemPath("call-center", "Work Call List"));
+    toast.success(`Candidate ${body.data?.leadNo ? `(${body.data.leadNo})` : ""} registered successfully!`);
+    router.push(moduleItemPath("call-center", "Registration & interviews"));
   }
 
   // Dynamic Options with smart fallbacks
@@ -276,10 +281,10 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
       <div className="page-head compact" style={{ marginBottom: "18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <div className="breadcrumb" style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-            Candidates / Create Work Call
+            Candidates / Create Candidate
           </div>
-          <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--ink)", margin: "4px 0" }}>Create Work Call</h1>
-          <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0 }}>Register and assign a recruitment lead with candidate preferences and interview drive.</p>
+          <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--ink)", margin: "4px 0" }}>Create Candidate</h1>
+          <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0 }}>Register and onboard a new candidate with interview preferences and target country pipeline.</p>
         </div>
         <Link
           prefetch={true}
@@ -346,7 +351,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
           {interviewOption === "With Interview" ? (
             <div className="work-form-grid">
               <label>
-                Interview Schedule
+                <span>Interview Schedule</span>
                 <select
                   name="interviewScheduleId"
                   value={selectedScheduleId}
@@ -362,7 +367,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
               </label>
 
               <label>
-                Interview Date
+                <span>Interview Date</span>
                 <input
                   name="interviewDate"
                   type="datetime-local"
@@ -372,7 +377,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
               </label>
 
               <label>
-                Interested Work Category
+                <span>Interested Work Category</span>
                 <select
                   name="workCategory"
                   value={selectedCategory}
@@ -388,7 +393,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
               </label>
 
               <label>
-                Interested Work Sub Category
+                <span>Interested Work Sub Category</span>
                 <select
                   name="workSubCategory"
                   value={selectedSubCategory}
@@ -404,7 +409,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
               </label>
 
               <label>
-                Interested Company
+                <span>Interested Company</span>
                 <select
                   name="company"
                   value={selectedCompany}
@@ -420,7 +425,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
               </label>
 
               <label>
-                Interview Status
+                <span>Interview Status</span>
                 <select
                   name="interviewStatus"
                   value={interviewStatus}
@@ -435,7 +440,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
               </label>
 
               <label>
-                File Status
+                <span>File Status</span>
                 <select
                   name="fileStatus"
                   value={fileStatus}
@@ -457,7 +462,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
               <input type="hidden" name="interviewStatus" value="Direct Candidate" />
 
               <label>
-                Direct Work Category
+                <span>Direct Work Category</span>
                 <select
                   name="workCategory"
                   value={selectedCategory}
@@ -473,7 +478,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
               </label>
 
               <label>
-                Profession / Sub Category / Trade
+                <span>Profession / Sub Category / Trade</span>
                 <select
                   name="workSubCategory"
                   value={selectedSubCategory}
@@ -489,7 +494,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
               </label>
 
               <label>
-                Target Company (Optional)
+                <span>Target Company (Optional)</span>
                 <select
                   name="company"
                   value={selectedCompany}
@@ -505,7 +510,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
               </label>
 
               <label>
-                File Processing Status
+                <span>File Processing Status</span>
                 <select
                   name="fileStatus"
                   value={fileStatus}
@@ -546,9 +551,9 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
                 <span style={{ fontSize: "13px", fontWeight: 800, color: "var(--ink)", display: "flex", alignItems: "center", gap: "7px" }}>
                   <Users size={16} color="#7258e8" /> + Link / Assign Agent Partner (Optional)
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setShowAgentModal(true)}
+                <Link
+                  href="/module/agents"
+                  prefetch={true}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -561,10 +566,11 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
                     fontSize: "11px",
                     fontWeight: 700,
                     cursor: "pointer",
+                    textDecoration: "none",
                   }}
                 >
                   <UserPlus size={13} /> + Create New Agent
-                </button>
+                </Link>
               </div>
 
               <select
@@ -608,11 +614,11 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
           </h2>
           <div className="work-form-grid">
             <label>
-              Full Name <sup>*</sup>
+              <span>Full Name <sup style={{ color: "#e11d48", fontSize: "14px" }}>*</sup></span>
               <input name="fullName" placeholder="Enter candidate full name" required />
             </label>
             <label>
-              Phone <sup>*</sup>
+              <span>Phone <sup style={{ color: "#e11d48", fontSize: "14px" }}>*</sup></span>
               <input name="phone" placeholder="e.g. 01700000000" required />
             </label>
             <div className="dynamic-field full" style={{ gridColumn: "1 / -1" }}>
@@ -650,15 +656,15 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
               </button>
             </div>
             <label>
-              Date of Birth
+              <span>Date of Birth</span>
               <input name="dob" type="date" value={dob} onChange={(event) => setDob(event.target.value)} />
             </label>
             <label>
-              Age
+              <span>Age</span>
               <input name="age" placeholder="Auto-calculated age" readOnly value={age ? `${age} Years` : ""} />
             </label>
             <label>
-              Passport Status
+              <span>Passport Status</span>
               <select name="passportStatus" defaultValue="Available">
                 <option value="Available">Available</option>
                 <option value="Applied">Applied</option>
@@ -668,11 +674,11 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
               </select>
             </label>
             <label>
-              Passport No
+              <span>Passport No</span>
               <input name="passportNo" placeholder="Passport Number" />
             </label>
             <label>
-              Expert In / Skill
+              <span>Expert In / Skill</span>
               <input name="expertIn" placeholder="e.g. Electrician, Pipe Fitter, Driver" />
             </label>
           </div>
@@ -686,7 +692,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
 
           <div className="work-form-grid">
             <label style={{ gridColumn: "1 / -1" }}>
-              Target Country <sup>*</sup>
+              <span>Target Country <sup style={{ color: "#e11d48", fontSize: "14px" }}>*</sup></span>
               <select
                 name="countrySelect"
                 required
@@ -728,7 +734,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
           </h2>
           <div className="work-form-grid">
             <label>
-              Country / Nationality
+              <span>Country / Nationality</span>
               <select name="nationality" defaultValue="Bangladesh">
                 <option value="Bangladesh">🇧🇩 Bangladesh</option>
                 <option value="India">🇮🇳 India</option>
@@ -739,7 +745,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
               </select>
             </label>
             <label>
-              Present District
+              <span>Present District</span>
               <select name="district" defaultValue="Dhaka">
                 <option value="Dhaka">Dhaka</option>
                 <option value="Chattogram">Chattogram</option>
@@ -754,7 +760,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
               </select>
             </label>
             <label>
-              Marital Status
+              <span>Marital Status</span>
               <select name="maritalStatus" defaultValue="Single">
                 <option value="Single">Single</option>
                 <option value="Married">Married</option>
@@ -763,15 +769,15 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
               </select>
             </label>
             <label>
-              Last Education
+              <span>Last Education</span>
               <input name="education" placeholder="e.g. SSC / HSC / Diploma" />
             </label>
             <label>
-              Passing Year
+              <span>Passing Year</span>
               <input name="passingYear" placeholder="e.g. 2020" type="number" />
             </label>
             <label>
-              Bank Loan
+              <span>Bank Loan</span>
               <select name="bankLoan" defaultValue="Not Required">
                 <option value="Required">Required</option>
                 <option value="Not Required">Not Required</option>
@@ -780,7 +786,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
               </select>
             </label>
             <label>
-              X-Bidesh Registration
+              <span>X-Bidesh Registration</span>
               <select name="xBidesh" defaultValue="Not Registered">
                 <option value="Registered">Registered</option>
                 <option value="Not Registered">Not Registered</option>
@@ -789,94 +795,8 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
               </select>
             </label>
             <label>
-              Email Address
+              <span>Email Address</span>
               <input name="email" placeholder="email@example.com" type="email" />
-            </label>
-          </div>
-        </section>
-
-        {/* CALL CENTER CONTROL */}
-        <section className="work-form-section" style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "16px", padding: "22px 26px", boxShadow: "var(--shadow)" }}>
-          <h2 style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink)", margin: "0 0 16px", borderBottom: "1px solid var(--line)", paddingBottom: "10px" }}>
-            5. Call Center Control &amp; Priority
-          </h2>
-          <div className="work-form-grid">
-            <label>
-              Proposed Rate (BDT)
-              <input name="proposedRate" placeholder="Proposed Rate" type="number" defaultValue={350000} />
-            </label>
-            <label>
-              Priority <sup>*</sup>
-              <select name="priority" required defaultValue="3">
-                <option value="1">Urgent (P1)</option>
-                <option value="2">High (P2)</option>
-                <option value="3">Normal (P3)</option>
-                <option value="4">Low (P4)</option>
-                <option value="5">Lowest (P5)</option>
-              </select>
-            </label>
-            <label>
-              Office Visit
-              <select name="officeVisit" defaultValue="Scheduled">
-                <option value="Required">Required</option>
-                <option value="Scheduled">Scheduled</option>
-                <option value="Visited">Visited</option>
-                <option value="Not Required">Not Required</option>
-              </select>
-            </label>
-            <label>
-              Assigned Officer
-              <select name="officer" disabled>
-                <option>{officerName}</option>
-              </select>
-            </label>
-            <label>
-              Call Source
-              <select name="callSource" defaultValue="Direct">
-                <option value="Direct">Direct</option>
-                <option value="Facebook">Facebook</option>
-                <option value="WhatsApp">WhatsApp</option>
-                <option value="Referral">Referral</option>
-                <option value="Walk-in">Walk-in</option>
-                <option value="Website">Website</option>
-              </select>
-            </label>
-            <label>
-              Call Purpose <sup>*</sup>
-              <select name="callPurpose" required defaultValue="Overseas Employment">
-                <option value="Overseas Employment">Overseas Employment</option>
-                <option value="Interview">Interview</option>
-                <option value="Document Follow-up">Document Follow-up</option>
-                <option value="Payment Follow-up">Payment Follow-up</option>
-                <option value="General Query">General Query</option>
-              </select>
-            </label>
-            <label>
-              Human Behavior Tag <sup>*</sup>
-              <select name="behaviorTag" required defaultValue="Highly Interested">
-                <option value="Highly Interested">Highly Interested</option>
-                <option value="Interested">Interested</option>
-                <option value="Needs Follow-up">Needs Follow-up</option>
-                <option value="Price Sensitive">Price Sensitive</option>
-                <option value="Not Interested">Not Interested</option>
-                <option value="Do Not Call">Do Not Call</option>
-              </select>
-            </label>
-            <label>
-              Call Status <sup>*</sup>
-              <select name="callStatus" required defaultValue="Interested">
-                <option value="New">New</option>
-                <option value="Interested">Interested</option>
-                <option value="Follow-up">Follow-up</option>
-                <option value="Interview Scheduled">Interview Scheduled</option>
-                <option value="Converted">Converted</option>
-                <option value="Not Interested">Not Interested</option>
-                <option value="Closed">Closed</option>
-              </select>
-            </label>
-            <label>
-              Follow Up Date &amp; Time
-              <input name="followUpDate" type="datetime-local" />
             </label>
           </div>
         </section>
@@ -884,7 +804,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
         {/* COMMENTS & NOTES */}
         <section className="work-form-section" style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "16px", padding: "22px 26px", boxShadow: "var(--shadow)" }}>
           <h2 style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink)", margin: "0 0 16px", borderBottom: "1px solid var(--line)", paddingBottom: "10px" }}>
-            6. Comments, Notes &amp; Activity Log
+            5. Comments, Notes &amp; Activity Log
           </h2>
           <div className="comment-grid">
             <div className="comment-group">
@@ -1005,7 +925,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
             }}
           >
             <Send size={16} />
-            {saving ? "Submitting..." : "Submit Work Call"}
+            {saving ? "Creating Candidate..." : "Submit Candidate"}
           </button>
         </div>
       </form>

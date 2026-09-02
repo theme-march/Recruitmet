@@ -1408,22 +1408,12 @@ export default function FileProcessingPage() {
                         <label>
                           Payment Title / Purpose *
                           <input
+                            type="text"
                             name="type"
-                            list="payment-title-presets"
                             placeholder="e.g. First Payment Deposit, Second Payment (Visa)..."
                             defaultValue={file.payments && file.payments.length > 0 ? "Second Payment (Visa Fee)" : "First Payment Deposit"}
                             required
                           />
-                          <datalist id="payment-title-presets">
-                            <option value="First Payment Deposit" />
-                            <option value="Second Payment (Visa Fee)" />
-                            <option value="Medical & Processing Deposit" />
-                            <option value="Registration Fee" />
-                            <option value="Visa Stamping Deposit" />
-                            <option value="BMET Manpower Fee" />
-                            <option value="Flight Air Ticket Fee" />
-                            <option value="Final Balance Settlement" />
-                          </datalist>
                         </label>
 
                         <label>

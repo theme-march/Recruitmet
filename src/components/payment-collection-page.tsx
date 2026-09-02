@@ -15,17 +15,20 @@ import {
   Eye,
   FileText,
   Filter,
+  Layers,
+  Paperclip,
   Plus,
   Printer,
   RefreshCcw,
   Search,
   Sparkles,
+  UploadCloud,
   UsersRound,
   Wallet,
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { Fragment, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import { toast } from "sonner";
 import { MoneyReceiptModal, type ReceiptData } from "@/components/money-receipt-modal";
 
@@ -102,6 +105,24 @@ export function PaymentCollectionPage() {
   const [paymentReceiptFile, setPaymentReceiptFile] = useState<{ name: string; size: string; dataUrl: string } | null>(null);
   const [savingPayment, setSavingPayment] = useState(false);
   const [activeReceipt, setActiveReceipt] = useState<ReceiptData | null>(null);
+  const paymentFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleVoucherFileSelect = (file: File) => {
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("File size cannot exceed 10MB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setPaymentReceiptFile({
+        name: file.name,
+        size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+        dataUrl: reader.result as string,
+      });
+      toast.success(`Attached ${file.name}`);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const result = useQuery({
     queryKey: ["payment-collection", appliedQuery, status, country, page, pageSize],
@@ -775,408 +796,515 @@ export function PaymentCollectionPage() {
         </div>
       </section>
 
-      {/* Unified Candidate Payment Deposits & Financial Receipts Modal */}
+      {/* Unified Candidate Payment Deposits & Financial Receipts Modal (2-Column Agent Pay Design) */}
       {selectedFile && (
         <div
           style={{
             position: "fixed",
             inset: 0,
             background: "rgba(15, 23, 42, 0.65)",
-            backdropFilter: "blur(4px)",
+            backdropFilter: "blur(5px)",
             zIndex: 9999,
             display: "grid",
             placeItems: "center",
             padding: "20px",
+            overflowY: "auto",
           }}
           onClick={() => !savingPayment && setSelectedFile(null)}
         >
           <div
+            className="modal-responsive-card"
             style={{
-              background: "#fff",
-              borderRadius: "16px",
-              width: "min(780px, 100%)",
-              maxHeight: "90vh",
-              boxShadow: "0 20px 40px rgba(0,0,0,0.25)",
-              border: "1px solid var(--line)",
-              overflow: "hidden",
+              background: "#ffffff",
+              borderRadius: "20px",
+              maxWidth: "1050px",
+              width: "100%",
+              padding: "26px 30px",
+              boxShadow: "0 25px 60px rgba(0,0,0,0.3)",
+              maxHeight: "92vh",
+              overflowY: "auto",
               display: "flex",
               flexDirection: "column",
+              gap: "18px",
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Header matching Candidate File Step 4 & Agent Profile */}
+            {/* Modal Header */}
             <div
               style={{
-                padding: "16px 20px",
-                borderBottom: "1px solid var(--line)",
-                background: "#fff",
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "flex-start",
+                borderBottom: "1px solid #f1f5f9",
+                paddingBottom: "16px",
+                flexWrap: "wrap",
                 gap: "12px",
               }}
             >
               <div>
-                <h2 style={{ fontSize: "16px", fontWeight: 800, color: "var(--ink)", margin: "0 0 3px 0", display: "flex", alignItems: "center", gap: "6px" }}>
-                  💰 Candidate Payment Deposits &amp; Financial Receipts
-                </h2>
-                <p style={{ fontSize: "12px", color: "var(--muted)", margin: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ fontSize: "20px" }}>💰</span>
+                  <h2 style={{ fontSize: "18px", fontWeight: 800, color: "var(--ink)", margin: 0 }}>
+                    Candidate Payment Deposits &amp; Financial Receipts
+                  </h2>
+                </div>
+                <p style={{ fontSize: "12px", color: "var(--muted)", margin: "4px 0 0" }}>
                   Record candidate payment installments with custom titles, optional deposit vouchers, and printable receipts.
                 </p>
               </div>
+
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                {selectedFile.payments && selectedFile.payments.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => openPrintReceipt(selectedFile.payments![0], selectedFile)}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "4px",
-                      padding: "6px 12px",
-                      borderRadius: "6px",
-                      background: "#eff6ff",
-                      color: "#2563eb",
-                      border: "1px solid #bfdbfe",
-                      fontSize: "11px",
-                      fontWeight: 700,
-                      cursor: "pointer",
-                    }}
-                  >
-                    <Printer size={12} /> Print Money Receipt
-                  </button>
-                )}
                 <button
                   type="button"
-                  onClick={() => setSelectedFile(null)}
-                  style={{ border: "none", background: "none", cursor: "pointer", color: "var(--muted)", padding: "4px" }}
-                >
-                  <X size={18} />
-                </button>
-              </div>
-            </div>
-
-            <form onSubmit={handleSavePayment} style={{ padding: "20px", overflowY: "auto" }}>
-              {/* Candidate Info / Overview Banner */}
-              <div style={{ background: "#f8fafc", padding: "12px 16px", borderRadius: "12px", border: "1px solid #e2e8f0", marginBottom: "14px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "6px" }}>
-                  <div>
-                    <span style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700 }}>
-                      Candidate Dossier:
-                    </span>
-                    <b style={{ fontSize: "14px", color: "var(--ink)", display: "block" }}>
-                      {selectedFile.name} ({selectedFile.candidateNo})
-                    </b>
-                    <span style={{ fontSize: "11px", color: "var(--muted)" }}>
-                      Passport: <b style={{ color: "#334155" }}>{selectedFile.passport}</b> · 🌍 {selectedFile.country} · 💼 {selectedFile.profession} · File: {selectedFile.fileNo}
-                    </span>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <span style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700 }}>
-                      Total Paid So Far:
-                    </span>
-                    <div style={{ fontSize: "16px", fontWeight: 800, color: "#059669" }}>
-                      ৳ {selectedFile.paid.toLocaleString()} BDT
-                    </div>
-                    <div style={{ fontSize: "10px", color: "var(--muted)", marginTop: "2px" }}>
-                      Package: ৳ {(selectedFile.totalPackage || 350000).toLocaleString()} ·{" "}
-                      {(selectedFile.dueAmount ?? Math.max(0, (selectedFile.totalPackage || 350000) - selectedFile.paid)) > 0 ? (
-                        <b style={{ color: "#e11d48" }}>Due: ৳ {(selectedFile.dueAmount ?? Math.max(0, (selectedFile.totalPackage || 350000) - selectedFile.paid)).toLocaleString()}</b>
-                      ) : (selectedFile.advanceAmount ?? Math.max(0, selectedFile.paid - (selectedFile.totalPackage || 350000))) > 0 ? (
-                        <b style={{ color: "#7c3aed" }}>+ ৳ {(selectedFile.advanceAmount ?? Math.max(0, selectedFile.paid - (selectedFile.totalPackage || 350000))).toLocaleString()} Advance</b>
-                      ) : (
-                        <b style={{ color: "#059669" }}>Fully Settled</b>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Stage Information Notice Box */}
-              <div
-                style={{
-                  background: "#eff6ff",
-                  border: "1px solid #bfdbfe",
-                  borderRadius: "8px",
-                  padding: "10px 14px",
-                  fontSize: "11px",
-                  color: "#1e40af",
-                  marginBottom: "16px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                }}
-              >
-                <Sparkles size={14} color="#2563eb" />
-                <span>
-                  <b>Stage Information:</b> Enter payment title, deposit amount, and save payment record. Uploading bank slip/voucher is optional.
-                </span>
-              </div>
-
-              {/* Form Grid Matching Candidate File & Agent Profile */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", marginBottom: "14px" }}>
-                <div>
-                  <label style={{ display: "block", fontSize: "12px", fontWeight: 700, marginBottom: "6px", color: "var(--ink)" }}>
-                    Payment Title / Purpose *
-                  </label>
-                  <input
-                    value={paymentType}
-                    onChange={(e) => setPaymentType(e.target.value)}
-                    list="collection-payment-presets"
-                    placeholder="e.g. Second Payment (Visa Fee)"
-                    required
-                    style={{
-                      width: "100%",
-                      height: "38px",
-                      borderRadius: "8px",
-                      border: "1px solid var(--line)",
-                      padding: "0 10px",
-                      fontSize: "13px",
-                      background: "#fff",
-                    }}
-                  />
-                  <datalist id="collection-payment-presets">
-                    <option value="First Payment Deposit" />
-                    <option value="Second Payment (Visa Fee)" />
-                    <option value="Medical &amp; Processing Deposit" />
-                    <option value="Interview Registration Fee" />
-                    <option value="Takamul Skill Exam Fee" />
-                    <option value="Police Clearance Fee" />
-                    <option value="Visa Stamping Deposit" />
-                    <option value="BMET Manpower Fee" />
-                    <option value="Flight Air Ticket Fee" />
-                    <option value="Final Balance Settlement" />
-                  </datalist>
-                </div>
-
-                <div>
-                  <label style={{ display: "block", fontSize: "12px", fontWeight: 700, marginBottom: "6px", color: "var(--ink)" }}>
-                    Deposit Amount (BDT) *
-                  </label>
-                  <input
-                    type="number"
-                    value={collectAmount}
-                    onChange={(e) => setCollectAmount(Number(e.target.value) || 0)}
-                    min={1}
-                    step={1}
-                    required
-                    style={{
-                      width: "100%",
-                      height: "38px",
-                      borderRadius: "8px",
-                      border: "1px solid var(--line)",
-                      padding: "0 10px",
-                      fontSize: "13px",
-                      fontWeight: 700,
-                      background: "#fff",
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", marginBottom: "14px" }}>
-                <div>
-                  <label style={{ display: "block", fontSize: "12px", fontWeight: 700, marginBottom: "6px", color: "var(--ink)" }}>
-                    Payment Method
-                  </label>
-                  <select
-                    value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                    style={{
-                      width: "100%",
-                      height: "38px",
-                      borderRadius: "8px",
-                      border: "1px solid var(--line)",
-                      padding: "0 10px",
-                      fontSize: "13px",
-                      background: "#fff",
-                    }}
-                  >
-                    <option value="Cash at Office">Cash at Office</option>
-                    <option value="Bank Transfer / Deposit">Bank Transfer / Deposit</option>
-                    <option value="bKash / Nagad / MFS">bKash / Nagad / MFS</option>
-                    <option value="Bank Cheque">Bank Cheque</option>
-                    <option value="Office Accounts">Office Accounts</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ display: "block", fontSize: "12px", fontWeight: 700, marginBottom: "6px", color: "var(--ink)" }}>
-                    Receipt / Reference No
-                  </label>
-                  <input
-                    value={referenceNo}
-                    onChange={(e) => setReferenceNo(e.target.value)}
-                    placeholder="REC-945641"
-                    style={{
-                      width: "100%",
-                      height: "38px",
-                      borderRadius: "8px",
-                      border: "1px solid var(--line)",
-                      padding: "0 10px",
-                      fontSize: "13px",
-                      background: "#fff",
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Upload Field matching Candidate File */}
-              <div style={{ marginBottom: "16px" }}>
-                <label style={{ display: "block", fontSize: "12px", fontWeight: 700, marginBottom: "6px", color: "var(--ink)" }}>
-                  Attach Bank Slip / Deposit Voucher (Optional)
-                </label>
-                <input
-                  type="file"
-                  accept="image/*,.pdf"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = () => {
-                      setPaymentReceiptFile({
-                        name: file.name,
-                        size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
-                        dataUrl: reader.result as string,
-                      });
-                    };
-                    reader.readAsDataURL(file);
+                  onClick={() => {
+                    if (selectedFile.payments && selectedFile.payments.length > 0) {
+                      openPrintReceipt(selectedFile.payments[0], selectedFile);
+                    } else {
+                      openPrintReceipt(
+                        {
+                          id: "",
+                          paymentNo: `REC-${Date.now().toString().slice(-6)}`,
+                          amount: collectAmount,
+                          type: paymentType,
+                          method: paymentMethod,
+                          reference: referenceNo || `REC-${Date.now().toString().slice(-6)}`,
+                          createdAt: new Date().toISOString(),
+                        },
+                        selectedFile
+                      );
+                    }
                   }}
-                  style={{
-                    width: "100%",
-                    padding: "8px",
-                    borderRadius: "8px",
-                    border: "1px dashed #cbd5e1",
-                    fontSize: "12px",
-                    background: "#f8fafc",
-                  }}
-                />
-                {paymentReceiptFile && (
-                  <span style={{ fontSize: "11px", color: "#059669", fontWeight: 700, display: "block", marginTop: "4px" }}>
-                    ✓ Attached: {paymentReceiptFile.name} ({paymentReceiptFile.size})
-                  </span>
-                )}
-              </div>
-
-              {/* Remarks / Comments */}
-              <div style={{ marginBottom: "16px" }}>
-                <label style={{ display: "block", fontSize: "12px", fontWeight: 700, marginBottom: "6px", color: "var(--ink)" }}>
-                  Payment Remarks / Office Comments
-                </label>
-                <input
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="e.g. Received at accounts counter..."
-                  style={{
-                    width: "100%",
-                    height: "38px",
-                    borderRadius: "8px",
-                    border: "1px solid var(--line)",
-                    padding: "0 12px",
-                    fontSize: "13px",
-                    background: "#fff",
-                  }}
-                />
-              </div>
-
-              {/* Action Buttons */}
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", borderBottom: "1px solid var(--line)", paddingBottom: "16px", marginBottom: "16px" }}>
-                <button
-                  type="button"
-                  disabled={savingPayment}
-                  onClick={() => setSelectedFile(null)}
-                  style={{
-                    padding: "8px 16px",
-                    borderRadius: "8px",
-                    border: "1px solid var(--line)",
-                    background: "#fff",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingPayment}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
                     gap: "6px",
-                    padding: "9px 20px",
+                    padding: "7px 14px",
                     borderRadius: "8px",
-                    border: "none",
-                    background: "#4f46e5",
-                    color: "#fff",
+                    background: "#eff6ff",
+                    color: "#2563eb",
+                    border: "1px solid #bfdbfe",
                     fontSize: "12px",
                     fontWeight: 700,
-                    cursor: savingPayment ? "not-allowed" : "pointer",
-                    boxShadow: "0 2px 10px rgba(79,70,229,0.35)",
+                    cursor: "pointer",
+                    boxShadow: "0 1px 3px rgba(37,99,235,0.1)",
                   }}
                 >
-                  <CheckCircle2 size={14} /> {savingPayment ? "Saving Payment..." : (selectedFile.payments && selectedFile.payments.length > 0 ? "💾 Record Additional Payment" : "💾 Save Payment Deposit")}
+                  <Printer size={13} /> Print Money Receipt
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => !savingPayment && setSelectedFile(null)}
+                  style={{
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "8px",
+                    width: "32px",
+                    height: "32px",
+                    display: "grid",
+                    placeItems: "center",
+                    cursor: "pointer",
+                    color: "var(--muted)",
+                  }}
+                >
+                  <X size={16} />
                 </button>
               </div>
+            </div>
 
-              {/* Real-time Recorded Candidate Payments List */}
-              {selectedFile.payments && selectedFile.payments.length > 0 && (
-                <div>
-                  <h4 style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" }}>
-                    💳 Recorded Candidate Payments ({selectedFile.payments.length})
-                  </h4>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    {selectedFile.payments.map((p, idx) => (
-                      <div
-                        key={p.id || idx}
+            {/* Stage Guidance Banner */}
+            <div
+              style={{
+                background: "#f5f3ff",
+                border: "1px solid #ddd6fe",
+                borderRadius: "10px",
+                padding: "10px 14px",
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                fontSize: "12px",
+                color: "#5b21b6",
+              }}
+            >
+              <Sparkles size={16} className="text-purple-600 shrink-0" />
+              <span>
+                <b>Stage Information:</b> Enter payment title, deposit amount, and save payment record. Uploading bank slip/voucher is optional.
+              </span>
+            </div>
+
+            {/* 2-Column Grid: Left Form & Right Financial Ledger */}
+            <div className="modal-2col-grid">
+              {/* LEFT COLUMN: Payment Form */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                {/* Target Candidate Card */}
+                <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "12px 14px" }}>
+                  <small style={{ fontSize: "10.5px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
+                    TARGET CANDIDATE
+                  </small>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "4px" }}>
+                    <div>
+                      <b style={{ fontSize: "14px", color: "var(--ink)", display: "block" }}>{selectedFile.name}</b>
+                      <span style={{ fontSize: "11.5px", color: "#475569" }}>
+                        ID: <b>{selectedFile.candidateNo}</b> · PP: <b>{selectedFile.passport || "N/A"}</b> · {selectedFile.country} ({selectedFile.profession})
+                      </span>
+                    </div>
+                    <span style={{ fontSize: "11px", fontWeight: 800, background: "#ecfdf5", color: "#059669", padding: "3px 8px", borderRadius: "6px", border: "1px solid #a7f3d0" }}>
+                      File: {selectedFile.fileNo}
+                    </span>
+                  </div>
+                </div>
+
+                <form onSubmit={handleSavePayment} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                  {/* Payment Title / Purpose */}
+                  <div>
+                    <label style={{ fontSize: "11.5px", fontWeight: 800, color: "var(--muted)", display: "block", marginBottom: "4px" }}>
+                      Payment Title / Purpose *
+                    </label>
+                    <input
+                      type="text"
+                      value={paymentType}
+                      onChange={(e) => setPaymentType(e.target.value)}
+                      placeholder="e.g. Second Payment (Visa Fee)..."
+                      required
+                      style={{
+                        width: "100%",
+                        height: "40px",
+                        padding: "0 12px",
+                        borderRadius: "8px",
+                        border: "1px solid var(--line)",
+                        fontSize: "13px",
+                        color: "var(--ink)",
+                        outline: "none",
+                      }}
+                    />
+                  </div>
+
+                  {/* Deposit Amount (BDT) & Payment Method */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <div>
+                      <label style={{ fontSize: "11.5px", fontWeight: 800, color: "var(--muted)", display: "block", marginBottom: "4px" }}>
+                        Deposit Amount (BDT) *
+                      </label>
+                      <input
+                        type="number"
+                        value={collectAmount}
+                        onChange={(e) => setCollectAmount(Number(e.target.value) || 0)}
+                        required
+                        min={1}
                         style={{
-                          padding: "10px 14px",
-                          background: "#f8fafc",
-                          border: "1px solid #e2e8f0",
-                          borderRadius: "10px",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          flexWrap: "wrap",
-                          gap: "8px",
+                          width: "100%",
+                          height: "40px",
+                          padding: "0 12px",
+                          borderRadius: "8px",
+                          border: "1px solid #10b981",
+                          background: "#f0fdf4",
+                          fontSize: "14px",
+                          fontWeight: 800,
+                          color: "#059669",
+                          outline: "none",
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: "11.5px", fontWeight: 800, color: "var(--muted)", display: "block", marginBottom: "4px" }}>
+                        Payment Method
+                      </label>
+                      <select
+                        value={paymentMethod}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        style={{
+                          width: "100%",
+                          height: "40px",
+                          padding: "0 10px",
+                          borderRadius: "8px",
+                          border: "1px solid var(--line)",
+                          fontSize: "12.5px",
+                          color: "var(--ink)",
+                          outline: "none",
                         }}
                       >
-                        <div>
-                          <b style={{ color: "var(--ink)", fontSize: "13px" }}>{p.type || `Payment #${idx + 1}`}</b>
-                          <div style={{ color: "var(--muted)", fontSize: "11px", marginTop: "2px" }}>
-                            Ref: {p.reference || "N/A"} · Method: {p.method || "Cash"} · Date: {new Date(p.createdAt).toLocaleDateString("en-GB")}
+                        <option value="Cash at Office">Cash at Office</option>
+                        <option value="Bank Transfer / Deposit">Bank Transfer / Deposit</option>
+                        <option value="bKash / Nagad / MFS">bKash / Nagad / MFS</option>
+                        <option value="Bank Cheque">Bank Cheque</option>
+                        <option value="Office Accounts">Office Accounts</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Receipt / Reference No */}
+                  <div>
+                    <label style={{ fontSize: "11.5px", fontWeight: 800, color: "var(--muted)", display: "block", marginBottom: "4px" }}>
+                      Receipt / Reference No
+                    </label>
+                    <input
+                      value={referenceNo}
+                      onChange={(e) => setReferenceNo(e.target.value)}
+                      placeholder="e.g. REC-011043"
+                      style={{
+                        width: "100%",
+                        height: "38px",
+                        padding: "0 12px",
+                        borderRadius: "8px",
+                        border: "1px solid var(--line)",
+                        fontSize: "13px",
+                        color: "var(--ink)",
+                        outline: "none",
+                      }}
+                    />
+                  </div>
+
+                  {/* Attach Bank Slip / Deposit Voucher (Optional) */}
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                      <label style={{ fontSize: "11.5px", fontWeight: 800, color: "var(--muted)", display: "flex", alignItems: "center", gap: "4px" }}>
+                        <Paperclip size={13} className="text-indigo-600" /> Attach Bank Slip / Deposit Voucher (Optional)
+                      </label>
+                      <small style={{ fontSize: "10.5px", color: "var(--muted)" }}>PDF, JPG, PNG (Max 10MB)</small>
+                    </div>
+
+                    <input
+                      type="file"
+                      ref={paymentFileInputRef}
+                      style={{ display: "none" }}
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleVoucherFileSelect(f);
+                      }}
+                    />
+
+                    {paymentReceiptFile ? (
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "#f0fdf4", border: "1px solid #a7f3d0", borderRadius: "10px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <FileText size={18} className="text-emerald-600" />
+                          <div>
+                            <b style={{ fontSize: "12.5px", color: "var(--ink)", display: "block" }}>{paymentReceiptFile.name}</b>
+                            <small style={{ fontSize: "11px", color: "#059669", fontWeight: 700 }}>
+                              {paymentReceiptFile.size} · ✓ Physical Scan Attached
+                            </small>
                           </div>
                         </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                          <span style={{ fontSize: "13px", fontWeight: 800, color: "#059669" }}>
-                            ৳ {p.amount.toLocaleString()} BDT
-                          </span>
+                        <div style={{ display: "flex", gap: "6px" }}>
                           <button
                             type="button"
-                            onClick={() => openPrintReceipt(p, selectedFile)}
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "3px",
-                              padding: "4px 8px",
-                              borderRadius: "6px",
-                              background: "#eff6ff",
-                              color: "#2563eb",
-                              border: "1px solid #bfdbfe",
-                              fontSize: "11px",
-                              fontWeight: 700,
-                              cursor: "pointer",
-                            }}
+                            onClick={() => paymentFileInputRef.current?.click()}
+                            style={{ padding: "4px 8px", borderRadius: "4px", background: "#ffffff", border: "1px solid #e2e8f0", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}
                           >
-                            <Printer size={11} /> Print Receipt
+                            Replace
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPaymentReceiptFile(null)}
+                            style={{ padding: "4px 6px", borderRadius: "4px", background: "#fff1f2", color: "#e11d48", border: "none", cursor: "pointer" }}
+                          >
+                            <X size={13} />
                           </button>
                         </div>
                       </div>
-                    ))}
+                    ) : (
+                      <div
+                        onClick={() => paymentFileInputRef.current?.click()}
+                        style={{
+                          border: "1.5px dashed #cbd5e1",
+                          borderRadius: "10px",
+                          padding: "16px",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          cursor: "pointer",
+                          background: "#fafafd",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <div style={{ width: "34px", height: "34px", borderRadius: "8px", background: "#f0edff", color: "#7258e8", display: "grid", placeItems: "center" }}>
+                            <UploadCloud size={18} />
+                          </div>
+                          <div>
+                            <b style={{ fontSize: "12px", color: "var(--ink)", display: "block" }}>Click to upload or drag &amp; drop document scan</b>
+                            <small style={{ fontSize: "10.5px", color: "var(--muted)" }}>Optional physical scan attachment for candidate dossier</small>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          style={{
+                            padding: "6px 12px",
+                            borderRadius: "6px",
+                            background: "#ffffff",
+                            border: "1px solid #e2e8f0",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                          }}
+                        >
+                          Browse File
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Payment Remarks / Office Comments */}
+                  <div>
+                    <label style={{ fontSize: "11.5px", fontWeight: 800, color: "var(--muted)", display: "block", marginBottom: "4px" }}>
+                      Payment Remarks / Office Comments
+                    </label>
+                    <input
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="e.g. Received at accounts counter..."
+                      style={{
+                        width: "100%",
+                        height: "38px",
+                        borderRadius: "8px",
+                        border: "1px solid var(--line)",
+                        padding: "0 12px",
+                        fontSize: "13px",
+                        color: "var(--ink)",
+                        outline: "none",
+                      }}
+                    />
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    disabled={savingPayment}
+                    style={{
+                      marginTop: "6px",
+                      padding: "12px 24px",
+                      borderRadius: "10px",
+                      background: "linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)",
+                      color: "#ffffff",
+                      border: "none",
+                      fontSize: "13.5px",
+                      fontWeight: 800,
+                      cursor: savingPayment ? "not-allowed" : "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "8px",
+                      boxShadow: "0 4px 12px rgba(79,70,229,0.3)",
+                    }}
+                  >
+                    <CreditCard size={16} />{" "}
+                    {savingPayment
+                      ? "Recording Deposit..."
+                      : selectedFile.payments && selectedFile.payments.length > 0
+                      ? "💾 Record Additional Payment"
+                      : "💾 Save Payment Deposit"}
+                  </button>
+                </form>
+              </div>
+
+              {/* RIGHT COLUMN: Financial Ledger */}
+              <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "14px", padding: "18px", display: "flex", flexDirection: "column", gap: "14px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <Layers size={15} style={{ color: "var(--muted)" }} />
+                  <span style={{ fontSize: "12px", fontWeight: 900, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    FINANCIAL LEDGER
+                  </span>
+                </div>
+
+                {/* Balance Big Banner */}
+                <div
+                  style={{
+                    background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)",
+                    border: "1px solid #bbf7d0",
+                    borderRadius: "12px",
+                    padding: "16px",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <div>
+                    <span style={{ fontSize: "10.5px", fontWeight: 800, color: "#166534", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
+                      TOTAL AMOUNT PAID
+                    </span>
+                    <b style={{ fontSize: "22px", fontWeight: 900, color: "#15803d", display: "block", marginTop: "2px" }}>
+                      ৳ {selectedFile.paid.toLocaleString()} <small style={{ fontSize: "13px", fontWeight: 700 }}>BDT</small>
+                    </b>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", fontSize: "11px", flexWrap: "wrap" }}>
+                      <span style={{ color: "#334155" }}>Contract Package: ৳ {(selectedFile.totalPackage || (/dubai/i.test(selectedFile.country) ? 300000 : 350000)).toLocaleString()}</span>
+                      {(selectedFile.dueAmount ?? Math.max(0, (selectedFile.totalPackage || (/dubai/i.test(selectedFile.country) ? 300000 : 350000)) - selectedFile.paid)) > 0 ? (
+                        <span style={{ fontWeight: 800, color: "#dc2626", background: "#fef2f2", padding: "1px 6px", borderRadius: "4px", border: "1px solid #fecdd3" }}>
+                          Due: ৳ {(selectedFile.dueAmount ?? Math.max(0, (selectedFile.totalPackage || (/dubai/i.test(selectedFile.country) ? 300000 : 350000)) - selectedFile.paid)).toLocaleString()}
+                        </span>
+                      ) : (selectedFile.advanceAmount ?? Math.max(0, selectedFile.paid - (selectedFile.totalPackage || (/dubai/i.test(selectedFile.country) ? 300000 : 350000)))) > 0 ? (
+                        <span style={{ fontWeight: 800, color: "#7c3aed", background: "#f5f3ff", padding: "1px 6px", borderRadius: "4px", border: "1px solid #ddd6fe" }}>
+                          ● Advance Extra: + ৳ {(selectedFile.advanceAmount ?? Math.max(0, selectedFile.paid - (selectedFile.totalPackage || (/dubai/i.test(selectedFile.country) ? 300000 : 350000)))).toLocaleString()} BDT
+                        </span>
+                      ) : (
+                        <span style={{ fontWeight: 800, color: "#059669", background: "#ecfdf5", padding: "1px 6px", borderRadius: "4px", border: "1px solid #a7f3d0" }}>
+                          ● Fully Settled
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ width: "42px", height: "42px", borderRadius: "12px", background: "#bbf7d0", color: "#15803d", display: "grid", placeItems: "center", fontSize: "20px", fontWeight: 900 }}>
+                    $
                   </div>
                 </div>
-              )}
-            </form>
+
+                {/* List of Previous Receipts */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "320px", overflowY: "auto" }}>
+                  {selectedFile.payments && selectedFile.payments.length > 0 ? (
+                    selectedFile.payments.map((p, pIdx) => (
+                      <div
+                        key={p.id || pIdx}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          padding: "10px 12px",
+                          background: "#f8fafc",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: "10px",
+                        }}
+                      >
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <b style={{ fontSize: "12.5px", color: "var(--ink)" }}>{p.type || `Payment #${pIdx + 1}`}</b>
+                            <button
+                              type="button"
+                              onClick={() => openPrintReceipt(p, selectedFile)}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "3px",
+                                padding: "2px 7px",
+                                borderRadius: "4px",
+                                background: "#eff6ff",
+                                color: "#2563eb",
+                                border: "1px solid #bfdbfe",
+                                fontSize: "10.5px",
+                                fontWeight: 700,
+                                cursor: "pointer",
+                              }}
+                            >
+                              <Printer size={10} /> Print Receipt
+                            </button>
+                          </div>
+                          <small style={{ fontSize: "10.5px", color: "var(--muted)", display: "block", marginTop: "2px" }}>
+                            {new Date(p.createdAt || Date.now()).toLocaleDateString("en-GB")} · {p.method || "Cash at Office"}
+                          </small>
+                        </div>
+
+                        <b style={{ fontSize: "13.5px", color: "#059669", fontWeight: 800 }}>
+                          ৳ {p.amount.toLocaleString()} BDT
+                        </b>
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ textAlign: "center", padding: "30px 10px", color: "var(--muted)", fontSize: "12px" }}>
+                      No payments deposited yet for this candidate.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

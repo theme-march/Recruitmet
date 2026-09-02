@@ -321,7 +321,7 @@ export default async function Page() {
       title: "Active Candidate Document Verification",
       subtitle: `${processingFiles.length} candidate dossiers in verification stream`,
       timeAgo: "Active",
-      actionUrl: "/dashboard/document",
+      actionUrl: "/module/document/dubai-document",
       urgency: "low" as const,
     },
   ];

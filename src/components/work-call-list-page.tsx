@@ -103,6 +103,19 @@ export function WorkCallListPage() {
     },
   });
 
+  const countriesQuery = useQuery({
+    queryKey: ["active-countries-for-calls"],
+    queryFn: async () => {
+      const response = await fetch("/api/countries");
+      if (!response.ok) return ["Saudi Arabia", "Dubai", "Other Country"];
+      const json = await response.json();
+      const list = ((json.data ?? json ?? []) as Array<{ name: string; active?: boolean }>)
+        .filter((c) => c.active !== false)
+        .map((c) => c.name);
+      return list.length ? [...list, "Other Country"] : ["Saudi Arabia", "Dubai", "Other Country"];
+    },
+  });
+
   const query = useQuery({
     queryKey: ["work-call-list", applied, summary, search, page, pageSize],
     queryFn: async () => {
@@ -313,7 +326,7 @@ export function WorkCallListPage() {
 
           <Link
             prefetch={true}
-            href={moduleItemPath("call-center", "Create Work Call")}
+            href={moduleItemPath("call-center", "Create Candidate")}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -328,7 +341,7 @@ export function WorkCallListPage() {
               boxShadow: "0 2px 8px rgba(114,88,232,0.25)",
             }}
           >
-            <Plus size={15} /> Create Call List
+            <Plus size={15} /> Create Candidate
           </Link>
         </div>
       </div>
@@ -396,7 +409,7 @@ export function WorkCallListPage() {
           <FilterSelect
             label="Target Country"
             value={filters.country}
-            options={["Saudi Arabia", "Dubai", "Other Country"]}
+            options={countriesQuery.data ?? ["Saudi Arabia", "Dubai", "Other Country"]}
             onChange={(value) => setFilters({ ...filters, country: value })}
           />
           <FilterSelect
@@ -416,18 +429,6 @@ export function WorkCallListPage() {
             value={filters.callStatus}
             options={["New", "Interested", "Follow-up", "Interview Scheduled", "Converted", "Not Interested", "Closed"]}
             onChange={(value) => setFilters({ ...filters, callStatus: value })}
-          />
-          <FilterSelect
-            label="Priority"
-            value={filters.priority}
-            options={[
-              { value: "1", label: "P1 - Urgent" },
-              { value: "2", label: "P2 - High" },
-              { value: "3", label: "P3 - Normal" },
-              { value: "4", label: "P4 - Low" },
-              { value: "5", label: "P5 - Lowest" },
-            ]}
-            onChange={(value) => setFilters({ ...filters, priority: value })}
           />
         </div>
 
@@ -559,7 +560,6 @@ export function WorkCallListPage() {
                 <th style={{ padding: "12px 14px" }}>Phone</th>
                 <th style={{ padding: "12px 14px" }}>Target Country</th>
                 <th style={{ padding: "12px 14px" }}>Officer</th>
-                <th style={{ padding: "12px 14px" }}>Priority</th>
                 <th style={{ padding: "12px 14px" }}>Call Status</th>
                 <th style={{ padding: "12px 14px" }}>File Pipeline Status</th>
               </tr>
@@ -608,11 +608,6 @@ export function WorkCallListPage() {
                     <td style={{ padding: "12px 14px", fontWeight: 700, color: "var(--ink)" }}>{row.country}</td>
                     <td style={{ padding: "12px 14px", fontWeight: 600, color: "var(--ink)" }}>
                       {row.executive}
-                    </td>
-                    <td style={{ padding: "12px 14px" }}>
-                      <span className={`priority-badge p${row.priority}`} style={{ fontSize: "11px", padding: "3px 8px", borderRadius: "6px" }}>
-                        P{row.priority}
-                      </span>
                     </td>
                     <td style={{ padding: "12px 14px" }}>
                       <span className="badge" style={{ fontSize: "11px", padding: "3px 8px" }}>{row.callStatus}</span>
@@ -809,7 +804,6 @@ function LeadDetailsModal({ lead, schedules, onUpdate, onClose }: { lead: WorkCa
           <div>
             <div className="lead-badge-row">
               <span className="lead-no-tag">{lead.leadNo}</span>
-              <span className={`priority-badge p${lead.priority}`}>P{lead.priority} Priority</span>
               <span className="badge">{fileStatus}</span>
               <span className="badge">{callStatus}</span>
             </div>
@@ -924,17 +918,14 @@ function LeadDetailsModal({ lead, schedules, onUpdate, onClose }: { lead: WorkCa
             </div>
           </div>
 
-          {/* Call Center Control */}
+          {/* Officer & Registration Details */}
           <div className="lead-section">
-            <h3>📞 Call Center Control</h3>
+            <h3>📋 Officer &amp; Registration Details</h3>
             <div className="lead-info-grid">
-              <div><span>Proposed Rate:</span><b>{lead.proposedRate ? `${lead.proposedRate} BDT` : "—"}</b></div>
-              <div><span>Priority Score:</span><b>P{lead.priority}</b></div>
-              <div><span>Office Visit:</span><b>{lead.officeVisit || "—"}</b></div>
-              <div><span>Call Source:</span><b>{lead.callSource || "Direct"}</b></div>
-              <div><span>Call Purpose:</span><b>{lead.callPurpose || "Overseas Employment"}</b></div>
-              <div><span>Human Behavior Tag:</span><b>{lead.behaviorTag || "Interested"}</b></div>
-              <div><span>Follow-up Date:</span><b>{dateFormatted(lead.followUpAt)}</b></div>
+              <div><span>Assigned Officer:</span><b>{lead.executive || "Unassigned"}</b></div>
+              <div><span>Candidate Source:</span><b>{lead.callSource || "Direct"}</b></div>
+              <div><span>Lead Status:</span><b>{lead.callStatus || "New"}</b></div>
+              <div><span>Registration Date:</span><b>{dateFormatted(lead.createdAt)}</b></div>
             </div>
           </div>
 

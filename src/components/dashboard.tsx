@@ -229,7 +229,7 @@ export function Dashboard({ data }: { data: DashboardData }) {
 
         <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
           <Link
-            href={moduleItemPath("call-center", "Create Work Call")}
+            href={moduleItemPath("call-center", "Create Candidate")}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -245,7 +245,7 @@ export function Dashboard({ data }: { data: DashboardData }) {
             }}
           >
             <PlusCircle size={16} className="text-indigo-600" />
-            <span>New Work Call</span>
+            <span>New Candidate</span>
           </Link>
 
           <Link
@@ -296,7 +296,7 @@ export function Dashboard({ data }: { data: DashboardData }) {
       <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "14px" }}>
         {/* Card 1: Candidates */}
         <Link
-          href={moduleItemPath("call-center", "Registration & interviews")}
+          href={moduleItemPath("call-center", "Candidate List")}
           style={{
             background: "#ffffff",
             border: "1px solid var(--line)",

@@ -1,11 +1,36 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Building2, CalendarDays, Edit, FileSpreadsheet, Plus, Search, Sparkles, Trash2, UsersRound, X } from "lucide-react";
+import {
+  Building2,
+  CalendarDays,
+  Edit,
+  FileSpreadsheet,
+  Globe,
+  Plus,
+  Search,
+  Sparkles,
+  Trash2,
+  UsersRound,
+  X,
+} from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { moduleItemPath } from "@/lib/modules";
+import { getCountryFlagEmoji } from "@/lib/country-pipeline";
+
+export type CountryRecord = {
+  id: string;
+  name: string;
+  code: string;
+  currency: string;
+  timezone: string;
+  phoneCode: string | null;
+  workflowType: string;
+  active: boolean;
+  candidateCount: number;
+};
 
 type Schedule = {
   id: string;
@@ -37,28 +62,100 @@ type DemandItem = {
 const readableDate = (value: string) =>
   new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value));
 
-function getScheduleCountry(sch: Schedule): { name: string; flag: string } {
+function getScheduleCountry(sch: Schedule, allCountries: CountryRecord[] = []): { name: string; code: string; flag: string } {
   const text = `${sch.title} ${sch.company || ""} ${sch.instructions || ""} ${sch.venue || ""}`.toLowerCase();
-  if (/saudi|binladen|nesma|almarai|riyadh|jeddah|dammam/i.test(text)) return { name: "Saudi Arabia", flag: "🇸🇦" };
-  if (/dubai|emirates|uae|sobha|abu dhabi/i.test(text)) return { name: "Dubai", flag: "🇦🇪" };
-  if (/oman|muscat/i.test(text)) return { name: "Oman", flag: "🇴🇲" };
-  if (/qatar|doha/i.test(text)) return { name: "Qatar", flag: "🇶🇦" };
-  if (/malaysia|kuala/i.test(text)) return { name: "Malaysia", flag: "🇲🇾" };
-  return { name: "Saudi Arabia", flag: "🇸🇦" };
+
+  // 1. Check for explicit [Country: Name] tag in instructions
+  const tagMatch = sch.instructions?.match(/\[Country:\s*([^\]]+)\]/i);
+  if (tagMatch) {
+    const matched = tagMatch[1].trim();
+    const found = allCountries.find(
+      (c) => c.name.toLowerCase() === matched.toLowerCase() || c.code.toLowerCase() === matched.toLowerCase()
+    );
+    if (found) {
+      return { name: found.name, code: found.code, flag: getCountryFlagEmoji(found.code, found.name) };
+    }
+    return { name: matched, code: "OTHER", flag: getCountryFlagEmoji("OTHER", matched) };
+  }
+
+  // 2. Exact match against known destination countries
+  for (const c of allCountries) {
+    const cName = c.name.toLowerCase();
+
+    if (cName === "saudi arabia" && /saudi|binladen|nesma|almarai|riyadh|jeddah|dammam|ksa/i.test(text)) {
+      return { name: c.name, code: c.code, flag: getCountryFlagEmoji(c.code, c.name) };
+    }
+    if (cName === "dubai" && /dubai|emirates|uae|sobha|abu dhabi|dxb/i.test(text)) {
+      return { name: c.name, code: c.code, flag: getCountryFlagEmoji(c.code, c.name) };
+    }
+    if (cName === "oman" && /oman|muscat/i.test(text)) {
+      return { name: c.name, code: c.code, flag: getCountryFlagEmoji(c.code, c.name) };
+    }
+    if (cName === "qatar" && /qatar|doha/i.test(text)) {
+      return { name: c.name, code: c.code, flag: getCountryFlagEmoji(c.code, c.name) };
+    }
+    if (cName === "malaysia" && /malaysia|kuala/i.test(text)) {
+      return { name: c.name, code: c.code, flag: getCountryFlagEmoji(c.code, c.name) };
+    }
+    if (cName === "singapore" && /singapore/i.test(text)) {
+      return { name: c.name, code: c.code, flag: getCountryFlagEmoji(c.code, c.name) };
+    }
+    if (cName === "kuwait" && /kuwait/i.test(text)) {
+      return { name: c.name, code: c.code, flag: getCountryFlagEmoji(c.code, c.name) };
+    }
+    if (cName === "bahrain" && /bahrain|manama/i.test(text)) {
+      return { name: c.name, code: c.code, flag: getCountryFlagEmoji(c.code, c.name) };
+    }
+    if (cName === "romania" && /romania|bucharest/i.test(text)) {
+      return { name: c.name, code: c.code, flag: getCountryFlagEmoji(c.code, c.name) };
+    }
+    if (cName !== "other" && new RegExp(`\\b${cName}\\b`, "i").test(text)) {
+      return { name: c.name, code: c.code, flag: getCountryFlagEmoji(c.code, c.name) };
+    }
+  }
+
+  // 3. Fallback regex patterns
+  if (/saudi|binladen|nesma|almarai|riyadh|jeddah|dammam|ksa/i.test(text)) {
+    return { name: "Saudi Arabia", code: "SA", flag: "🇸🇦" };
+  }
+  if (/dubai|emirates|uae|sobha|abu dhabi|dxb/i.test(text)) {
+    return { name: "Dubai", code: "AE", flag: "🇦🇪" };
+  }
+  if (/oman|muscat/i.test(text)) {
+    return { name: "Oman", code: "OM", flag: "🇴🇲" };
+  }
+  if (/qatar|doha/i.test(text)) {
+    return { name: "Qatar", code: "QA", flag: "🇶🇦" };
+  }
+  if (/malaysia|kuala/i.test(text)) {
+    return { name: "Malaysia", code: "MY", flag: "🇲🇾" };
+  }
+  if (/singapore/i.test(text)) {
+    return { name: "Singapore", code: "SG", flag: "🇸🇬" };
+  }
+
+  const otherCountry = allCountries.find((c) => c.name.toLowerCase() === "other" || c.code.toLowerCase() === "other");
+  if (otherCountry) {
+    return { name: otherCountry.name, code: otherCountry.code, flag: "🌐" };
+  }
+
+  return { name: "Saudi Arabia", code: "SA", flag: "🇸🇦" };
 }
 
 export function InterviewListPage({ upcomingOnly = false }: { upcomingOnly?: boolean }) {
   const [input, setInput] = useState("");
   const [search, setSearch] = useState("");
   const [countryFilter, setCountryFilter] = useState("all");
-  
+
   // Create Modal States
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [selectedCountry, setSelectedCountry] = useState("Saudi Arabia");
 
   // Edit Modal States
   const [editOpen, setEditOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
+  const [editCountry, setEditCountry] = useState("Saudi Arabia");
   const [updating, setUpdating] = useState(false);
 
   // Demand Linking States
@@ -87,7 +184,8 @@ export function InterviewListPage({ upcomingOnly = false }: { upcomingOnly?: boo
     },
   });
 
-  const canManage = profileQuery.data?.roleKey === "SUPER_ADMIN" || Boolean(profileQuery.data?.permissions?.canManageInterviews);
+  const canManage =
+    profileQuery.data?.roleKey === "SUPER_ADMIN" || Boolean(profileQuery.data?.permissions?.canManageInterviews);
 
   const query = useQuery({
     queryKey: ["interview-schedules", search],
@@ -97,6 +195,17 @@ export function InterviewListPage({ upcomingOnly = false }: { upcomingOnly?: boo
       const response = await fetch(`/api/interviews?${params}`);
       if (!response.ok) throw new Error("Could not load interview schedules");
       return (await response.json()).data as Schedule[];
+    },
+  });
+
+  // Query Destination Countries dynamically from Country Setup
+  const countriesQuery = useQuery({
+    queryKey: ["destination-countries-active"],
+    queryFn: async () => {
+      const res = await fetch("/api/countries");
+      if (!res.ok) return [];
+      const json = await res.json();
+      return (json.data || []) as CountryRecord[];
     },
   });
 
@@ -115,17 +224,48 @@ export function InterviewListPage({ upcomingOnly = false }: { upcomingOnly?: boo
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const schedules = query.data ?? [];
+  const allCountries = countriesQuery.data ?? [];
+  const activeCountries = allCountries.filter((c) => c.active !== false);
 
-  // Country counts
-  const saudiCount = schedules.filter((s) => getScheduleCountry(s).name === "Saudi Arabia").length;
-  const dubaiCount = schedules.filter((s) => getScheduleCountry(s).name === "Dubai").length;
-  const omanCount = schedules.filter((s) => getScheduleCountry(s).name === "Oman").length;
-  const qatarCount = schedules.filter((s) => getScheduleCountry(s).name === "Qatar").length;
-  const malaysiaCount = schedules.filter((s) => getScheduleCountry(s).name === "Malaysia").length;
+  // Dynamic Country Filter Tabs synced with Active Countries
+  const countryTabs = useMemo(() => {
+    const all = { id: "all", label: "🌍 All Countries", count: schedules.length };
+
+    const list =
+      activeCountries.length > 0
+        ? activeCountries.map((c) => {
+            const count = schedules.filter((s) => {
+              const sc = getScheduleCountry(s, allCountries);
+              return (
+                sc.name.toLowerCase() === c.name.toLowerCase() ||
+                sc.code.toLowerCase() === c.code.toLowerCase()
+              );
+            }).length;
+            const flag = getCountryFlagEmoji(c.code, c.name);
+            return {
+              id: c.name,
+              label: `${flag} ${c.name}`,
+              count,
+            };
+          })
+        : [
+            { id: "Saudi Arabia", label: "🇸🇦 Saudi Arabia", count: schedules.filter((s) => getScheduleCountry(s).name === "Saudi Arabia").length },
+            { id: "Dubai", label: "🇦🇪 Dubai", count: schedules.filter((s) => getScheduleCountry(s).name === "Dubai").length },
+            { id: "Oman", label: "🇴🇲 Oman", count: schedules.filter((s) => getScheduleCountry(s).name === "Oman").length },
+            { id: "Malaysia", label: "🇲🇾 Malaysia", count: schedules.filter((s) => getScheduleCountry(s).name === "Malaysia").length },
+            { id: "Other", label: "🌐 Other", count: schedules.filter((s) => getScheduleCountry(s).name === "Other").length },
+          ];
+
+    return [all, ...list];
+  }, [activeCountries, schedules, allCountries]);
 
   const filteredSchedules = schedules.filter((item) => {
     if (countryFilter === "all") return true;
-    return getScheduleCountry(item).name === countryFilter;
+    const sc = getScheduleCountry(item, allCountries);
+    return (
+      sc.name.toLowerCase() === countryFilter.toLowerCase() ||
+      sc.code.toLowerCase() === countryFilter.toLowerCase()
+    );
   });
 
   const upcoming = filteredSchedules
@@ -146,6 +286,18 @@ export function InterviewListPage({ upcomingOnly = false }: { upcomingOnly?: boo
       setCompany(compName);
       setProfession(dem.profession);
       setCapacity(dem.visaQuantity || dem.quantity || 50);
+
+      // Auto pre-select country from Demand
+      if (dem.country) {
+        const match = activeCountries.find(
+          (c) =>
+            c.name.toLowerCase() === dem.country.toLowerCase() ||
+            c.code.toLowerCase() === dem.country.toLowerCase()
+        );
+        if (match) setSelectedCountry(match.name);
+        else setSelectedCountry(dem.country);
+      }
+
       setInstructions(
         `Salary: ${dem.salary ? `${dem.salary} ${dem.currency || "SAR"}` : "Competitive"} | Package: ৳ ${
           dem.visaRate ? Number(dem.visaRate).toLocaleString() : "500,000"
@@ -168,6 +320,9 @@ export function InterviewListPage({ upcomingOnly = false }: { upcomingOnly?: boo
 
   const openEditModal = (sch: Schedule) => {
     setEditingSchedule(sch);
+    const sc = getScheduleCountry(sch, allCountries);
+    setEditCountry(sc.name);
+
     // Format date for datetime-local input
     let formattedDate = "";
     if (sch.scheduledAt) {
@@ -183,7 +338,9 @@ export function InterviewListPage({ upcomingOnly = false }: { upcomingOnly?: boo
     setScheduledAt(formattedDate);
     setVenue(sch.venue || "Dhaka Head Office (Auditorium)");
     setCapacity(sch.capacity || 50);
-    setInstructions(sch.instructions || "");
+    // Strip [Country: ...] tag from editable instructions
+    const cleanInstructions = (sch.instructions || "").replace(/\[Country:\s*[^\]]+\]\s*/gi, "").trim();
+    setInstructions(cleanInstructions);
     setEditOpen(true);
   };
 
@@ -191,6 +348,9 @@ export function InterviewListPage({ upcomingOnly = false }: { upcomingOnly?: boo
     e.preventDefault();
     setCreating(true);
     try {
+      const cleanInst = instructions.replace(/\[Country:\s*[^\]]+\]\s*/gi, "").trim();
+      const finalInstructions = `[Country: ${selectedCountry}] ${cleanInst}`.trim();
+
       const res = await fetch("/api/interviews", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -201,7 +361,7 @@ export function InterviewListPage({ upcomingOnly = false }: { upcomingOnly?: boo
           scheduledAt,
           venue,
           capacity: Number(capacity) || 50,
-          instructions,
+          instructions: finalInstructions,
           candidateIds: [],
         }),
       });
@@ -215,6 +375,7 @@ export function InterviewListPage({ upcomingOnly = false }: { upcomingOnly?: boo
       setCompany("");
       setProfession("");
       setScheduledAt("");
+      setInstructions("");
       void query.refetch();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error creating interview");
@@ -228,6 +389,9 @@ export function InterviewListPage({ upcomingOnly = false }: { upcomingOnly?: boo
     if (!editingSchedule) return;
     setUpdating(true);
     try {
+      const cleanInst = instructions.replace(/\[Country:\s*[^\]]+\]\s*/gi, "").trim();
+      const finalInstructions = `[Country: ${editCountry}] ${cleanInst}`.trim();
+
       const res = await fetch(`/api/interview-schedules/${editingSchedule.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -238,7 +402,7 @@ export function InterviewListPage({ upcomingOnly = false }: { upcomingOnly?: boo
           scheduledAt,
           venue,
           capacity: Number(capacity) || 50,
-          instructions,
+          instructions: finalInstructions,
         }),
       });
       const data = await res.json();
@@ -274,20 +438,48 @@ export function InterviewListPage({ upcomingOnly = false }: { upcomingOnly?: boo
   return (
     <div className="interview-list-page" style={{ maxWidth: "1600px", margin: "0 auto" }}>
       {/* Top Header */}
-      <div className="interview-page-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px", flexWrap: "wrap", gap: "12px" }}>
+      <div
+        className="interview-page-head"
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "18px",
+          flexWrap: "wrap",
+          gap: "12px",
+        }}
+      >
         <div>
-          <div className="breadcrumb" style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+          <div
+            className="breadcrumb"
+            style={{
+              fontSize: "11px",
+              fontWeight: 700,
+              color: "var(--muted)",
+              textTransform: "uppercase",
+              letterSpacing: "0.5px",
+            }}
+          >
             Candidates / Registration &amp; Interviews
           </div>
-          <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--ink)", margin: "4px 0" }}>Registration &amp; Interviews</h1>
-          <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0 }}>Create, schedule and manage overseas recruitment interview drives with clients.</p>
+          <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--ink)", margin: "4px 0" }}>
+            Registration &amp; Interviews
+          </h1>
+          <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0 }}>
+            Create, schedule and manage overseas recruitment interview drives with clients.
+          </p>
         </div>
         <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
           {canManage && (
             <button
               type="button"
               className="button primary"
-              onClick={() => setCreateOpen(true)}
+              onClick={() => {
+                if (activeCountries.length > 0 && !activeCountries.some((c) => c.name === selectedCountry)) {
+                  setSelectedCountry(activeCountries[0].name);
+                }
+                setCreateOpen(true);
+              }}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -308,7 +500,7 @@ export function InterviewListPage({ upcomingOnly = false }: { upcomingOnly?: boo
           )}
           <Link
             prefetch={true}
-            href={moduleItemPath("call-center", "Create Work Call")}
+            href={moduleItemPath("call-center", "Create Candidate")}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -323,21 +515,14 @@ export function InterviewListPage({ upcomingOnly = false }: { upcomingOnly?: boo
               textDecoration: "none",
             }}
           >
-            <Plus size={14} /> Create Work Call
+            <Plus size={14} /> Create Candidate
           </Link>
         </div>
       </div>
 
       {/* Country Filter Switcher Tabs */}
       <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexWrap: "wrap" }}>
-        {[
-          { id: "all", label: "🌍 All Countries", count: schedules.length },
-          { id: "Saudi Arabia", label: "🇸🇦 Saudi Arabia", count: saudiCount },
-          { id: "Dubai", label: "🇦🇪 Dubai", count: dubaiCount },
-          { id: "Oman", label: "🇴🇲 Oman", count: omanCount },
-          { id: "Qatar", label: "🇶🇦 Qatar", count: qatarCount },
-          { id: "Malaysia", label: "🇲🇾 Malaysia", count: malaysiaCount },
-        ].map((c) => {
+        {countryTabs.map((c) => {
           const active = countryFilter === c.id;
           return (
             <button
@@ -397,7 +582,17 @@ export function InterviewListPage({ upcomingOnly = false }: { upcomingOnly?: boo
           flexWrap: "wrap",
         }}
       >
-        <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px", fontWeight: 700, color: "var(--ink)", flex: "1 1 320px" }}>
+        <label
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "6px",
+            fontSize: "12px",
+            fontWeight: 700,
+            color: "var(--ink)",
+            flex: "1 1 320px",
+          }}
+        >
           Search by interview name or company
           <input
             value={input}
@@ -465,6 +660,7 @@ export function InterviewListPage({ upcomingOnly = false }: { upcomingOnly?: boo
         title="Upcoming interviews"
         count={upcoming.length}
         rows={upcoming}
+        allCountries={allCountries}
         canManage={canManage}
         onEdit={openEditModal}
         onDelete={handleDeleteSchedule}
@@ -474,6 +670,7 @@ export function InterviewListPage({ upcomingOnly = false }: { upcomingOnly?: boo
           title="Past interviews"
           count={past.length}
           rows={past}
+          allCountries={allCountries}
           canManage={canManage}
           onEdit={openEditModal}
           onDelete={handleDeleteSchedule}
@@ -542,6 +739,43 @@ export function InterviewListPage({ upcomingOnly = false }: { upcomingOnly?: boo
                     </div>
                   )}
 
+                  {/* Destination Country & Quota */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12, fontWeight: 700 }}>
+                      Destination Country *
+                      <select
+                        name="destinationCountry"
+                        value={selectedCountry}
+                        onChange={(e) => setSelectedCountry(e.target.value)}
+                        style={{
+                          height: 38,
+                          border: "1px solid #cbd5e1",
+                          borderRadius: 8,
+                          padding: "0 10px",
+                          background: "#fff",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {activeCountries.map((c) => (
+                          <option key={c.id || c.code} value={c.name}>
+                            {getCountryFlagEmoji(c.code, c.name)} {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12, fontWeight: 700 }}>
+                      Candidate Capacity (Seats)
+                      <input
+                        name="capacity"
+                        type="number"
+                        value={capacity}
+                        onChange={(e) => setCapacity(Number(e.target.value) || 0)}
+                        style={{ height: 38, border: "1px solid #cbd5e1", borderRadius: 8, padding: "0 10px" }}
+                      />
+                    </label>
+                  </div>
+
                   <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12, fontWeight: 700 }}>
                     Interview Title *
                     <input
@@ -592,27 +826,16 @@ export function InterviewListPage({ upcomingOnly = false }: { upcomingOnly?: boo
                     </label>
 
                     <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12, fontWeight: 700 }}>
-                      Candidate Capacity (Seats)
+                      Venue / Location
                       <input
-                        name="capacity"
-                        type="number"
-                        value={capacity}
-                        onChange={(e) => setCapacity(Number(e.target.value) || 0)}
+                        name="venue"
+                        value={venue}
+                        onChange={(e) => setVenue(e.target.value)}
+                        placeholder="e.g. Dhaka Head Office Auditorium"
                         style={{ height: 38, border: "1px solid #cbd5e1", borderRadius: 8, padding: "0 10px" }}
                       />
                     </label>
                   </div>
-
-                  <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12, fontWeight: 700 }}>
-                    Venue / Location
-                    <input
-                      name="venue"
-                      value={venue}
-                      onChange={(e) => setVenue(e.target.value)}
-                      placeholder="e.g. Dhaka Head Office Auditorium"
-                      style={{ height: 38, border: "1px solid #cbd5e1", borderRadius: 8, padding: "0 10px" }}
-                    />
-                  </label>
 
                   <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12, fontWeight: 700 }}>
                     Requirements &amp; Instructions (Auto-filled from Demand)
@@ -646,7 +869,7 @@ export function InterviewListPage({ upcomingOnly = false }: { upcomingOnly?: boo
             <div className="lead-modal-header">
               <div>
                 <h2>Edit Interview Schedule Drive</h2>
-                <p>Update title, reschedule date &amp; time, location, or quota for this interview.</p>
+                <p>Update country, title, reschedule date &amp; time, location, or quota for this interview.</p>
               </div>
               <button className="lead-close-btn" onClick={() => setEditOpen(false)}>
                 <X size={20} />
@@ -655,6 +878,43 @@ export function InterviewListPage({ upcomingOnly = false }: { upcomingOnly?: boo
             <form onSubmit={handleUpdateSchedule}>
               <div className="lead-modal-body" style={{ display: "block" }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  {/* Destination Country & Quota */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12, fontWeight: 700 }}>
+                      Destination Country *
+                      <select
+                        name="editCountry"
+                        value={editCountry}
+                        onChange={(e) => setEditCountry(e.target.value)}
+                        style={{
+                          height: 38,
+                          border: "1px solid #cbd5e1",
+                          borderRadius: 8,
+                          padding: "0 10px",
+                          background: "#fff",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {activeCountries.map((c) => (
+                          <option key={c.id || c.code} value={c.name}>
+                            {getCountryFlagEmoji(c.code, c.name)} {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12, fontWeight: 700 }}>
+                      Candidate Capacity (Seats)
+                      <input
+                        name="capacity"
+                        type="number"
+                        value={capacity}
+                        onChange={(e) => setCapacity(Number(e.target.value) || 0)}
+                        style={{ height: 38, border: "1px solid #cbd5e1", borderRadius: 8, padding: "0 10px" }}
+                      />
+                    </label>
+                  </div>
+
                   <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12, fontWeight: 700 }}>
                     Interview Title *
                     <input
@@ -702,26 +962,15 @@ export function InterviewListPage({ upcomingOnly = false }: { upcomingOnly?: boo
                     </label>
 
                     <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12, fontWeight: 700 }}>
-                      Candidate Capacity (Seats)
+                      Venue / Location
                       <input
-                        name="capacity"
-                        type="number"
-                        value={capacity}
-                        onChange={(e) => setCapacity(Number(e.target.value) || 0)}
+                        name="venue"
+                        value={venue}
+                        onChange={(e) => setVenue(e.target.value)}
                         style={{ height: 38, border: "1px solid #cbd5e1", borderRadius: 8, padding: "0 10px" }}
                       />
                     </label>
                   </div>
-
-                  <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12, fontWeight: 700 }}>
-                    Venue / Location
-                    <input
-                      name="venue"
-                      value={venue}
-                      onChange={(e) => setVenue(e.target.value)}
-                      style={{ height: 38, border: "1px solid #cbd5e1", borderRadius: 8, padding: "0 10px" }}
-                    />
-                  </label>
 
                   <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12, fontWeight: 700 }}>
                     Requirements &amp; Instructions
@@ -764,6 +1013,7 @@ function ScheduleSection({
   title,
   count,
   rows,
+  allCountries = [],
   canManage,
   onEdit,
   onDelete,
@@ -771,6 +1021,7 @@ function ScheduleSection({
   title: string;
   count?: number;
   rows: Schedule[];
+  allCountries?: CountryRecord[];
   canManage?: boolean;
   onEdit: (sch: Schedule) => void;
   onDelete: (id: string, name: string) => void;
@@ -779,170 +1030,171 @@ function ScheduleSection({
     <section className="schedule-section" style={{ marginBottom: "26px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
         <h2 style={{ fontSize: "16px", fontWeight: 800, color: "var(--ink)", margin: 0 }}>
-          {title} {typeof count === "number" && <small style={{ color: "var(--muted)", fontWeight: 600, fontSize: "12px" }}>({count} total)</small>}
+          {title}{" "}
+          {typeof count === "number" && (
+            <small style={{ color: "var(--muted)", fontWeight: 600, fontSize: "12px" }}>({count} total)</small>
+          )}
         </h2>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: "16px" }}>
-        {rows.map((row) => (
-          <article
-            key={row.id}
-            style={{
-              background: "#fff",
-              border: "1px solid var(--line)",
-              borderRadius: "16px",
-              padding: "18px 20px",
-              boxShadow: "var(--shadow)",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-              gap: "14px",
-              transition: "transform 0.15s ease, box-shadow 0.15s ease",
-            }}
-          >
-            <div>
-              {/* Date, Country & Company Tag */}
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px", flexWrap: "wrap" }}>
+        {rows.map((row) => {
+          const cInfo = getScheduleCountry(row, allCountries);
+          return (
+            <article
+              key={row.id}
+              style={{
+                background: "#fff",
+                border: "1px solid var(--line)",
+                borderRadius: "16px",
+                padding: "18px 20px",
+                boxShadow: "var(--shadow)",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                gap: "14px",
+                transition: "transform 0.15s ease, box-shadow 0.15s ease",
+              }}
+            >
+              <div>
+                {/* Date, Country & Company Tag */}
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px", flexWrap: "wrap" }}>
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      background: "#f0edff",
+                      color: "#7258e8",
+                      fontSize: "11px",
+                      fontWeight: 800,
+                      padding: "4px 10px",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <CalendarDays size={13} /> {readableDate(row.scheduledAt)}
+                  </span>
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      fontSize: "11px",
+                      fontWeight: 800,
+                      color: "#0f766e",
+                      background: "#f0fdfa",
+                      border: "1px solid #ccfbf1",
+                      padding: "3px 8px",
+                      borderRadius: "6px",
+                    }}
+                  >
+                    {cInfo.flag} {cInfo.name}
+                  </span>
+                  {row.company && (
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        color: "var(--muted)",
+                        background: "#f8fafc",
+                        border: "1px solid var(--line)",
+                        padding: "3px 8px",
+                        borderRadius: "6px",
+                      }}
+                    >
+                      {row.company}
+                    </span>
+                  )}
+                </div>
+
+                {/* Title */}
+                <h3 style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink)", margin: "0 0 6px", lineHeight: 1.35 }}>
+                  {row.title}
+                </h3>
+
+                {/* Profession */}
+                {row.profession && (
+                  <p style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 600, margin: 0 }}>
+                    {row.profession}
+                  </p>
+                )}
+              </div>
+
+              {/* Bottom Actions Bar */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  borderTop: "1px solid var(--line)",
+                  paddingTop: "12px",
+                  gap: "8px",
+                  flexWrap: "wrap",
+                }}
+              >
                 <span
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
                     gap: "5px",
-                    background: "#f0edff",
-                    color: "#7258e8",
-                    fontSize: "11px",
-                    fontWeight: 800,
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    color: "#3b82f6",
+                    background: "#eff6ff",
                     padding: "4px 10px",
                     borderRadius: "8px",
                   }}
                 >
-                  <CalendarDays size={13} /> {readableDate(row.scheduledAt)}
+                  <UsersRound size={14} /> {row._count?.interviews ?? 0} Candidates
                 </span>
-                {(() => {
-                  const cInfo = getScheduleCountry(row);
-                  return (
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "4px",
-                        fontSize: "11px",
-                        fontWeight: 800,
-                        color: "#0f766e",
-                        background: "#f0fdfa",
-                        border: "1px solid #ccfbf1",
-                        padding: "3px 8px",
-                        borderRadius: "6px",
-                      }}
-                    >
-                      {cInfo.flag} {cInfo.name}
-                    </span>
-                  );
-                })()}
-                {row.company && (
-                  <span
-                    style={{
-                      fontSize: "11px",
-                      fontWeight: 700,
-                      color: "var(--muted)",
-                      background: "#f8fafc",
-                      border: "1px solid var(--line)",
-                      padding: "3px 8px",
-                      borderRadius: "6px",
-                    }}
-                  >
-                    {row.company}
-                  </span>
-                )}
-              </div>
 
-              {/* Title */}
-              <h3 style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink)", margin: "0 0 6px", lineHeight: 1.35 }}>
-                {row.title}
-              </h3>
-
-              {/* Profession */}
-              {row.profession && (
-                <p style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 600, margin: 0 }}>
-                  {row.profession}
-                </p>
-              )}
-            </div>
-
-            {/* Bottom Actions Bar */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                borderTop: "1px solid var(--line)",
-                paddingTop: "12px",
-                gap: "8px",
-                flexWrap: "wrap",
-              }}
-            >
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "5px",
-                  fontSize: "12px",
-                  fontWeight: 700,
-                  color: "#3b82f6",
-                  background: "#eff6ff",
-                  padding: "4px 10px",
-                  borderRadius: "8px",
-                }}
-              >
-                <UsersRound size={14} /> {row._count?.interviews ?? 0} Candidates
-              </span>
-
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <Link
-                  prefetch={true}
-                  href={`/module/registration/interview/${row.id}`}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "4px",
-                    padding: "6px 12px",
-                    borderRadius: "8px",
-                    background: "#7258e8",
-                    color: "#fff",
-                    fontSize: "11px",
-                    fontWeight: 700,
-                    textDecoration: "none",
-                    boxShadow: "0 2px 4px rgba(114,88,232,0.2)",
-                  }}
-                >
-                  View details ➔
-                </Link>
-                {canManage && (
-                  <button
-                    type="button"
-                    onClick={() => onEdit(row)}
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <Link
+                    prefetch={true}
+                    href={`/module/registration/interview/${row.id}`}
                     style={{
                       display: "inline-flex",
                       alignItems: "center",
                       gap: "4px",
-                      padding: "6px 10px",
+                      padding: "6px 12px",
                       borderRadius: "8px",
-                      background: "#f1f5f9",
-                      border: "1px solid var(--line)",
-                      color: "var(--ink)",
+                      background: "#7258e8",
+                      color: "#fff",
                       fontSize: "11px",
                       fontWeight: 700,
-                      cursor: "pointer",
+                      textDecoration: "none",
+                      boxShadow: "0 2px 4px rgba(114,88,232,0.2)",
                     }}
-                    title="Edit or Reschedule Interview Drive"
                   >
-                    <Edit size={12} /> Edit
-                  </button>
-                )}
+                    View details ➔
+                  </Link>
+                  {canManage && (
+                    <button
+                      type="button"
+                      onClick={() => onEdit(row)}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        padding: "6px 10px",
+                        borderRadius: "8px",
+                        background: "#f1f5f9",
+                        border: "1px solid var(--line)",
+                        color: "var(--ink)",
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                      title="Edit or Reschedule Interview Drive"
+                    >
+                      <Edit size={12} /> Edit
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          </article>
-        ))}
+            </article>
+          );
+        })}
       </div>
     </section>
   );

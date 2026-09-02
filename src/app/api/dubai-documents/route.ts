@@ -3,7 +3,16 @@ import { AppError, errorResponse } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 
-const categories = ["PC Documents", "Certificate", "Licence", "CV", "BMET Finger", "BMET Training"] as const;
+const categories = [
+  "Passport",
+  "Medical",
+  "Police Clearance",
+  "Skill Certificate",
+  "Driving Licence",
+  "Visa Copy",
+  "BMET Smart Card",
+  "Flight Ticket",
+] as const;
 
 export async function GET(request: Request) {
   try {
@@ -20,100 +29,133 @@ export async function GET(request: Request) {
     const page = Math.max(1, Number(url.searchParams.get("page")) || 1);
     const pageSize = Math.min(100, Math.max(10, Number(url.searchParams.get("pageSize")) || 20));
 
-    const files = await prisma.processingFile.findMany({
-      where: officeScope(session),
-      orderBy: { updatedAt: "desc" },
-      take: 5000,
-      include: {
-        candidate: {
-          include: {
-            educations: true,
-            experiences: true,
+    const isSuperAdmin = session.user.role?.name === "Super Administrator" || (session.user as any).roleKey === "SUPER_ADMIN";
+    const whereScope = isSuperAdmin ? {} : officeScope(session);
+
+    const [files, dbCountries] = await Promise.all([
+      prisma.processingFile.findMany({
+        where: whereScope,
+        orderBy: { updatedAt: "desc" },
+        take: 5000,
+        include: {
+          candidate: {
+            include: {
+              educations: true,
+              experiences: true,
+            },
           },
+          passport: true,
+          police: true,
+          medical: true,
+          mofa: true,
+          takamul: true,
+          biometrics: true,
+          manpower: true,
+          visas: true,
+          companyRecord: true,
+          assignedTo: { select: { name: true } },
+          office: { select: { name: true } },
+          documents: { orderBy: { updatedAt: "desc" } },
         },
-        passport: true,
-        police: true,
-        medical: true,
-        takamul: true,
-        biometrics: true,
-        manpower: true,
-        visas: true,
-        companyRecord: true,
-        assignedTo: { select: { name: true } },
-        office: { select: { name: true } },
-        documents: { orderBy: { updatedAt: "desc" } },
-      },
-    });
+      }),
+      prisma.country.findMany({
+        where: { active: true },
+        orderBy: { name: "asc" },
+      }),
+    ]);
+
+    const activeCountryNames = [
+      ...dbCountries.map((c) => c.name),
+      "Other",
+    ].filter((name, idx, arr) => arr.indexOf(name) === idx);
 
     const rows = files.map((file) => {
       const profession = (file.profession ?? file.candidate.profession ?? "").toLowerCase();
       const docs = file.documents;
-      const rawCountry = file.country || "";
+      const rawCountry = (file.country || "").trim();
       const isDubaiCountry = /dubai|uae|emirates/i.test(rawCountry);
+      const isSaudiCountry = /saudi|ksa/i.test(rawCountry);
+      const isDriver = /driver|driving|heavy|light|operator|chauffeur/i.test(profession);
+      const isUnskilled = /cleaner|labor|helper|domestic|packing/i.test(profession);
 
-      // 1. PC Documents (Police Clearance)
+      // 1. Passport
+      const hasPassport = Boolean(file.passport?.passportNumber || file.candidate?.passportNo);
+      const passportStatus = hasPassport ? "DONE" : "PENDING";
+
+      // 2. Medical
+      const hasMedical =
+        file.medical.length > 0 ||
+        docs.some((d) => /medical/i.test(d.type) && ["UPLOADED", "VERIFIED"].includes(d.status));
+      const medicalStatus = hasMedical ? "DONE" : "PENDING";
+
+      // 3. Police Clearance
       const hasPolice =
         file.police.length > 0 ||
         docs.some((d) => /police|pc document|pcc/i.test(d.type) && ["UPLOADED", "VERIFIED"].includes(d.status));
-      const pcStatus = hasPolice ? "DONE" : isDubaiCountry ? "NO NEED" : "PENDING";
+      const pcStatus = isDubaiCountry ? "NO NEED" : hasPolice ? "DONE" : "PENDING";
 
-      // 2. Certificate
-      const isUnskilled = /cleaner|labor|helper|domestic|packing/i.test(profession);
+      // 4. Skill Certificate (Takamul SVP for Saudi / Trade Cert for Skilled)
       const hasCert =
         docs.some((d) => /certificate|cert|diploma|skill|takamul/i.test(d.type) && ["UPLOADED", "VERIFIED"].includes(d.status)) ||
         file.candidate.educations.length > 0 ||
         file.takamul.some((t) => t.status === "PASSED" || Boolean(t.certificateNumber));
-      const certStatus = hasCert ? "DONE" : isUnskilled ? "NO NEED" : "PENDING";
+      const certStatus = isSaudiCountry ? (hasCert ? "DONE" : "PENDING") : isUnskilled ? "NO NEED" : hasCert ? "DONE" : "PENDING";
 
-      // 3. Licence (Driving / Trade License)
-      const isDriver = /driver|driving|heavy|light|operator|chauffeur/i.test(profession);
+      // 5. Driving Licence
       const hasLicence =
         docs.some((d) => /licen[cs]e/i.test(d.type) && ["UPLOADED", "VERIFIED"].includes(d.status)) ||
         file.candidate.experiences.some((e) => /driver|licen[cs]e/i.test(e.role));
-      const licenceStatus = hasLicence ? "DONE" : isDriver ? "PENDING" : "NO NEED";
+      const licenceStatus = isDriver ? (hasLicence ? "DONE" : "PENDING") : "NO NEED";
 
-      // 4. CV / Bio-data
-      const hasCv =
-        docs.some((d) => /\bcv\b|curriculum|resume|bio/i.test(d.type) && ["UPLOADED", "VERIFIED"].includes(d.status)) ||
-        (Boolean(file.candidate.fullName) && Boolean(file.candidate.phone));
-      const cvStatus = hasCv ? "DONE" : "PENDING";
+      // 6. Visa Copy
+      const hasVisa =
+        file.visas.some((v) => Boolean(v.visaNumber) && v.status !== "Rejected") ||
+        file.mofa.some((m) => m.status === "Approved") ||
+        docs.some((d) => /visa|evisa/i.test(d.type) && ["UPLOADED", "VERIFIED"].includes(d.status));
+      const visaStatus = hasVisa ? "DONE" : "PENDING";
 
-      // 5. BMET Finger (Biometrics)
-      const hasFinger =
-        file.biometrics.some((b) => b.status === "VERIFIED" || Boolean(b.presentDate) || Boolean(b.completedAt)) ||
-        file.takamul.some((t) => t.status === "PASSED" || Boolean(t.certificateNumber)) ||
-        docs.some((d) => /finger|biometric/i.test(d.type) && ["UPLOADED", "VERIFIED"].includes(d.status));
-      const fingerStatus = hasFinger ? "DONE" : "PENDING";
+      // 7. BMET Smart Card
+      const hasManpower =
+        file.manpower.some((m) => Boolean(m.reference) || ["APPROVED", "ISSUED", "SUBMITTED", "Approved", "Issued", "Submitted"].includes(m.status || "")) ||
+        docs.some((d) => /manpower|smartcard/i.test(d.type) && ["UPLOADED", "VERIFIED"].includes(d.status));
+      const manpowerStatus = hasManpower ? "DONE" : "PENDING";
 
-      // 6. BMET Training (Manpower / Orientation)
-      const hasTraining =
-        file.manpower.some((m) => m.status === "ISSUED" || m.status === "APPROVED" || Boolean(m.approvedAt) || Boolean(m.submittedAt)) ||
-        docs.some((d) => /train|bmet.*train|manpower/i.test(d.type) && ["UPLOADED", "VERIFIED"].includes(d.status));
-      const trainingStatus = hasTraining ? "DONE" : "PENDING";
+      // 8. Flight Ticket
+      const hasFlight =
+        file.status === "COMPLETED" ||
+        file.currentStage === "Flight" ||
+        docs.some((d) => /flight|ticket/i.test(d.type) && ["UPLOADED", "VERIFIED"].includes(d.status));
+      const flightStatus = hasFlight ? "DONE" : "PENDING";
 
       const statuses: Record<(typeof categories)[number], "PENDING" | "DONE" | "NO NEED"> = {
-        "PC Documents": pcStatus,
-        Certificate: certStatus,
-        Licence: licenceStatus,
-        CV: cvStatus,
-        "BMET Finger": fingerStatus,
-        "BMET Training": trainingStatus,
+        Passport: passportStatus,
+        Medical: medicalStatus,
+        "Police Clearance": pcStatus,
+        "Skill Certificate": certStatus,
+        "Driving Licence": licenceStatus,
+        "Visa Copy": visaStatus,
+        "BMET Smart Card": manpowerStatus,
+        "Flight Ticket": flightStatus,
       };
 
       const docAttachments: Record<string, string | undefined> = {
-        "PC Documents": docs.find((d) => /police|pc document|pcc/i.test(d.type))?.url || undefined,
-        Certificate: docs.find((d) => /certificate|cert|diploma|skill|takamul/i.test(d.type))?.url || undefined,
-        Licence: docs.find((d) => /licen[cs]e/i.test(d.type))?.url || undefined,
-        CV: docs.find((d) => /\bcv\b|curriculum|resume|bio/i.test(d.type))?.url || undefined,
-        "BMET Finger": docs.find((d) => /finger|biometric/i.test(d.type))?.url || undefined,
-        "BMET Training": docs.find((d) => /train|bmet.*train|manpower/i.test(d.type))?.url || undefined,
+        Passport: docs.find((d) => /passport|pp/i.test(d.type))?.url || undefined,
+        Medical: docs.find((d) => /medical/i.test(d.type))?.url || undefined,
+        "Police Clearance": docs.find((d) => /police|pc document|pcc/i.test(d.type))?.url || undefined,
+        "Skill Certificate": docs.find((d) => /certificate|cert|diploma|skill|takamul/i.test(d.type))?.url || undefined,
+        "Driving Licence": docs.find((d) => /licen[cs]e/i.test(d.type))?.url || undefined,
+        "Visa Copy": docs.find((d) => /visa|evisa/i.test(d.type))?.url || undefined,
+        "BMET Smart Card": docs.find((d) => /manpower|smartcard/i.test(d.type))?.url || undefined,
+        "Flight Ticket": docs.find((d) => /flight|ticket/i.test(d.type))?.url || undefined,
       };
 
-      const normalizedCountry = /saudi|ksa/i.test(rawCountry)
-        ? "Saudi Arabia"
-        : /dubai|uae|emirates/i.test(rawCountry)
-        ? "Dubai"
-        : "Other Country";
+      const matchedDb = dbCountries.find(
+        (c) =>
+          c.name.toLowerCase() === rawCountry.toLowerCase() ||
+          (/saudi/i.test(rawCountry) && /saudi/i.test(c.name)) ||
+          (/dubai|uae/i.test(rawCountry) && /dubai/i.test(c.name))
+      );
+      const normalizedCountry = matchedDb ? matchedDb.name : rawCountry || "Other";
 
       const companyName = file.company || file.companyRecord?.name || file.manpower?.[0]?.company || "Almarai";
       const professionName = file.profession || file.visas?.[0]?.profession || file.candidate?.profession || file.manpower?.[0]?.profession || "General Worker";
@@ -132,6 +174,11 @@ export async function GET(request: Request) {
         office: file.office?.name ?? "Dhaka Head Office",
         company: companyName,
         profession: professionName,
+        currentStage: file.currentStage || "Passport Entry",
+        fileStatus: file.status || "ACTIVE",
+        medicalResult: file.medical?.[0]?.result || null,
+        visaStatus: file.visas?.[0]?.status || null,
+        manpowerStatus: file.manpower?.[0]?.status || null,
         statuses,
         docAttachments,
       };
@@ -148,11 +195,16 @@ export async function GET(request: Request) {
         !selectedCategory ||
         (selectedCategory in row.statuses &&
           (wanted ? row.statuses[selectedCategory as (typeof categories)[number]] === wanted : true));
+      const targetCountry = country.trim().toLowerCase();
       const matchesCountry =
         !country ||
-        country === "All" ||
-        row.country === country ||
-        (country === "Other Country" && row.country === "Other Country");
+        targetCountry === "all" ||
+        targetCountry === "all countries" ||
+        row.country.toLowerCase() === targetCountry ||
+        row.rawCountry.toLowerCase() === targetCountry ||
+        (targetCountry.includes("saudi") && row.country.toLowerCase().includes("saudi")) ||
+        (targetCountry.includes("dubai") && (row.country.toLowerCase().includes("dubai") || row.rawCountry.toLowerCase().includes("dubai"))) ||
+        (targetCountry.includes("other") && !/saudi|dubai|uae|emirates/i.test(row.country));
 
       return matchesQ && matchesStatus && matchesCategory && matchesCountry;
     });
@@ -173,6 +225,9 @@ export async function GET(request: Request) {
       data: filtered.slice(offset, offset + pageSize),
       summary,
       categories,
+      filters: {
+        countries: activeCountryNames,
+      },
       meta: {
         page,
         pageSize,

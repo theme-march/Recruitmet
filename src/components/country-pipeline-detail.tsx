@@ -529,7 +529,7 @@ export function CountryPipelineDetail() {
   const flag = getCountryFlagEmoji(country.code, country.name);
 
   return (
-    <div style={{ padding: "24px 30px", maxWidth: "1400px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "24px" }}>
+    <div style={{ maxWidth: "1400px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "24px" }}>
       {/* 1. TOP BREADCRUMB & BACK BUTTON */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>

@@ -415,7 +415,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
             </button>
 
             <Link
-              href={`${moduleItemPath("call-center", "Create Work Call")}?scheduleId=${scheduleId}`}
+              href={`${moduleItemPath("call-center", "Create Candidate")}?scheduleId=${scheduleId}`}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -430,7 +430,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
                 textDecoration: "none",
               }}
             >
-              <Plus size={14} /> Create Work Call (this schedule)
+              <Plus size={14} /> Create Candidate (this schedule)
             </Link>
 
             <Link
@@ -589,10 +589,10 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
 
               <div style={specCardStyle}>
                 <span style={specLabelStyle}>
-                  <Briefcase size={14} className="text-amber-600" /> Agent Commission
+                  <Briefcase size={14} className="text-amber-600" /> Target Vacancies
                 </span>
                 <b style={specValueStyle}>
-                  {demand?.commission ? `${demand.commission.toLocaleString()} BDT` : "15,000 BDT"}
+                  {demand?.totalVisaQty ? `${demand.totalVisaQty} Persons` : "50 Persons"}
                 </b>
               </div>
 

@@ -23,7 +23,26 @@ import { toast } from "sonner";
 import { DocumentViewerModal, type DocumentViewerData } from "@/components/document-viewer-modal";
 
 type State = "PENDING" | "DONE" | "NO NEED";
-type Category = "PC Documents" | "Certificate" | "Licence" | "CV" | "BMET Finger" | "BMET Training";
+type Category =
+  | "Passport"
+  | "Medical"
+  | "Police Clearance"
+  | "Skill Certificate"
+  | "Driving Licence"
+  | "Visa Copy"
+  | "BMET Smart Card"
+  | "Flight Ticket";
+
+const DEFAULT_CATEGORIES: Category[] = [
+  "Passport",
+  "Medical",
+  "Police Clearance",
+  "Skill Certificate",
+  "Driving Licence",
+  "Visa Copy",
+  "BMET Smart Card",
+  "Flight Ticket",
+];
 
 type Row = {
   id: string;
@@ -38,6 +57,11 @@ type Row = {
   office: string;
   company: string;
   profession: string;
+  currentStage?: string;
+  fileStatus?: string;
+  medicalResult?: string | null;
+  visaStatus?: string | null;
+  manpowerStatus?: string | null;
   statuses: Record<Category, State>;
   docAttachments?: Record<string, string | undefined>;
 };
@@ -46,6 +70,9 @@ type Data = {
   data: Row[];
   summary: Record<Category, Record<State, number>>;
   categories: Category[];
+  filters?: {
+    countries?: string[];
+  };
   meta: {
     page: number;
     pageSize: number;
@@ -55,12 +82,21 @@ type Data = {
   };
 };
 
-const COUNTRIES = [
-  { id: "", label: "All Countries" },
-  { id: "Saudi Arabia", label: "Saudi Arabia" },
-  { id: "Dubai", label: "Dubai" },
-  { id: "Other Country", label: "Other Country" },
-];
+function getCountryFlag(name: string): string {
+  const n = name.toLowerCase();
+  if (n.includes("saudi") || n.includes("ksa")) return "🇸🇦";
+  if (n.includes("dubai") || n.includes("uae") || n.includes("emirates")) return "🇦🇪";
+  if (n.includes("oman")) return "🇴🇲";
+  if (n.includes("malaysia")) return "🇲🇾";
+  if (n.includes("singapore")) return "🇸🇬";
+  if (n.includes("qatar")) return "🇶🇦";
+  if (n.includes("kuwait")) return "🇰🇼";
+  if (n.includes("bahrain")) return "🇧🇭";
+  if (n.includes("romania")) return "🇷🇴";
+  if (n.includes("italy")) return "🇮🇹";
+  if (n.includes("poland")) return "🇵🇱";
+  return "🌍";
+}
 
 export function DubaiDocumentsPage() {
   const [query, setQuery] = useState("");
@@ -91,9 +127,7 @@ export function DubaiDocumentsPage() {
   });
 
   const rows = result.data?.data ?? [];
-  const categories =
-    result.data?.categories ??
-    (["PC Documents", "Certificate", "Licence", "CV", "BMET Finger", "BMET Training"] as Category[]);
+  const categories = result.data?.categories ?? DEFAULT_CATEGORIES;
   const meta = result.data?.meta ?? { page, pageSize, total: 0, totalFiles: 0, totalPages: 1 };
   const summary = (result.data?.summary ?? {}) as Record<Category, Record<State, number> | undefined>;
 
@@ -138,7 +172,7 @@ export function DubaiDocumentsPage() {
   const download = () => {
     const quote = (v: unknown) => `"${String(v ?? "").replaceAll('"', '""')}"`;
     const lines = [
-      ["SL", "File No", "Candidate", "Phone", "Passport", "Country", "Office", "Company", "Profession", ...categories].join(","),
+      ["SL", "File No", "Candidate", "Phone", "Passport", "Country", "Stage", "File Status", "Medical", "Visa", "BMET", ...categories].join(","),
       ...rows.map((row, i) =>
         [
           (page - 1) * pageSize + i + 1,
@@ -147,9 +181,11 @@ export function DubaiDocumentsPage() {
           row.phone,
           row.passport,
           row.country,
-          row.office,
-          row.company,
-          row.profession,
+          row.currentStage || "Passport Entry",
+          row.fileStatus || "ACTIVE",
+          row.medicalResult || "N/A",
+          row.visaStatus || "N/A",
+          row.manpowerStatus || "N/A",
           ...categories.map((c) => row.statuses[c] ?? "PENDING"),
         ]
           .map(quote)
@@ -210,11 +246,18 @@ export function DubaiDocumentsPage() {
           marginBottom: "16px",
         }}
       >
-        {COUNTRIES.map((c) => {
+        {[
+          { id: "", label: "All Countries", flag: "🌍" },
+          ...(result.data?.filters?.countries || ["Saudi Arabia", "Dubai", "Other"]).map((cName) => ({
+            id: cName,
+            label: cName,
+            flag: getCountryFlag(cName),
+          })),
+        ].map((c) => {
           const isSelected = country === c.id;
           return (
             <button
-              key={c.id}
+              key={c.id || "all"}
               type="button"
               onClick={() => {
                 setCountry(c.id);
@@ -238,7 +281,7 @@ export function DubaiDocumentsPage() {
                 boxShadow: isSelected ? "0 2px 8px rgba(114,88,232,0.25)" : "none",
               }}
             >
-              <Globe2 size={14} opacity={isSelected ? 1 : 0.6} /> {c.label}
+              <span style={{ fontSize: "13px" }}>{c.flag}</span> {c.label}
             </button>
           );
         })}
@@ -525,8 +568,8 @@ export function DubaiDocumentsPage() {
               <tr style={{ background: "#f8fafc", borderBottom: "1px solid var(--line)", color: "var(--muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                 <th style={{ padding: "12px 14px", width: "50px" }}>SL</th>
                 <th style={{ padding: "12px 14px" }}>Client Information</th>
-                <th style={{ padding: "12px 14px" }}>Office &amp; Officer</th>
-                <th style={{ padding: "12px 14px" }}>Company &amp; Trade</th>
+                <th style={{ padding: "12px 14px" }}>Recruitment Stage</th>
+                <th style={{ padding: "12px 14px" }}>File &amp; Process Status</th>
                 {categories.map((c) => (
                   <th key={c} style={{ padding: "12px 10px", textAlign: "center" }}>
                     {c}
@@ -551,29 +594,136 @@ export function DubaiDocumentsPage() {
                   </td>
 
                   <td style={{ padding: "12px 14px" }}>
-                    <Link
-                      prefetch={true}
-                      href={`/file/${row.id}`}
-                      style={{ fontWeight: 800, color: "var(--ink)", fontSize: "13px", textDecoration: "none" }}
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <div
+                        style={{
+                          width: "34px",
+                          height: "34px",
+                          borderRadius: "50%",
+                          background: "#f0edff",
+                          color: "#7258e8",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontWeight: 800,
+                          fontSize: "12px",
+                          flexShrink: 0,
+                          border: "1px solid #e0d9fc",
+                        }}
+                      >
+                        {row.name.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div>
+                        <Link
+                          prefetch={true}
+                          href={`/file/${row.id}`}
+                          style={{ fontWeight: 800, color: "var(--ink)", fontSize: "13px", textDecoration: "none" }}
+                        >
+                          {row.name}
+                        </Link>
+                        <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                          <span>📞 {row.phone}</span>
+                          <span>·</span>
+                          <span>{getCountryFlag(row.country)} <b>{row.country}</b></span>
+                          {row.profession && (
+                            <span style={{ fontSize: "10px", fontWeight: 700, padding: "1px 5px", borderRadius: "4px", background: "#f1f5f9", color: "#475569" }}>
+                              {row.profession}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: "11px", color: "#7258e8", marginTop: "1px" }}>
+                          File: <Link prefetch={true} href={`/file/${row.id}`} style={{ fontWeight: 700, textDecoration: "underline" }}>{row.fileNo}</Link> · PP: {row.passport}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+
+                  {/* Recruitment Stage */}
+                  <td style={{ padding: "12px 14px" }}>
+                    <div
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        padding: "3px 8px",
+                        borderRadius: "6px",
+                        fontSize: "11px",
+                        fontWeight: 800,
+                        background: "#ecfdf5",
+                        color: "#047857",
+                        border: "1px solid #a7f3d0",
+                        whiteSpace: "nowrap",
+                      }}
                     >
-                      {row.name}
-                    </Link>
-                    <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>
-                      Phone: <b>{row.phone}</b> · Country: <b>{row.country}</b>
-                    </div>
-                    <div style={{ fontSize: "11px", color: "#7258e8", marginTop: "1px" }}>
-                      File: <Link prefetch={true} href={`/file/${row.id}`} style={{ fontWeight: 700, textDecoration: "underline" }}>{row.fileNo}</Link> · PP: {row.passport}
+                      <CheckCircle2 size={12} /> {row.currentStage || "Passport Entry"}
                     </div>
                   </td>
 
+                  {/* File & Process Action Statuses */}
                   <td style={{ padding: "12px 14px" }}>
-                    <div style={{ fontWeight: 700, color: "var(--ink)" }}>{row.office}</div>
-                    <div style={{ fontSize: "11px", color: "var(--muted)" }}>{row.officer}</div>
-                  </td>
-
-                  <td style={{ padding: "12px 14px" }}>
-                    <div style={{ fontWeight: 700, color: "var(--ink)" }}>{row.company}</div>
-                    <div style={{ fontSize: "11px", color: "var(--muted)" }}>{row.profession}</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", maxWidth: "200px" }}>
+                      {row.medicalResult && (
+                        <span
+                          style={{
+                            fontSize: "10px",
+                            fontWeight: 700,
+                            padding: "2px 6px",
+                            borderRadius: "4px",
+                            background: /fit/i.test(row.medicalResult) ? "#f0fdf4" : "#fef2f2",
+                            color: /fit/i.test(row.medicalResult) ? "#166534" : "#991b1b",
+                            border: `1px solid ${/fit/i.test(row.medicalResult) ? "#bbf7d0" : "#fecaca"}`,
+                          }}
+                        >
+                          Med: {row.medicalResult}
+                        </span>
+                      )}
+                      {row.visaStatus && (
+                        <span
+                          style={{
+                            fontSize: "10px",
+                            fontWeight: 700,
+                            padding: "2px 6px",
+                            borderRadius: "4px",
+                            background: "#eff6ff",
+                            color: "#1e40af",
+                            border: "1px solid #bfdbfe",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {/visa/i.test(row.visaStatus) ? row.visaStatus : `Visa: ${row.visaStatus}`}
+                        </span>
+                      )}
+                      {row.manpowerStatus && (
+                        <span
+                          style={{
+                            fontSize: "10px",
+                            fontWeight: 700,
+                            padding: "2px 6px",
+                            borderRadius: "4px",
+                            background: "#fffbeb",
+                            color: "#92400e",
+                            border: "1px solid #fde68a",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          BMET: {row.manpowerStatus}
+                        </span>
+                      )}
+                      <span
+                        style={{
+                          fontSize: "10px",
+                          fontWeight: 700,
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          background: row.fileStatus === "COMPLETED" ? "#f5f3ff" : "#f0fdf4",
+                          color: row.fileStatus === "COMPLETED" ? "#6d28d9" : "#166534",
+                          border: `1px solid ${row.fileStatus === "COMPLETED" ? "#ddd6fe" : "#bbf7d0"}`,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {row.fileStatus || "ACTIVE"}
+                      </span>
+                    </div>
                   </td>
 
                   {/* Interactive Dynamic Document Status Badges */}

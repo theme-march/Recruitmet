@@ -13,7 +13,7 @@ export async function GET() {
     const scope = officeScope(session);
 
     // Live counts for all country pipelines and call center
-    const [ksaFiles, dubaiFiles, otherFiles, workCalls, interviews, demands, agentsCount, countriesCount] = await Promise.all([
+    const [ksaFiles, dubaiFiles, otherFiles, workCalls, interviews, demands, agentsCount, countriesCount, totalCandidatesCount] = await Promise.all([
       prisma.processingFile.findMany({
         where: { ...scope, country: { contains: "Saudi" } },
         select: {
@@ -59,6 +59,7 @@ export async function GET() {
       prisma.demand.count(),
       prisma.agent.count(),
       prisma.country.count({ where: { active: true } }),
+      prisma.candidate.count({ where: scope }),
     ]);
 
     type FileRecord = (typeof ksaFiles)[number];
@@ -124,7 +125,7 @@ export async function GET() {
     return NextResponse.json({
       data: {
         "call-center": {
-          "Create Work Call": workCalls,
+          "Candidate List": totalCandidatesCount,
           "Registration & interviews": interviews,
         },
         "ksa": computeKsa(),

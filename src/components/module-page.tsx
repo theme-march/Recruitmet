@@ -11,6 +11,11 @@ const CreateWorkCallPage = dynamic(
   { loading: () => <ComponentSkeleton /> }
 );
 
+const AllCandidatesListPage = dynamic(
+  () => import("@/components/all-candidates-list-page").then((mod) => mod.AllCandidatesListPage),
+  { loading: () => <ComponentSkeleton /> }
+);
+
 const CountryCandidatesListPage = dynamic(
   () => import("@/components/country-candidates-list-page").then((mod) => mod.CountryCandidatesListPage),
   { loading: () => <ComponentSkeleton /> }
@@ -159,12 +164,13 @@ export async function ModulePage({ moduleId, initialTab }: { moduleId: string; i
 }
 
 function renderModuleContent(moduleId: string, initialTab: string, officerName: string) {
-  // Call Center module routes
-  if (moduleId === "call-center") {
-    if (initialTab === "Create Work Call") return <CreateWorkCallPage officerName={officerName} />;
-    if (initialTab === "Work Call List") return <WorkCallListPage />;
+  // Call Center / Candidates module routes
+  if (moduleId === "call-center" || moduleId === "candidates") {
+    if (initialTab === "Create Candidate" || initialTab === "Create Work Call") return <CreateWorkCallPage officerName={officerName} />;
+    if (initialTab === "Candidate List" || initialTab === "Candidates List" || initialTab === "All Candidates" || initialTab === "Work Call List") return <AllCandidatesListPage />;
     if (initialTab === "Officer Dashboard") return <OfficerDashboardPage />;
     if (initialTab === "Registration & interviews" || initialTab === "Registration & Interviews") return <InterviewListPage />;
+    return <AllCandidatesListPage />;
   }
 
   // Office & Vendor module routes

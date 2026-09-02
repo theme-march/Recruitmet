@@ -205,6 +205,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="app-shell">
+      {open && <div className="sidebar-backdrop" onClick={() => setOpen(false)} />}
       <aside className={`sidebar ${open ? "sidebar-open" : ""}`}>
         <div className="brand">
           <span className="brand-mark"><Users size={20} /></span>
@@ -277,6 +278,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   {module.items.map((item) => {
                     const itemActive = activeModule && selectedPage === moduleItemSlug(item.label);
                     const count = navCounts[module.id]?.[item.label] ?? 0;
+                    const isActionItem = /^(create|add|new|register\s*$)/i.test(item.label.trim());
                     return (
                       <Link
                         key={item.label}
@@ -288,7 +290,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         <span className="nav-child-label">
                           <i /> <span>{item.label}</span>
                         </span>
-                        <span className="nav-badge">{count}</span>
+                        {!isActionItem && <span className="nav-badge">{count}</span>}
                       </Link>
                     );
                   })}

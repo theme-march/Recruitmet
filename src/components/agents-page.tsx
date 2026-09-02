@@ -42,7 +42,7 @@ type AgentItem = {
   country: string;
   district: string;
   status: "Active" | "Inactive" | "Blocked";
-  commissionRate: string;
+  commissionRate?: string;
   agreementKey: string;
   totalCandidates: number;
   activeDossiers: number;
@@ -81,7 +81,7 @@ type AgentDetail = {
   country: string;
   district: string;
   status: "Active" | "Inactive" | "Blocked";
-  commissionRate: string;
+  commissionRate?: string;
   agreementKey: string;
   hasPortalAccess?: boolean;
   portalLoginEmail?: string | null;
@@ -170,7 +170,6 @@ export function AgentsPage() {
         email: String(form.get("email") || "").trim() || undefined,
         country: String(form.get("district") || "").trim() || "Dhaka",
         address: String(form.get("address") || "").trim() || undefined,
-        commissionRate: String(form.get("commissionRate") || "").trim() || undefined,
         agreementKey: String(form.get("agreementKey") || "").trim() || undefined,
         status: String(form.get("status") || "Active"),
         enablePortalLogin: createPortalLogin,
@@ -213,7 +212,6 @@ export function AgentsPage() {
         email: String(form.get("email") || "").trim() || null,
         country: String(form.get("district") || "").trim() || "Dhaka",
         address: String(form.get("address") || "").trim() || null,
-        commissionRate: String(form.get("commissionRate") || "").trim() || "Standard",
         agreementKey: String(form.get("agreementKey") || "").trim() || null,
         status: String(form.get("status") || "Active"),
         enablePortalLogin: editPortalLogin,
@@ -368,10 +366,8 @@ export function AgentsPage() {
 
       {/* 2. Orbit 4 Metric Stats Cards */}
       <div
+        className="responsive-kpi-grid"
         style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-          gap: "14px",
           marginBottom: "24px",
         }}
       >
@@ -614,9 +610,6 @@ export function AgentsPage() {
                 <th style={{ padding: "14px 14px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px", textAlign: "center" }}>
                   Referred Candidates
                 </th>
-                <th style={{ padding: "14px 14px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px" }}>
-                  Commission Rate
-                </th>
                 <th style={{ padding: "14px 14px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px", textAlign: "center" }}>
                   Status
                 </th>
@@ -628,13 +621,13 @@ export function AgentsPage() {
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={9} style={{ padding: "40px", textAlign: "center", color: "var(--muted)" }}>
+                  <td colSpan={8} style={{ padding: "40px", textAlign: "center", color: "var(--muted)" }}>
                     Loading agent network...
                   </td>
                 </tr>
               ) : agentsList.length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={{ padding: "40px", textAlign: "center", color: "var(--muted)" }}>
+                  <td colSpan={8} style={{ padding: "40px", textAlign: "center", color: "var(--muted)" }}>
                     No agent partners found matching your search.
                   </td>
                 </tr>
@@ -767,10 +760,6 @@ export function AgentsPage() {
                         >
                           <Users size={12} /> {agent.totalCandidates} Candidates
                         </Link>
-                      </td>
-
-                      <td style={{ padding: "14px", color: "var(--ink)", fontWeight: 700 }}>
-                        {agent.commissionRate}
                       </td>
 
                       <td style={{ padding: "14px", textAlign: "center" }}>
@@ -1053,51 +1042,11 @@ export function AgentsPage() {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                   <div>
                     <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "var(--ink)", marginBottom: "5px" }}>
-                      Commission Rate (BDT)
-                    </label>
-                    <input
-                      name="commissionRate"
-                      defaultValue="৳ 25,000 / candidate"
-                      placeholder="e.g. ৳ 25,000 / candidate"
-                      style={{
-                        width: "100%",
-                        height: "40px",
-                        borderRadius: "8px",
-                        border: "1px solid #cbd5e1",
-                        padding: "0 12px",
-                        fontSize: "13px",
-                        outline: "none",
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "var(--ink)", marginBottom: "5px" }}>
                       Agreement Reference / Key
                     </label>
                     <input
                       name="agreementKey"
                       placeholder="e.g. AGR-2026-005"
-                      style={{
-                        width: "100%",
-                        height: "40px",
-                        borderRadius: "8px",
-                        border: "1px solid #cbd5e1",
-                        padding: "0 12px",
-                        fontSize: "13px",
-                        outline: "none",
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "12px" }}>
-                  <div>
-                    <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "var(--ink)", marginBottom: "5px" }}>
-                      Office Address
-                    </label>
-                    <input
-                      name="address"
-                      placeholder="e.g. Suite 402, Paltan Tower, Dhaka"
                       style={{
                         width: "100%",
                         height: "40px",
@@ -1134,6 +1083,25 @@ export function AgentsPage() {
                       <option value="Blocked">Blocked</option>
                     </select>
                   </div>
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "var(--ink)", marginBottom: "5px" }}>
+                    Office Address
+                  </label>
+                  <input
+                    name="address"
+                    placeholder="e.g. Suite 402, Paltan Tower, Dhaka"
+                    style={{
+                      width: "100%",
+                      height: "40px",
+                      borderRadius: "8px",
+                      border: "1px solid #cbd5e1",
+                      padding: "0 12px",
+                      fontSize: "13px",
+                      outline: "none",
+                    }}
+                  />
                 </div>
 
                 {/* 🔐 AGENT PORTAL LOGIN CREDENTIALS */}
@@ -1696,24 +1664,6 @@ export function AgentsPage() {
                           />
                         </div>
 
-                        <div>
-                          <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "var(--ink)", marginBottom: "5px" }}>
-                            Commission Rate
-                          </label>
-                          <input
-                            name="commissionRate"
-                            defaultValue={agentDetailQuery.data.commissionRate}
-                            style={{
-                              width: "100%",
-                              height: "40px",
-                              borderRadius: "8px",
-                              border: "1px solid #cbd5e1",
-                              padding: "0 12px",
-                              fontSize: "13px",
-                              outline: "none",
-                            }}
-                          />
-                        </div>
                         <div>
                           <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "var(--ink)", marginBottom: "5px" }}>
                             Agreement Reference / Key
