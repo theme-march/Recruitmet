@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { revalidatePath } from "next/cache";
 import { can } from "@/lib/authorization";
 import { AppError, errorResponse } from "@/lib/errors";
 import { pageResult, parsePagination } from "@/lib/pagination";
@@ -107,6 +108,8 @@ export async function POST(request: Request) {
       throw new AppError("FORBIDDEN", "Permission required to create interview drives. Please contact a Super Administrator.", 403);
     }
     const schedule = await createInterviewSchedule(schema.parse(await request.json()), session);
+    revalidatePath("/interviews");
+    revalidatePath("/dashboard");
     return Response.json({ data: schedule }, { status: 201 });
   } catch (error) {
     return errorResponse(error);

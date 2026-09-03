@@ -1,9 +1,19 @@
 import "server-only";
+import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import type { AwaitedSession } from "@/lib/types";
 import { toAppRole } from "@/lib/roles";
 
-export async function can(session: AwaitedSession, module: string, action = "*", _page = "*"): Promise<boolean> {
+/**
+ * Request-memoized authorization check (React.cache)
+ * Reuses permission query results within a single server rendering pass.
+ */
+export const can = cache(async function can(
+  session: AwaitedSession,
+  module: string,
+  action = "*",
+  _page = "*"
+): Promise<boolean> {
   if (!session) return false;
 
   // Super Administrator has all permissions
@@ -76,7 +86,7 @@ export async function can(session: AwaitedSession, module: string, action = "*",
   });
 
   return Boolean(matchingRolePermission);
-}
+});
 
 export function officeScope(session: AwaitedSession) {
   if (!session || !session.user.officeId) return {};

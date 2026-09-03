@@ -122,26 +122,33 @@ export async function GET() {
     });
 
 
-    return NextResponse.json({
-      data: {
-        "call-center": {
-          "Candidate List": totalCandidatesCount,
-          "Registration & interviews": interviews,
-        },
-        "ksa": computeKsa(),
-        "dubai": computeDubai(),
-        "other-country": computeOther(),
-        "office-vendor": {
-          "Works & Demands": demands,
-        },
-        "agents": {
-          "Agent List": agentsCount,
-        },
-        "country-setup": {
-          "Destination Countries": countriesCount,
+    return NextResponse.json(
+      {
+        data: {
+          "call-center": {
+            "Candidate List": totalCandidatesCount,
+            "Registration & interviews": interviews,
+          },
+          "ksa": computeKsa(),
+          "dubai": computeDubai(),
+          "other-country": computeOther(),
+          "office-vendor": {
+            "Works & Demands": demands,
+          },
+          "agents": {
+            "Agent List": agentsCount,
+          },
+          "country-setup": {
+            "Destination Countries": countriesCount,
+          },
         },
       },
-    });
+      {
+        headers: {
+          "Cache-Control": "private, max-age=15, stale-while-revalidate=45",
+        },
+      }
+    );
   } catch (error) {
     console.error("Error loading nav counts:", error);
     return NextResponse.json({ data: {} }, { status: 500 });

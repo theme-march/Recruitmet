@@ -1,5 +1,5 @@
 import { connection } from "next/server";
-import { ControlPlanePage } from "@/components/control-plane-page";
+import { ControlPlanePage } from "@/components/modules/control-plane-page";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/role-guard";
 

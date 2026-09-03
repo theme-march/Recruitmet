@@ -1,8 +1,26 @@
+import type { Metadata } from "next";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
-import { AgentProfileDetail } from "@/components/agent-profile-detail";
+import { AgentProfileDetail } from "@/components/modules/agent-profile-detail";
 import { toAppRole } from "@/lib/roles";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const agent = await prisma.agent.findFirst({
+    where: { OR: [{ id }, { code: id }] },
+    select: { name: true, code: true },
+  });
+
+  return {
+    title: agent ? `Agent: ${agent.name} (${agent.code}) | Orbit Overseas` : "Agent Dossier | Orbit Overseas",
+  };
+}
 
 export default async function AgentPage({
   params,

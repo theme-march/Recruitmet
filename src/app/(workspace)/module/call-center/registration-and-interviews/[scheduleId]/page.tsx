@@ -1,4 +1,4 @@
-import { InterviewDetailPage } from "@/components/interview-detail-page";
+import { InterviewDetailPage } from "@/components/modules/interview-detail-page";
 import { getSession } from "@/lib/session";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";

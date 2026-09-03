@@ -1,4 +1,4 @@
-import { ModulePage } from "@/components/module-page";
+import { ModulePage } from "@/components/modules/module-page";
 import { getModule, getModuleItemBySlug } from "@/lib/modules";
 import { notFound } from "next/navigation";
 

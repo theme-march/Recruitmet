@@ -92,9 +92,9 @@ function matchesCountryName(countryName: string, countryCode: string, targetName
 }
 
     // 4. Fetch all country workflow stages directly from DB
-    const allWorkflowStages = (await prisma.$queryRawUnsafe(
-      "SELECT * FROM CountryWorkflowStage ORDER BY sortOrder ASC"
-    ).catch(() => [])) as any[];
+    const allWorkflowStages = (await prisma.countryWorkflowStage.findMany({
+      orderBy: { sortOrder: "asc" },
+    }).catch(() => [])) as any[];
 
     const enriched = countries.map((country) => {
       let matchedCount = 0;
@@ -158,7 +158,14 @@ function matchesCountryName(countryName: string, countryCode: string, targetName
       };
     });
 
-    return NextResponse.json({ success: true, data: enriched });
+    return NextResponse.json(
+      { success: true, data: enriched },
+      {
+        headers: {
+          "Cache-Control": "public, max-age=60, stale-while-revalidate=300",
+        },
+      }
+    );
   } catch (error: any) {
     console.error("GET /api/countries error:", error);
     return NextResponse.json({ success: false, error: error.message || "Failed to load countries" }, { status: 500 });
@@ -203,21 +210,20 @@ export async function POST(req: Request) {
     const defaultStages = getDefaultStagesForCountry(newCountry.name, newCountry.workflowType);
     for (let idx = 0; idx < defaultStages.length; idx++) {
       const s = defaultStages[idx];
-      const stageId = `stage-${Date.now()}-${idx + 1}-${Math.random().toString(36).slice(2, 6)}`;
-      await prisma.$executeRawUnsafe(
-        "INSERT INTO CountryWorkflowStage (id, countryId, code, name, subtitle, description, icon, isCustom, sortOrder, active, terminal) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        stageId,
-        newCountry.id,
-        s.code,
-        s.label,
-        s.subtitle || "",
-        s.description || "",
-        s.iconName || "FileText",
-        0,
-        idx + 1,
-        s.active ? 1 : 0,
-        s.code === "FLIGHT" ? 1 : 0
-      ).catch(() => {});
+      await prisma.countryWorkflowStage.create({
+        data: {
+          countryId: newCountry.id,
+          code: s.code,
+          name: s.label,
+          subtitle: s.subtitle || "",
+          description: s.description || "",
+          icon: s.iconName || "FileText",
+          isCustom: false,
+          sortOrder: idx + 1,
+          active: Boolean(s.active),
+          terminal: s.code === "FLIGHT",
+        },
+      }).catch(() => {});
     }
 
     return NextResponse.json({ success: true, data: newCountry, message: `Country "${newCountry.name}" created successfully` }, { status: 201 });
@@ -269,14 +275,11 @@ export async function PATCH(req: Request) {
       data: updateData,
     });
 
-    // If stages provided, replace countryWorkflowStage records using reliable raw SQL
+    // If stages provided, replace countryWorkflowStage records
     if (Array.isArray(stages)) {
-      await prisma.$executeRawUnsafe("DELETE FROM CountryWorkflowStage WHERE countryId = ?", id);
+      await prisma.countryWorkflowStage.deleteMany({ where: { countryId: id } });
       for (let idx = 0; idx < stages.length; idx++) {
         const st = stages[idx];
-        const stageId = st.id && !String(st.id).startsWith("def-")
-          ? String(st.id)
-          : `stage-${Date.now()}-${idx + 1}-${Math.random().toString(36).slice(2, 6)}`;
         const code = String(st.code || `STAGE_${idx + 1}`);
         const stageName = String(st.name || st.label || "Stage");
         const subtitle = String(st.subtitle || "");
@@ -284,25 +287,25 @@ export async function PATCH(req: Request) {
           ? JSON.stringify(st.description)
           : String(st.description || "");
         const icon = String(st.icon || st.iconName || "FileText");
-        const isCustom = st.isCustom ? 1 : 0;
+        const isCustom = Boolean(st.isCustom);
         const sortOrder = idx + 1;
-        const activeVal = st.active ? 1 : 0;
-        const terminal = code === "FLIGHT" ? 1 : 0;
+        const activeVal = Boolean(st.active);
+        const terminal = code === "FLIGHT";
 
-        await prisma.$executeRawUnsafe(
-          "INSERT INTO CountryWorkflowStage (id, countryId, code, name, subtitle, description, icon, isCustom, sortOrder, active, terminal) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-          stageId,
-          id,
-          code,
-          stageName,
-          subtitle,
-          description,
-          icon,
-          isCustom,
-          sortOrder,
-          activeVal,
-          terminal
-        );
+        await prisma.countryWorkflowStage.create({
+          data: {
+            countryId: id,
+            code,
+            name: stageName,
+            subtitle,
+            description,
+            icon,
+            isCustom,
+            sortOrder,
+            active: activeVal,
+            terminal,
+          },
+        }).catch((err) => console.warn("Stage create error:", err));
       }
     }
 

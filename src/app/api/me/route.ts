@@ -46,29 +46,36 @@ export async function GET() {
       }
     }
 
-    return Response.json({
-      data: {
-        name: session.user.name,
-        email: session.user.email,
-        role: roleLabel(roleKey),
-        roleKey,
-        home: roleHome(roleKey),
-        office: session.user.office?.name ?? null,
-        agentId: session.user.agentId ?? null,
-        unreadNotifications,
-        allowedModules,
-        permissions: {
-          canManageDemands,
-          canCreateDemands,
-          canEditDemands,
-          canDeleteDemands,
-          canManageInterviews,
-          canCreateInterviews,
-          canEditInterviews,
-          canDeleteInterviews,
+    return Response.json(
+      {
+        data: {
+          name: session.user.name,
+          email: session.user.email,
+          role: roleLabel(roleKey),
+          roleKey,
+          home: roleHome(roleKey),
+          office: session.user.office?.name ?? null,
+          agentId: session.user.agentId ?? null,
+          unreadNotifications,
+          allowedModules,
+          permissions: {
+            canManageDemands,
+            canCreateDemands,
+            canEditDemands,
+            canDeleteDemands,
+            canManageInterviews,
+            canCreateInterviews,
+            canEditInterviews,
+            canDeleteInterviews,
+          },
         },
       },
-    });
+      {
+        headers: {
+          "Cache-Control": "private, max-age=30, stale-while-revalidate=60",
+        },
+      }
+    );
   } catch (error) {
     return errorResponse(error);
   }

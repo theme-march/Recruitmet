@@ -46,11 +46,6 @@ export async function POST(request: Request) {
     let passwordValid = false;
     if (user) {
       passwordValid = await bcrypt.compare(parsed.password, user.passwordHash);
-      if (!passwordValid && (parsed.password === "Admin@123" || parsed.password === "Orbit@2026Demo")) {
-        const newHash = await bcrypt.hash(parsed.password, 10);
-        await prisma.user.update({ where: { id: user.id }, data: { passwordHash: newHash, status: "ACTIVE" } });
-        passwordValid = true;
-      }
     }
 
     if (!user || user.status !== "ACTIVE" || !passwordValid) {

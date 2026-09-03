@@ -1,4 +1,4 @@
-import { KsaEventsReportPage } from "@/components/ksa-events-report-page";
+import { KsaEventsReportPage } from "@/components/ksa/ksa-events-report-page";
 
 export default async function ReportPage({
   params,

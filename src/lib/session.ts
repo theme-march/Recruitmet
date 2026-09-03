@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 import { createHash } from "node:crypto";
@@ -21,11 +22,18 @@ export async function verifySessionToken(token?: string) {
 
 export const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 
-export async function getSession() {
+/**
+ * Request-memoized session retriever (React.cache)
+ * Prevents duplicate cookie lookups and database queries across layouts, pages, and metadata.
+ */
+export const getSession = cache(async () => {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   const payload = await verifySessionToken(token);
   if (!payload || !token) return null;
-  const session = await prisma.session.findUnique({ where: { tokenHash: hashToken(token) }, include: { user: { include: { role: true, office: true } } } });
+  const session = await prisma.session.findUnique({
+    where: { tokenHash: hashToken(token) },
+    include: { user: { include: { role: true, office: true } } },
+  });
   if (!session || session.expiresAt < new Date() || session.user.status !== "ACTIVE") return null;
   return session;
-}
+});

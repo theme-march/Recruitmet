@@ -1,7 +1,7 @@
 import { connection } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/role-guard";
-import { SuperAdminInterviewView } from "@/components/super-admin-interview-view";
+import { SuperAdminInterviewView } from "@/components/modules/super-admin-interview-view";
 
 export default async function SuperAdminInterviewsPage() {
   await connection();

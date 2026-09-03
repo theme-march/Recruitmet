@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { z } from "zod";
@@ -400,6 +401,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         reason: reason || "Stage updated by officer",
         session,
       });
+      revalidatePath(`/file/${id}`);
+      revalidatePath("/candidates");
+      revalidatePath("/dashboard");
       return NextResponse.json({ ok: true, data: updated });
     }
 
@@ -1194,6 +1198,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           },
         });
       }
+
+      revalidatePath(`/file/${id}`);
+      revalidatePath("/candidates");
+      revalidatePath("/dashboard");
 
       return NextResponse.json({
         ok: true,

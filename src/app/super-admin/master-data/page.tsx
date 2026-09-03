@@ -1,7 +1,7 @@
 import { connection } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/role-guard";
-import { SuperAdminMasterView } from "@/components/super-admin-master-view";
+import { SuperAdminMasterView } from "@/components/modules/super-admin-master-view";
 
 export default async function SuperAdminMasterDataPage() {
   await connection();

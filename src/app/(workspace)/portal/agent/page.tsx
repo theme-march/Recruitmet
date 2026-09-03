@@ -1,8 +1,14 @@
+import type { Metadata } from "next";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { AgentPortalView } from "@/components/agent-portal-view";
+import { AgentPortalView } from "@/components/modules/agent-portal-view";
+
+export const metadata: Metadata = {
+  title: "Agent Partner Portal | Orbit Overseas",
+  description: "Live candidate submissions, commission ledger, and file processing status",
+};
 
 export default async function AgentPortalPage({
   searchParams,

@@ -1,8 +1,16 @@
+import type { Metadata } from "next";
+import { Suspense } from "react";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
-import { Dashboard, type DashboardData, type ActiveCountryCard } from "@/components/dashboard";
+import { Dashboard, type DashboardData, type ActiveCountryCard } from "@/components/modules/dashboard";
+import DashboardLoading from "./loading";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
+
+export const metadata: Metadata = {
+  title: "Dashboard & Live Operations | Orbit Recruitment OS",
+  description: "Executive analytics, candidate pipeline counts, and deployment metrics",
+};
 
 const FLAG_MAP: Record<string, string> = {
   sa: "🇸🇦",
@@ -82,9 +90,8 @@ function matchesCountry(countryName: string, countryCode: string, targetCountry:
   return tn === cn || tn === code || tn.includes(cn) || cn.includes(tn);
 }
 
-export default async function Page() {
-  await connection();
-  const session = await getSession();
+async function DashboardDataLoader({ sessionPromise }: { sessionPromise: ReturnType<typeof getSession> }) {
+  const session = await sessionPromise;
   if (!session) redirect("/login");
 
   const startOfToday = new Date();
@@ -413,6 +420,17 @@ export default async function Page() {
   };
 
   return <Dashboard data={data} />;
+}
+
+export default async function Page() {
+  await connection();
+  const sessionPromise = getSession();
+
+  return (
+    <Suspense fallback={<DashboardLoading />}>
+      <DashboardDataLoader sessionPromise={sessionPromise} />
+    </Suspense>
+  );
 }
 
 
