@@ -1,8 +1,10 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("admin/stats", GETHandler);
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { AppError, errorResponse } from "@/lib/errors";
 
-export async function GET() {
+async function GETHandler() {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);

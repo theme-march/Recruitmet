@@ -1,3 +1,5 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("ksa/passports", GETHandler);
 import { can, officeScope } from "@/lib/authorization";
 import { AppError, errorResponse } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
@@ -12,7 +14,7 @@ const dateIn = (date: Date | null | undefined, from: string, to: string) => !fro
 const yesNo = (value: boolean, expected: string) => !expected || value === /yes|done|true/i.test(expected);
 const unique = (values: Array<string | null | undefined>) => [...new Set(values.filter((v): v is string => !!v))].sort();
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);

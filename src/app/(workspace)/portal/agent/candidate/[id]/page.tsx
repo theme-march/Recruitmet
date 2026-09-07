@@ -10,15 +10,7 @@ export async function generateMetadata({
 }: {
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
-  const { id } = await params;
-  const file = await prisma.processingFile.findFirst({
-    where: { OR: [{ id }, { fileNo: id }] },
-    select: { fileNo: true, candidate: { select: { fullName: true } } },
-  });
-
-  return {
-    title: file ? `Dossier: ${file.candidate.fullName} (${file.fileNo}) | Agent Portal` : "Candidate Dossier | Agent Portal",
-  };
+  return { title: "Candidate Dossier | Agent Portal" };
 }
 
 export default async function CandidateDossierPortalPage({

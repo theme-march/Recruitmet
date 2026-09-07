@@ -1,3 +1,5 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("ksa/visa-hold", GETHandler);
 import { can, officeScope } from "@/lib/authorization";
 import { AppError, errorResponse } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
@@ -7,7 +9,7 @@ import { workflowCountryWhere, workflowModule } from "@/lib/workflow-country";
 const start = (value: string) => value ? new Date(`${value}T00:00:00`) : null;
 const end = (value: string) => value ? new Date(`${value}T23:59:59.999`) : null;
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   try {
 const session = await getSession(); if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401); if (!(await can(session, workflowModule(request), "View"))) throw new AppError("FORBIDDEN", "View permission is required.", 403);
     const url = new URL(request.url); const p = (key: string) => (url.searchParams.get(key) ?? "").trim(); const page = Math.max(1, Number(p("page")) || 1); const pageSize = Math.min(100, Math.max(10, Number(p("pageSize")) || 25));

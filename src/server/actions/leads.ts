@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requirePermission, requireSuperAdmin } from "@/lib/authorization";
 import { getSession } from "@/lib/session";
 import { createLead, convertLead } from "@/features/leads/service";
 import { leadCreateSchema } from "@/features/leads/schemas";
@@ -19,6 +20,7 @@ export async function createLeadAction(
     if (!session) {
       return { success: false, error: "Unauthorized. Please sign in." };
     }
+    await requirePermission(session, "call-center", "create");
 
     const validated = leadCreateSchema.parse(input);
     const lead = await createLead(validated, session);
@@ -48,6 +50,7 @@ export async function convertLeadAction(
     if (!session) {
       return { success: false, error: "Unauthorized. Please sign in." };
     }
+    await requirePermission(session, "call-center", "edit");
 
     const candidate = await convertLead(leadId, session);
 
@@ -81,6 +84,7 @@ export async function updateLeadStatusAction(
     if (!session) {
       return { success: false, error: "Unauthorized. Please sign in." };
     }
+    await requirePermission(session, "call-center", "edit");
 
     const lead = await prisma.workCall.findUnique({
       where: { id: leadId },

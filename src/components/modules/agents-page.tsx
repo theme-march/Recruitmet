@@ -1,4 +1,5 @@
 "use client";
+import { useAccess } from "@/hooks/use-access";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -99,6 +100,7 @@ type AgentDetail = {
 };
 
 export function AgentsPage({ initialData }: { initialData?: any } = {}) {
+  const { allows, isSuperAdmin } = useAccess();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -175,9 +177,9 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
         address: String(form.get("address") || "").trim() || undefined,
         agreementKey: String(form.get("agreementKey") || "").trim() || undefined,
         status: String(form.get("status") || "Active"),
-        enablePortalLogin: createPortalLogin,
-        portalEmail: String(form.get("portalEmail") || form.get("email") || "").trim() || undefined,
-        portalPassword: createPassword.trim() || "Agent@2026",
+        enablePortalLogin: isSuperAdmin && createPortalLogin,
+        portalEmail: isSuperAdmin && createPortalLogin ? String(form.get("portalEmail") || form.get("email") || "").trim() || undefined : undefined,
+        portalPassword: isSuperAdmin && createPortalLogin ? createPassword.trim() || "Agent@2026" : undefined,
       };
 
       const res = await fetch("/api/agents", {
@@ -217,9 +219,9 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
         address: String(form.get("address") || "").trim() || null,
         agreementKey: String(form.get("agreementKey") || "").trim() || null,
         status: String(form.get("status") || "Active"),
-        enablePortalLogin: editPortalLogin,
-        portalEmail: editPortalEmail.trim() || undefined,
-        portalPassword: editPortalPassword.trim() || undefined,
+        enablePortalLogin: isSuperAdmin ? editPortalLogin : undefined,
+        portalEmail: isSuperAdmin ? editPortalEmail.trim() || undefined : undefined,
+        portalPassword: isSuperAdmin ? editPortalPassword.trim() || undefined : undefined,
       };
 
       const res = await fetch(`/api/agents/${selectedAgentId}`, {
@@ -345,6 +347,8 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
           </button>
           <button
             type="button"
+            disabled={!allows("agents", "create")}
+            title={!allows("agents", "create") ? "Create permission is required" : undefined}
             onClick={() => setShowCreateModal(true)}
             style={{
               display: "inline-flex",
@@ -1136,7 +1140,8 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
                       <input
                         type="checkbox"
                         name="enablePortalLogin"
-                        checked={createPortalLogin}
+                        checked={isSuperAdmin && createPortalLogin}
+                        disabled={!isSuperAdmin}
                         onChange={(e) => setCreatePortalLogin(e.target.checked)}
                         style={{ width: "16px", height: "16px", accentColor: "#7258e8" }}
                       />
@@ -1144,7 +1149,7 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
                     </label>
                   </div>
 
-                  {createPortalLogin && (
+                  {isSuperAdmin && createPortalLogin && (
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", paddingTop: "4px" }}>
                       <div>
                         <label style={{ display: "block", fontSize: "11.5px", fontWeight: 700, color: "var(--ink)", marginBottom: "4px" }}>

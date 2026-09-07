@@ -1,3 +1,6 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("ksa/mofa", GETHandler);
+export const POST = withApiAccess("ksa/mofa", POSTHandler);
 import { can, officeScope } from "@/lib/authorization";
 import { AppError, errorResponse } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
@@ -10,7 +13,7 @@ const start = (value: string) => value ? new Date(`${value}T00:00:00`) : null; c
 const within = (value: string | null, from: string, to: string) => (!from || Boolean(value && new Date(value) >= start(from)!)) && (!to || Boolean(value && new Date(value) <= end(to)!));
 const boolMatch = (filter: string, value: boolean) => !filter || value === (filter === "Yes");
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   try {
     const session = await getSession(); if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401); if (!(await can(session, "ksa", "View"))) throw new AppError("FORBIDDEN", "View permission is required.", 403);
     const url = new URL(request.url); const p = (key: string) => (url.searchParams.get(key) ?? "").trim(); const page = Math.max(1, Number(p("page")) || 1); const pageSize = Math.min(100, Math.max(10, Number(p("pageSize")) || 20));
@@ -25,7 +28,7 @@ export async function GET(request: Request) {
   } catch (error) { return errorResponse(error); }
 }
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   try {
     const session = await getSession(); if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401); if (!(await can(session, "ksa", "Create"))) throw new AppError("FORBIDDEN", "Create permission is required.", 403);
     const body = await request.json() as { rows?: UploadRow[] }; const rows = body.rows ?? []; if (!rows.length || rows.length > 500) throw new AppError("INVALID_CSV", "CSV must contain between 1 and 500 rows.", 422); let imported = 0; const errors: string[] = [];

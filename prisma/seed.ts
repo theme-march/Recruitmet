@@ -40,16 +40,12 @@ async function main() {
     create: { name: "Call Center", description: "Office Call Center Panel Access" },
   });
 
-  // Delete any other roles from database
-  await db.rolePermission.deleteMany({
-    where: { roleId: { notIn: [superAdminRole.id, callCenterRole.id] } },
-  });
-  await db.role.deleteMany({
-    where: { id: { notIn: [superAdminRole.id, callCenterRole.id] } },
-  });
-
+  // Never remove custom roles or their grants when rerunning seed.
+  // Initialize permissions only on first creation of the default role.
+  const initializePermissions = (await db.rolePermission.count({ where: { roleId: callCenterRole.id } })) === 0 && (await db.user.count()) === 0;
+  if (initializePermissions) {
   // Set permissions for Call Center role
-  await db.rolePermission.deleteMany({ where: { roleId: callCenterRole.id } });
+
   for (const module of modules) {
     for (const action of actions) {
       const permission = await db.permission.upsert({
@@ -65,22 +61,19 @@ async function main() {
     }
   }
 
+  }
   // Seed default 2 users
   for (const [email, username, employeeId, name, plainPassword, roleName] of seedUsers) {
     const passwordHash = await bcrypt.hash(plainPassword, 12);
     const assignedRoleId = roleName === "Super Administrator" ? superAdminRole.id : callCenterRole.id;
     await db.user.upsert({
       where: { email },
-      update: { roleId: assignedRoleId, officeId: office.id, name, username },
+      update: {},
       create: { name, email, username, employeeId, passwordHash, roleId: assignedRoleId, officeId: office.id },
     });
   }
 
-  // Delete any user not in seedUsers
-  await db.user.deleteMany({
-    where: { email: { notIn: ["admin@orbit.com", "callcenter@orbit.com"] } },
-  });
-
+  // Preserve staff accounts and their access assignments.
   // Seed candidates, interviews, and work calls
   const defaultOfficer = await db.user.findFirst({ where: { roleId: callCenterRole.id } });
 
@@ -188,4 +181,3 @@ async function main() {
 main()
   .then(() => console.log("Database seeded with single role: Call Center"))
   .finally(() => db.$disconnect());
-

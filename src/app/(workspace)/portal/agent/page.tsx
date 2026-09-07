@@ -1,3 +1,4 @@
+import { toAppRole } from "@/lib/roles";
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
@@ -19,40 +20,11 @@ export default async function AgentPortalPage({
   const session = await getSession();
   if (!session) redirect("/login");
 
+  const isAdmin = toAppRole(session.user.role.name) === "SUPER_ADMIN";
+  if (!isAdmin && toAppRole(session.user.role.name) !== "AGENT") redirect("/dashboard");
   const sParams = await searchParams;
-  let agent = null;
-
-  // 1. If explicit agentId is requested
-  if (sParams?.agentId) {
-    agent = await prisma.agent.findUnique({
-      where: { id: sParams.agentId },
-    });
-  }
-
-  // 2. Otherwise locate the agent record associated with logged-in user
-  if (!agent && session.user.agentId) {
-    agent = await prisma.agent.findUnique({
-      where: { id: session.user.agentId },
-    });
-  }
-
-  if (!agent && session.user.email) {
-    agent = await prisma.agent.findFirst({
-      where: {
-        OR: [
-          { email: session.user.email },
-          { name: session.user.name },
-        ],
-      },
-    });
-  }
-
-  // Fallback: If admin visits portal page to preview, pick the first agent
-  if (!agent) {
-    agent = await prisma.agent.findFirst({
-      orderBy: { createdAt: "desc" },
-    });
-  }
+  const agentId = isAdmin ? sParams?.agentId || session.user.agentId : session.user.agentId;
+  const agent = agentId ? await prisma.agent.findUnique({ where: { id: agentId } }) : null;
 
   if (!agent) {
     return (

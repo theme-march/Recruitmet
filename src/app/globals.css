@@ -4157,6 +4157,25 @@
   }
 }
 
+/* Keep the current screen visible while a Next.js Link transition is pending. */
+.nav-main, .nav-child { position: relative; }
+.navigation-pending {
+  position: absolute;
+  inset: auto 12px 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--purple);
+  opacity: 0;
+  pointer-events: none;
+}
+.navigation-pending.is-pending {
+  animation: navigation-pending-reveal 0.2s ease 0.15s forwards;
+}
+@keyframes navigation-pending-reveal { to { opacity: 0.75; } }
+@media (prefers-reduced-motion: reduce) {
+  .navigation-pending.is-pending { animation: none; opacity: 0.75; }
+}
+
 /* Candidate Search & Filter Form Responsive Grid */
 .candidate-search-form {
   display: grid;
@@ -4180,6 +4199,5 @@
     justify-content: center;
   }
 }
-
 
 

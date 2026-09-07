@@ -1,3 +1,8 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("interview-schedules/[id]", GETHandler);
+export const POST = withApiAccess("interview-schedules/[id]", POSTHandler);
+export const PATCH = withApiAccess("interview-schedules/[id]", PATCHHandler);
+export const DELETE = withApiAccess("interview-schedules/[id]", DELETEHandler);
 import { can } from "@/lib/authorization";
 import { AppError, errorResponse } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
@@ -7,7 +12,7 @@ import { Prisma } from "@prisma/client";
 
 const object = (value: unknown) => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 
-export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+async function GETHandler(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);
@@ -185,7 +190,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   } catch (error) { return errorResponse(error); }
 }
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+async function POSTHandler(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);
@@ -349,7 +354,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 }
 
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+async function PATCHHandler(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);
@@ -381,7 +386,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+async function DELETEHandler(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);

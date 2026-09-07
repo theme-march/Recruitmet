@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
-import { PermissionsMatrix } from "@/components/modules/permissions-matrix";
+import { AccessControlPanel } from "@/components/modules/access-control-panel";
+import { toAppRole } from "@/lib/roles";
 
 export const metadata: Metadata = {
   title: "Role Permissions Matrix & Staff Access | Orbit Overseas",
@@ -10,9 +10,9 @@ export const metadata: Metadata = {
 };
 
 export default async function PermissionsPage() {
-  await connection();
   const session = await getSession();
   if (!session) redirect("/login");
 
-  return <PermissionsMatrix />;
+  if (toAppRole(session.user.role.name) !== "SUPER_ADMIN") redirect("/dashboard");
+  return <AccessControlPanel />;
 }

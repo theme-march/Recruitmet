@@ -1,10 +1,13 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("country-candidates", GETHandler);
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
+import { countryModule } from "@/lib/permission-policy";
 import { officeScope } from "@/lib/authorization";
 import { AppError, errorResponse } from "@/lib/errors";
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);
@@ -21,46 +24,11 @@ export async function GET(request: Request) {
 
     const scope = officeScope(session);
 
-    // Country filter
-    let countryWhere: any = {};
-    if (/saudi/i.test(country)) {
-      countryWhere = {
-        OR: [
-          { country: { contains: "Saudi" } },
-          { candidate: { preferredCountry: { contains: "Saudi" } } },
-        ],
-      };
-    } else if (/dubai|uae/i.test(country)) {
-      countryWhere = {
-        OR: [
-          { country: { in: ["Dubai", "UAE", "United Arab Emirates"] } },
-          { candidate: { preferredCountry: { in: ["Dubai", "UAE", "United Arab Emirates"] } } },
-        ],
-      };
-    } else if (/^other( country)?$/i.test(country)) {
-      countryWhere = {
-        OR: [
-          { country: { in: ["Other", "Other Country"] } },
-          { candidate: { preferredCountry: { in: ["Other", "Other Country"] } } },
-          {
-            AND: [
-              { country: { notIn: ["Saudi", "Saudi Arabia", "Dubai", "UAE", "United Arab Emirates"] } },
-              { candidate: { preferredCountry: { notIn: ["Saudi", "Saudi Arabia", "Dubai", "UAE", "United Arab Emirates"] } } },
-            ],
-          },
-        ],
-      };
-    } else {
-      const clean = country.trim();
-      countryWhere = {
-        OR: [
-          { country: { contains: clean } },
-          { candidate: { preferredCountry: { contains: clean } } },
-        ],
-      };
-    }
-
-    const andClauses: any[] = [];
+    // Authorize/filter by the file's actual destination, not a candidate's
+    // previous preference or a catch-all for other independently granted countries.
+    const key = countryModule(country);
+    const countryWhere = { country: key === "ksa" ? { in: ["Saudi", "Saudi Arabia", "KSA"] } : key === "dubai" ? { in: ["Dubai", "UAE", "United Arab Emirates"] } : key === "other-country" ? { in: ["Other", "Other Country"] } : { equals: country.trim() } };
+    const andClauses: any[] = [scope];
 
     if (stage && stage !== "all") {
       andClauses.push({ currentStage: stage });
@@ -130,8 +98,7 @@ export async function GET(request: Request) {
       where.AND = andClauses;
     }
 
-    const [total, files, officers, agents, rawStats] = await Promise.all([
-      prisma.processingFile.count({ where }),
+    const [files, officers, agents, rawStats, paymentTotals] = await Promise.all([
       prisma.processingFile.findMany({
         where,
         orderBy: { updatedAt: "desc" },
@@ -171,12 +138,6 @@ export async function GET(request: Request) {
             take: 1,
             orderBy: { createdAt: "desc" },
           },
-          payments: {
-            select: {
-              amount: true,
-              type: true,
-            },
-          },
           assignedTo: {
             select: {
               id: true,
@@ -213,14 +174,24 @@ export async function GET(request: Request) {
       prisma.processingFile.findMany({
         where,
         select: {
+          id: true,
           currentStage: true,
           status: true,
           agent: true,
           candidate: { select: { source: true } },
-          payments: { select: { amount: true } },
         },
       }),
+      // Sum in the database instead of transferring every payment twice.
+      prisma.payment.groupBy({
+        by: ["fileId"],
+        where: { file: { is: where } },
+        _sum: { amount: true },
+      }),
     ]);
+    const total = rawStats.length;
+    const paidByFile = new Map(paymentTotals.map((payment) => [
+      payment.fileId, Number(payment._sum.amount ?? 0),
+    ]));
 
     // KPI Metrics calculation
     let totalDeposited = 0;
@@ -252,7 +223,7 @@ export async function GET(request: Request) {
       if (/flight/i.test(item.currentStage) || item.status === "COMPLETED") inFlight++;
       if (item.status === "HOLD" || /hold/i.test(item.currentStage)) inHold++;
       
-      const filePaid = item.payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+      const filePaid = paidByFile.get(item.id) ?? 0;
       totalDeposited += filePaid;
 
       const rawAgent = (item.agent || item.candidate?.source || "Direct Office").trim();
@@ -295,7 +266,7 @@ export async function GET(request: Request) {
     const countryAgents = Array.from(agentMap.values()).sort((a, b) => b.totalCandidates - a.totalCandidates);
 
     const rows = files.map((file) => {
-      const paid = file.payments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+      const paid = paidByFile.get(file.id) ?? 0;
       const totalCost = /dubai/i.test(file.country) ? 300000 : 350000;
       const balance = Math.max(0, totalCost - paid);
 

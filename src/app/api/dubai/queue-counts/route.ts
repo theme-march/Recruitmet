@@ -1,9 +1,11 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("dubai/queue-counts", GETHandler);
 import { can, officeScope } from "@/lib/authorization";
 import { AppError, errorResponse } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 
-export async function GET() {
+async function GETHandler() {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);

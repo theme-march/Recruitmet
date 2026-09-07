@@ -1,7 +1,9 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("search", GETHandler);
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   const session = await getSession();
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const q = new URL(request.url).searchParams.get("q")?.trim();
@@ -31,4 +33,3 @@ export async function GET(request: Request) {
     }))
   );
 }
-

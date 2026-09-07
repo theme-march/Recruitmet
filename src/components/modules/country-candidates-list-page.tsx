@@ -1,6 +1,9 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { countryModule } from "@/lib/permission-policy";
+import { useAccess } from "@/hooks/use-access";
+import { countryCandidatesQueryOptions } from "@/lib/queries/country-candidates";
 import {
   ArrowUpRight,
   Briefcase,
@@ -33,77 +36,14 @@ import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { getCountryFlagEmoji } from "@/components/modules/country-management-page";
 
-type CandidateRow = {
-  id: string;
-  fileNo: string;
-  candidateNo: string;
-  name: string;
-  phone: string;
-  passportNumber: string;
-  passportExpiry: string | null;
-  district: string;
-  age: number | null;
-  profession: string;
-  company: string;
-  agent: string;
-  country: string;
-  currentStage: string;
-  status: string;
-  visaNumber: string | null;
-  visaStatus: string | null;
-  medicalResult: string | null;
-  totalPaid: number;
-  totalPackage: number;
-  balanceDue: number;
-  officerName: string;
-  officeName: string;
-  updatedAt: string;
-};
-
-type CountryAgentItem = {
-  id: string;
-  code: string;
-  name: string;
-  contactPerson: string;
-  phone: string;
-  address: string;
-  status: string;
-  totalCandidates: number;
-  activeCount: number;
-  completedCount: number;
-  totalPaid: number;
-};
-
-type ApiResponse = {
-  data: CandidateRow[];
-  countryAgents?: CountryAgentItem[];
-  stats: {
-    totalCandidates: number;
-    inMedical: number;
-    inVisa: number;
-    inManpower: number;
-    inFlight: number;
-    inHold: number;
-    totalDeposited: number;
-  };
-  filters: {
-    officers: Array<{ id: string; name: string }>;
-    agents: Array<{ id: string; name: string; code: string }>;
-  };
-  meta: {
-    page: number;
-    pageSize: number;
-    total: number;
-    totalPages: number;
-  };
-};
-
 export function CountryCandidatesListPage({
   country = "Saudi Arabia",
 }: {
   country?: string;
 }) {
   const [activeView, setActiveView] = useState<"candidates" | "agents">("candidates");
+  const { allows } = useAccess();
+  const canExport = allows(countryModule(country), "export");
   const [, startTabTransition] = useTransition();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -124,35 +64,19 @@ export function CountryCandidatesListPage({
 
   const countryFlag = getCountryFlagEmoji("", country);
 
-  const { data, isLoading, isFetching, refetch } = useQuery<ApiResponse>({
-    queryKey: [
-      "country-candidates",
-      country,
-      debouncedSearch,
-      stageFilter,
-      statusFilter,
-      officerFilter,
-      agentFilter,
+  const { data, isLoading, isFetching, isError, error, refetch } = useQuery({
+    ...countryCandidatesQueryOptions(country, {
+      search: debouncedSearch,
+      stage: stageFilter,
+      status: statusFilter,
+      officer: officerFilter,
+      agent: agentFilter,
       page,
       pageSize,
-    ],
-    placeholderData: (previousData) => previousData,
-    staleTime: 30_000,
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        country,
-        search: debouncedSearch,
-        stage: stageFilter,
-        status: statusFilter,
-        officer: officerFilter,
-        agent: agentFilter,
-        page: String(page),
-        pageSize: String(pageSize),
-      });
-      const res = await fetch(`/api/country-candidates?${params}`);
-      if (!res.ok) throw new Error("Failed to load candidates");
-      return res.json();
-    },
+    }),
+    // Retain rows for pagination/filtering, never label another country's data as this one.
+    placeholderData: (previousData, previousQuery) =>
+      previousQuery?.queryKey[1] === country ? previousData : undefined,
   });
 
   const rows = data?.data || [];
@@ -260,7 +184,7 @@ export function CountryCandidatesListPage({
   };
 
   return (
-    <div className="country-candidates-page" style={{ maxWidth: "1600px", margin: "0 auto" }}>
+    <div aria-busy={isFetching} className="country-candidates-page" style={{ maxWidth: "1600px", margin: "0 auto" }}>
       {/* Top Header & Breadcrumb */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "16px", marginBottom: "20px" }}>
         <div>
@@ -300,7 +224,9 @@ export function CountryCandidatesListPage({
           </button>
           <button
             type="button"
-            onClick={handleDownloadCsv}
+              disabled={!canExport}
+              title={!canExport ? "Export permission is required" : undefined}
+              onClick={() => { if (canExport) handleDownloadCsv(); }}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -320,6 +246,12 @@ export function CountryCandidatesListPage({
         </div>
       </div>
 
+      {isError && (
+        <div role="alert" className="form-error" style={{ marginBottom: "16px" }}>
+          {error.message} <button type="button" onClick={() => void refetch()}>Retry</button>
+        </div>
+      )}
+
       {/* KPI Metrics Summary Cards */}
       <div
         className="responsive-kpi-grid"
@@ -329,38 +261,38 @@ export function CountryCandidatesListPage({
       >
         <div style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "14px", padding: "16px 20px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
           <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Total {country} Files</div>
-          <div style={{ fontSize: "26px", fontWeight: 900, color: "var(--ink)", marginTop: "4px" }}>{stats?.totalCandidates ?? 0}</div>
+          <div style={{ fontSize: "26px", fontWeight: 900, color: "var(--ink)", marginTop: "4px" }}>{stats?.totalCandidates ?? "—"}</div>
           <div style={{ fontSize: "11px", color: "#16a34a", fontWeight: 600, marginTop: "2px" }}>Active in pipeline</div>
         </div>
 
         <div style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "14px", padding: "16px 20px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
           <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Medical / Fit State</div>
-          <div style={{ fontSize: "26px", fontWeight: 900, color: "#047857", marginTop: "4px" }}>{stats?.inMedical ?? 0}</div>
+          <div style={{ fontSize: "26px", fontWeight: 900, color: "#047857", marginTop: "4px" }}>{stats?.inMedical ?? "—"}</div>
           <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>Fitness test verified</div>
         </div>
 
         <div style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "14px", padding: "16px 20px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
           <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Visa &amp; MOFA Done</div>
-          <div style={{ fontSize: "26px", fontWeight: 900, color: "#6d28d9", marginTop: "4px" }}>{stats?.inVisa ?? 0}</div>
+          <div style={{ fontSize: "26px", fontWeight: 900, color: "#6d28d9", marginTop: "4px" }}>{stats?.inVisa ?? "—"}</div>
           <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>Stamped &amp; Issued</div>
         </div>
 
         <div style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "14px", padding: "16px 20px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
           <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Manpower Cleared</div>
-          <div style={{ fontSize: "26px", fontWeight: 900, color: "#c2410c", marginTop: "4px" }}>{stats?.inManpower ?? 0}</div>
+          <div style={{ fontSize: "26px", fontWeight: 900, color: "#c2410c", marginTop: "4px" }}>{stats?.inManpower ?? "—"}</div>
           <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>BMET Smart Card</div>
         </div>
 
         <div style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "14px", padding: "16px 20px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
           <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Flight Booked / Done</div>
-          <div style={{ fontSize: "26px", fontWeight: 900, color: "#0f766e", marginTop: "4px" }}>{stats?.inFlight ?? 0}</div>
+          <div style={{ fontSize: "26px", fontWeight: 900, color: "#0f766e", marginTop: "4px" }}>{stats?.inFlight ?? "—"}</div>
           <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>Departed or Ready</div>
         </div>
 
         <div style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "14px", padding: "16px 20px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
           <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Total Deposited</div>
           <div style={{ fontSize: "22px", fontWeight: 900, color: "#15803d", marginTop: "4px" }}>
-            ৳ {(stats?.totalDeposited ?? 0).toLocaleString()} BDT
+            ৳ {stats ? stats.totalDeposited.toLocaleString() : "—"} BDT
           </div>
           <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>Cumulative Accounts</div>
         </div>
@@ -737,6 +669,8 @@ export function CountryCandidatesListPage({
                         Loading {country} candidates...
                       </td>
                     </tr>
+                  ) : isError && !data ? (
+                    <tr><td colSpan={10} style={{ padding: "40px", textAlign: "center", color: "var(--muted)" }}>Candidate data is unavailable. Use Retry above.</td></tr>
                   ) : !rows.length ? (
                     <tr>
                       <td colSpan={10} style={{ padding: "40px", textAlign: "center", color: "var(--muted)" }}>
@@ -1273,7 +1207,7 @@ export function CountryCandidatesListPage({
                 {!countryAgents.length && (
                   <tr>
                     <td colSpan={8} style={{ padding: "40px", textAlign: "center", color: "var(--muted)" }}>
-                      No agents currently registered for {country}.
+                      {isLoading ? "Loading agents…" : isError && !data ? "Agent data is unavailable. Use Retry above." : `No agents currently registered for ${country}.`}
                     </td>
                   </tr>
                 )}

@@ -1,3 +1,5 @@
+import { withApiAccess } from "@/lib/api-access";
+export const POST = withApiAccess("work-calls/convert", POSTHandler);
 import { z } from "zod";
 import { AppError, errorResponse } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
@@ -7,7 +9,7 @@ const convertSchema = z.object({
   leadId: z.string().min(1, "Lead ID is required"),
 });
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) {

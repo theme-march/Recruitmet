@@ -1,3 +1,6 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("agents", GETHandler);
+export const POST = withApiAccess("agents", POSTHandler);
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
@@ -23,7 +26,7 @@ const createAgentSchema = z.object({
   portalPassword: z.string().optional().or(z.literal("")),
 });
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);
@@ -42,7 +45,7 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);
@@ -90,7 +93,7 @@ export async function POST(request: Request) {
     // Handle portal login user creation
     let portalUserCreated = false;
     let portalLoginEmail = "";
-    if (input.enablePortalLogin !== false && (input.portalEmail || input.email || input.portalPassword)) {
+    if (input.enablePortalLogin === true) {
       const loginEmail = (input.portalEmail || input.email || `${agentCode.toLowerCase()}@agent.orbit.com`).trim().toLowerCase();
       portalLoginEmail = loginEmail;
       const rawPassword = input.portalPassword?.trim() || "Agent@2026";

@@ -1,3 +1,6 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("ksa/visa-stamping", GETHandler);
+export const POST = withApiAccess("ksa/visa-stamping", POSTHandler);
 import { can, officeScope } from "@/lib/authorization";
 import { AppError, errorResponse } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
@@ -10,7 +13,7 @@ const day = (value: string, last = false) => value ? new Date(`${value}T${last ?
 const within = (value: string | null, from: string, to: string) => (!from || Boolean(value && new Date(value) >= day(from)!)) && (!to || Boolean(value && new Date(value) <= day(to, true)!));
 const asDate = (value?: string) => value ? new Date(value) : null;
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   try {
 const session = await getSession(); if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401); if (!(await can(session, workflowModule(request), "View"))) throw new AppError("FORBIDDEN", "View permission is required.", 403);
     const url = new URL(request.url); const p = (key: string) => (url.searchParams.get(key) ?? "").trim(); const page = Math.max(1, Number(p("page")) || 1); const pageSize = Math.min(100, Math.max(10, Number(p("pageSize")) || 20));
@@ -22,7 +25,7 @@ const files = await prisma.processingFile.findMany({ where: { ...officeScope(ses
   } catch (error) { return errorResponse(error); }
 }
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   try {
     const session = await getSession(); if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401); if (!(await can(session, "ksa", "Create"))) throw new AppError("FORBIDDEN", "Create permission is required.", 403); const body = await request.json() as { rows?: UploadRow[] }; const rows = body.rows ?? []; if (!rows.length || rows.length > 500) throw new AppError("INVALID_CSV", "CSV must contain between 1 and 500 rows.", 422); let imported = 0; const errors: string[] = [];
     for (const [index, row] of rows.entries()) { const identifier = row.fileNo || row.candidateNo || row.passportNumber; if (!identifier) { errors.push(`Row ${index + 2}: identifier is required.`); continue; } const file = await prisma.processingFile.findFirst({ where: { ...officeScope(session), country: workflowCountryWhere(request), OR: [{ fileNo: identifier }, { candidate: { candidateNo: identifier } }, { passport: { passportNumber: identifier } }] } }); if (!file) { errors.push(`Row ${index + 2}: file not found for ${identifier}.`); continue; } try { await prisma.visaProcess.create({ data: { fileId: file.id, status: row.status || "Submitted", visaNumber: row.visaNumber || null, visaType: row.visaType || null, profession: row.profession || null, submissionDate: asDate(row.submissionDate), issueDate: asDate(row.issueDate), stampingDate: asDate(row.stampingDate), expiryDate: asDate(row.expiryDate) } }); imported++; } catch { errors.push(`Row ${index + 2}: visa record could not be imported.`); } }

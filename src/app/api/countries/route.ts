@@ -1,23 +1,17 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("countries", GETHandler);
+export const POST = withApiAccess("countries", POSTHandler);
+export const PATCH = withApiAccess("countries", PATCHHandler);
+export const DELETE = withApiAccess("countries", DELETEHandler);
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getDefaultStagesForCountry } from "@/lib/country-pipeline";
 
-const DEFAULT_COUNTRIES = [
-  { name: "Saudi Arabia", code: "SA", currency: "SAR", timezone: "Asia/Riyadh", phoneCode: "+966", workflowType: "KSA", active: true },
-  { name: "Dubai", code: "AE", currency: "AED", timezone: "Asia/Dubai", phoneCode: "+971", workflowType: "DUBAI", active: true },
-  { name: "Qatar", code: "QA", currency: "QAR", timezone: "Asia/Qatar", phoneCode: "+974", workflowType: "GENERAL", active: true },
-  { name: "Kuwait", code: "KW", currency: "KWD", timezone: "Asia/Kuwait", phoneCode: "+965", workflowType: "GENERAL", active: true },
-  { name: "Oman", code: "OM", currency: "OMR", timezone: "Asia/Muscat", phoneCode: "+968", workflowType: "GENERAL", active: true },
-  { name: "Bahrain", code: "BH", currency: "BHD", timezone: "Asia/Bahrain", phoneCode: "+973", workflowType: "GENERAL", active: true },
-  { name: "Malaysia", code: "MY", currency: "MYR", timezone: "Asia/Kuala_Lumpur", phoneCode: "+60", workflowType: "GENERAL", active: true },
-  { name: "Singapore", code: "SG", currency: "SGD", timezone: "Asia/Singapore", phoneCode: "+65", workflowType: "GENERAL", active: true },
-  { name: "Romania", code: "RO", currency: "RON", timezone: "Europe/Bucharest", phoneCode: "+40", workflowType: "EUROPE", active: true },
-];
 
-export async function GET() {
+async function GETHandler() {
   try {
     // 1. Fetch all countries with their workflow stages
-    let countries = await prisma.country.findMany({
+    const countries = await prisma.country.findMany({
       include: {
         workflow: {
           orderBy: { sortOrder: "asc" },
@@ -26,31 +20,7 @@ export async function GET() {
       orderBy: { name: "asc" },
     });
 
-    // 2. Ensure all default destination countries exist
-    const existingNames = new Set(countries.map((c) => c.name.toLowerCase()));
-    const existingCodes = new Set(countries.map((c) => c.code.toLowerCase()));
-
-    for (const dc of DEFAULT_COUNTRIES) {
-      if (!existingNames.has(dc.name.toLowerCase()) && !existingCodes.has(dc.code.toLowerCase())) {
-        try {
-          const created = await prisma.country.create({
-            data: dc,
-            include: {
-              workflow: {
-                orderBy: { sortOrder: "asc" },
-              },
-            },
-          });
-          countries.push(created);
-          existingNames.add(dc.name.toLowerCase());
-          existingCodes.add(dc.code.toLowerCase());
-        } catch {}
-      }
-    }
-
-    // Sort again
-    countries.sort((a, b) => a.name.localeCompare(b.name));
-
+    // Read endpoints never seed or recreate deleted configuration.
     // 3. Aggregate candidate and file counts for each country
     const fileGroups = await prisma.processingFile.groupBy({
       by: ["country"],
@@ -172,7 +142,7 @@ function matchesCountryName(countryName: string, countryCode: string, targetName
   }
 }
 
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
   try {
     const body = await req.json();
     const { name, code, currency, timezone, phoneCode, workflowType, active } = body;
@@ -233,7 +203,7 @@ export async function POST(req: Request) {
   }
 }
 
-export async function PATCH(req: Request) {
+async function PATCHHandler(req: Request) {
   try {
     const body = await req.json();
     const { id, name, code, currency, timezone, phoneCode, workflowType, active, stages } = body;
@@ -329,7 +299,7 @@ export async function PATCH(req: Request) {
   }
 }
 
-export async function DELETE(req: Request) {
+async function DELETEHandler(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");

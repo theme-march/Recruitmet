@@ -1,10 +1,12 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("ksa/queue-counts", GETHandler);
 import { can, officeScope } from "@/lib/authorization";
 import { AppError, errorResponse } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { workflowCountry, workflowModule } from "@/lib/workflow-country";
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);

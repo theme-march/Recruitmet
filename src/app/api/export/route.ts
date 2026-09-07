@@ -1,9 +1,11 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("export", GETHandler);
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 
 const csvCell = (value: unknown) => `"${String(value ?? "").replaceAll('"', '""')}"`;
 
-export async function GET() {
+async function GETHandler() {
   const session = await getSession();
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const rows = await prisma.workCall.findMany({
@@ -33,4 +35,3 @@ export async function GET() {
     },
   });
 }
-

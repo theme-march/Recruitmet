@@ -1,3 +1,5 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("ksa/medical", GETHandler);
 import { can, officeScope } from "@/lib/authorization";
 import { AppError, errorResponse } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
@@ -22,7 +24,7 @@ const dateOnly = (value: string | null) => value ? new Date(`${value}T00:00:00`)
 const endOfDay = (value: string | null) => value ? new Date(`${value}T23:59:59.999`) : null;
 const boolMatch = (filter: string, value: boolean) => !filter || value === (filter === "Yes");
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);

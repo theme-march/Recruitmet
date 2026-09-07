@@ -1,4 +1,5 @@
 "use client";
+import { meQueryOptions } from "@/lib/queries/me";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -125,18 +126,8 @@ export function WorksDemandsPage() {
   const [previewFileId, setPreviewFileId] = useState<string | null>(null);
 
   const profileQuery = useQuery({
-    queryKey: ["me"],
-    queryFn: async () => {
-      const res = await fetch("/api/me");
-      if (!res.ok) return null;
-      const json = await res.json();
-      return json.data as {
-        name: string;
-        role: string;
-        roleKey: "SUPER_ADMIN" | "CALL_CENTER";
-        permissions?: { canManageDemands?: boolean; canManageInterviews?: boolean };
-      };
-    },
+    ...meQueryOptions(),
+    select: (body) => body.data,
   });
 
   const isSuperAdmin = profileQuery.data?.roleKey === "SUPER_ADMIN";

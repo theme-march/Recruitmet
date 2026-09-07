@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { requirePermission, requireSuperAdmin } from "@/lib/authorization";
 import { getSession } from "@/lib/session";
 import { createInterviewSchedule } from "@/features/interviews/service";
 import type { ServerActionResult } from "./files";
@@ -29,6 +30,7 @@ export async function createInterviewScheduleAction(
     if (!session) {
       return { success: false, error: "Unauthorized. Please sign in." };
     }
+    await requirePermission(session, "registration", "create");
 
     const scheduledAtDate = typeof input.scheduledAt === "string" ? new Date(input.scheduledAt) : input.scheduledAt;
 

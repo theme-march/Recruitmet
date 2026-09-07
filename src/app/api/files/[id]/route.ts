@@ -1,9 +1,14 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("files/[id]", GETHandler);
+export const PATCH = withApiAccess("files/[id]", PATCHHandler);
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { z } from "zod";
 import { AppError, errorResponse } from "@/lib/errors";
+import { toAppRole } from "@/lib/roles";
+import { requireFilePermission } from "@/lib/authorization";
 import { getWorkflow, transitionFile } from "@/features/workflow/service";
 
 function parseSafeDate(d?: string | null): Date | undefined {
@@ -27,7 +32,7 @@ function parseSafeDate(d?: string | null): Date | undefined {
   return undefined;
 }
 
-export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
+async function GETHandler(_: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);
@@ -90,157 +95,17 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       });
     }
 
+    // Resolve existing dossiers only. A read request must never convert a lead,
+    // create a candidate or open a processing file as a side effect.
     if (!file) {
-      const workCall = await prisma.workCall.findFirst({
-        where: {
-          OR: [{ id }, { leadNo: id }],
-        },
-        include: {
-          candidate: {
-            include: {
-              files: {
-                orderBy: { createdAt: "desc" },
-                take: 1,
-              },
-            },
-          },
-        },
+      file = await prisma.processingFile.findFirst({
+        where: { candidate: { OR: [{ id }, { candidateNo: id }, { calls: { some: { OR: [{ id }, { leadNo: id }] } } }, { interviews: { some: { id } } }] } },
+        include: fileInclude,
       });
-
-      if (workCall) {
-        let targetFileId = workCall.candidate?.files?.[0]?.id;
-        let candId = workCall.candidateId;
-
-        if (!candId) {
-          let cand = await prisma.candidate.findFirst({
-            where: { phone: workCall.phone },
-            include: { files: { take: 1 } },
-          });
-          if (!cand) {
-            cand = await prisma.candidate.create({
-              data: {
-                candidateNo: `CAN-${Date.now().toString().slice(-6)}`,
-                fullName: workCall.fullName,
-                phone: workCall.phone,
-                preferredCountry: workCall.country || "Saudi Arabia",
-                profession: workCall.workCategory || "General",
-              },
-              include: { files: true },
-            });
-          }
-          candId = cand.id;
-          targetFileId = cand.files?.[0]?.id;
-
-          await prisma.workCall.update({
-            where: { id: workCall.id },
-            data: { candidateId: candId },
-          });
-        }
-
-        if (!targetFileId && candId) {
-          const newFile = await prisma.processingFile.create({
-            data: {
-              fileNo: `FILE-${Date.now().toString().slice(-6)}`,
-              candidateId: candId,
-              country: workCall.country || "Saudi Arabia",
-              currentStage: "Passport Entry",
-              status: "ACTIVE",
-              assignedToId: workCall.assignedToId || session.user.id,
-              profession: workCall.workCategory || undefined,
-            },
-          });
-          targetFileId = newFile.id;
-        }
-
-        if (targetFileId) {
-          file = await prisma.processingFile.findUnique({
-            where: { id: targetFileId },
-            include: fileInclude,
-          });
-        }
-      }
     }
-
-    if (!file) {
-      const cand = await prisma.candidate.findFirst({
-        where: {
-          OR: [{ id }, { candidateNo: id }],
-        },
-        include: {
-          files: {
-            orderBy: { createdAt: "desc" },
-            take: 1,
-          },
-        },
-      });
-
-      if (cand) {
-        let targetFileId = cand.files?.[0]?.id;
-        if (!targetFileId) {
-          const newFile = await prisma.processingFile.create({
-            data: {
-              fileNo: `FILE-${Date.now().toString().slice(-6)}`,
-              candidateId: cand.id,
-              country: cand.preferredCountry || "Saudi Arabia",
-              currentStage: "Passport Entry",
-              status: "ACTIVE",
-              assignedToId: session.user.id,
-              profession: cand.profession || undefined,
-            },
-          });
-          targetFileId = newFile.id;
-        }
-        if (targetFileId) {
-          file = await prisma.processingFile.findUnique({
-            where: { id: targetFileId },
-            include: fileInclude,
-          });
-        }
-      }
-    }
-
-    if (!file) {
-      const interview = await prisma.interview.findUnique({
-        where: { id },
-        include: {
-          candidate: {
-            include: {
-              files: {
-                orderBy: { createdAt: "desc" },
-                take: 1,
-              },
-            },
-          },
-        },
-      });
-
-      if (interview && interview.candidate) {
-        let targetFileId = interview.candidate.files?.[0]?.id;
-        if (!targetFileId) {
-          const isDubai = /sobha|dubai|uae/i.test(interview.title || interview.company || "");
-          const newFile = await prisma.processingFile.create({
-            data: {
-              fileNo: `FILE-${Date.now().toString().slice(-6)}`,
-              candidateId: interview.candidate.id,
-              country: isDubai ? "Dubai" : "Saudi Arabia",
-              currentStage: "Passport Entry",
-              status: "ACTIVE",
-              assignedToId: session.user.id,
-              profession: interview.profession || "General Worker",
-            },
-          });
-          targetFileId = newFile.id;
-        }
-        if (targetFileId) {
-          file = await prisma.processingFile.findUnique({
-            where: { id: targetFileId },
-            include: fileInclude,
-          });
-        }
-      }
-    }
-
     if (!file) throw new AppError("NOT_FOUND", "Candidate processing file not found.", 404);
+
+    if (toAppRole(session.user.role.name) !== "AGENT") await requireFilePermission(session, file, "read");
 
     let workflowList: Array<{ code: string; name: string; order: number; terminal: boolean }> = [];
     try {
@@ -335,7 +200,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   }
 }
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+async function PATCHHandler(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);
@@ -387,6 +252,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 
     const fileId = file.id;
+    await requireFilePermission(session, file, action.startsWith("delete-") ? "delete" : action.startsWith("create-") ? "create" : "edit");
 
     // 1. Stage transition
     if (action === "stage-transition") {

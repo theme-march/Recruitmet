@@ -1,3 +1,5 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("officer-dashboard", GETHandler);
 import { can } from "@/lib/authorization";
 import { AppError, errorResponse } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
@@ -6,7 +8,7 @@ import { getSession } from "@/lib/session";
 const object = (value: unknown) => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 const dateValue = (value: unknown) => { const date = typeof value === "string" && value ? new Date(value) : null; return date && !Number.isNaN(date.getTime()) ? date : null; };
 
-export async function GET() {
+async function GETHandler() {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);

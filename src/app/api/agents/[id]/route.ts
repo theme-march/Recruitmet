@@ -1,3 +1,7 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("agents/[id]", GETHandler);
+export const PATCH = withApiAccess("agents/[id]", PATCHHandler);
+export const DELETE = withApiAccess("agents/[id]", DELETEHandler);
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
@@ -52,7 +56,7 @@ const updateAgentSchema = z.object({
   fileName: z.string().optional(),
 });
 
-export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
+async function GETHandler(_: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);
@@ -674,7 +678,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   }
 }
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+async function PATCHHandler(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);
@@ -1150,7 +1154,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 }
 
-export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
+async function DELETEHandler(_: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);

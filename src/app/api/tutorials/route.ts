@@ -1,3 +1,6 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("tutorials", GETHandler);
+export const POST = withApiAccess("tutorials", POSTHandler);
 import { z } from "zod";
 import { can } from "@/lib/authorization";
 import { AppError, errorResponse } from "@/lib/errors";
@@ -6,7 +9,7 @@ import { getSession } from "@/lib/session";
 
 const schema = z.object({ categoryCode: z.string().min(2), title: z.string().min(2), description: z.string().max(2000).optional(), type: z.string().min(2), resourceUrl: z.url(), audience: z.string().optional(), language: z.string().default("Bangla"), durationMin: z.coerce.number().int().positive().optional() });
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   try {
     const session = await getSession(); if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401); if (!(await can(session, "tutorials", "View"))) throw new AppError("FORBIDDEN", "Tutorial view permission is required.", 403);
     const url = new URL(request.url), view = url.searchParams.get("view") === "categories" ? "categories" : "tutorials", q = (url.searchParams.get("q") ?? "").trim(), categoryId = url.searchParams.get("categoryId") ?? "", page = Math.max(1, Number(url.searchParams.get("page")) || 1), pageSize = Math.min(100, Math.max(10, Number(url.searchParams.get("pageSize")) || 25)), skip = (page - 1) * pageSize;
@@ -19,7 +22,7 @@ export async function GET(request: Request) {
   } catch (error) { return errorResponse(error); }
 }
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);

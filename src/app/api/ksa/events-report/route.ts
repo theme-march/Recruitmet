@@ -1,3 +1,5 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("ksa/events-report", GETHandler);
 import { can, officeScope } from "@/lib/authorization";
 import { AppError, errorResponse } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
@@ -7,7 +9,7 @@ import { workflowCountry, workflowCountryWhere, workflowModule } from "@/lib/wor
 const DAY = 86_400_000;
 const asObject = (value: unknown) => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);

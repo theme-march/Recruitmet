@@ -1,3 +1,4 @@
+import { can } from "@/lib/authorization";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { connection } from "next/server";
@@ -15,6 +16,7 @@ export const metadata: Metadata = {
 async function CandidatesDataLoader({ sessionPromise }: { sessionPromise: ReturnType<typeof getSession> }) {
   const session = await sessionPromise;
   if (!session) redirect("/login");
+  if (!await can(session, "call-center", "read")) redirect("/dashboard");
 
   const initialData = await getCandidatesData(session, { page: 1, pageSize: 20 });
   return <AllCandidatesListPage initialData={initialData} />;

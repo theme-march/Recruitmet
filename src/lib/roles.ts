@@ -4,7 +4,7 @@ export const APP_ROLES = {
   AGENT: "Agent Partner",
 } as const;
 
-export type AppRole = keyof typeof APP_ROLES;
+export type AppRole = keyof typeof APP_ROLES | "CUSTOM";
 
 export const allModuleIds = [
   "dashboard",
@@ -32,17 +32,19 @@ export const allModuleIds = [
 export const operationalModuleIds = allModuleIds;
 
 export function toAppRole(roleName?: string): AppRole {
-  if (!roleName) return "CALL_CENTER";
-  const normalized = roleName.toLowerCase().replace(/[^a-z]/g, "");
-  if (normalized.includes("super") || normalized.includes("admin")) return "SUPER_ADMIN";
-  if (normalized.includes("agent")) return "AGENT";
-  return "CALL_CENTER";
+  // Built-in names are reserved by the administration API. Never use substring
+  // matching: a custom "Branch Admin" must not acquire Super Admin privileges.
+  if (roleName === "SUPER_ADMIN" || roleName === APP_ROLES.SUPER_ADMIN) return "SUPER_ADMIN";
+  if (roleName === "CALL_CENTER" || roleName === APP_ROLES.CALL_CENTER || roleName === "Call Center Officer") return "CALL_CENTER";
+  if (["AGENT", "Agent Partner", "Agent Portal", "Agent"].includes(roleName ?? "")) return "AGENT";
+  return "CUSTOM";
 }
 
 export function roleLabel(role?: AppRole | string) {
   if (role === "SUPER_ADMIN" || role === "Super Administrator") return "Super Administrator";
   if (role === "AGENT" || role === "Agent Partner" || role === "Agent") return "Agent Partner (Portal)";
-  return "Call Center Officer";
+  if (role === "CALL_CENTER" || role === "Call Center") return "Call Center Officer";
+  return role || "Custom Role";
 }
 
 export function roleHome(roleOrName?: AppRole | string) {
@@ -51,14 +53,13 @@ export function roleHome(roleOrName?: AppRole | string) {
   return "/dashboard";
 }
 
-export function moduleIdsForRole(_roleOrName?: AppRole | string): readonly string[] {
-  return allModuleIds;
+export function moduleIdsForRole(roleOrName?: AppRole | string): readonly string[] {
+  return toAppRole(roleOrName) === "SUPER_ADMIN" ? allModuleIds : [];
 }
 
 export function isRole(roleName: string, ...allowed: AppRole[]) {
   const role = toAppRole(roleName);
   return allowed.includes(role);
 }
-
 
 

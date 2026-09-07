@@ -1,10 +1,12 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("demands/files/[id]", GETHandler);
 import { can } from "@/lib/authorization";
 import { AppError, errorResponse } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { privateStorage } from "@/server/storage";
 
-export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
+async function GETHandler(_: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession(); if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);
     if (!(await can(session, "partners", "View"))) throw new AppError("FORBIDDEN", "Works and demands view permission is required.", 403);

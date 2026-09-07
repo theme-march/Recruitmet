@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requireFilePermission, requirePermission } from "@/lib/authorization";
 import { getSession } from "@/lib/session";
 import { RecordStatus } from "@prisma/client";
 
@@ -31,6 +32,7 @@ export async function updateFileStageAction(
     if (!file) {
       return { success: false, error: "Candidate file record not found." };
     }
+    await requireFilePermission(session, file, "edit");
 
     const previousStage = file.currentStage;
     const currentStatus = file.status as RecordStatus;
@@ -89,7 +91,9 @@ export async function holdFileAction(
     if (!file) {
       return { success: false, error: "Candidate file not found." };
     }
+    await requireFilePermission(session, file, "edit");
 
+    await requirePermission(session, "exceptions", "hold");
     await prisma.holdReturn.create({
       data: {
         fileId,
@@ -138,7 +142,9 @@ export async function releaseHoldAction(
     if (!file) {
       return { success: false, error: "Candidate file not found." };
     }
+    await requireFilePermission(session, file, "edit");
 
+    await requirePermission(session, "exceptions", "reprocess");
     await prisma.holdReturn.updateMany({
       where: { fileId, type: "HOLD", status: "ACTIVE" },
       data: { status: "RELEASED", releasedAt: new Date() },
@@ -163,4 +169,3 @@ export async function releaseHoldAction(
     return { success: false, error: message };
   }
 }
-

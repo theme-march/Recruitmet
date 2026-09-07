@@ -1,3 +1,6 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("dubai-documents", GETHandler);
+export const POST = withApiAccess("dubai-documents", POSTHandler);
 import { can, officeScope } from "@/lib/authorization";
 import { AppError, errorResponse } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
@@ -14,7 +17,7 @@ const categories = [
   "Flight Ticket",
 ] as const;
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);
@@ -241,11 +244,11 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);
-    if (!(await can(session, "documents", "Write")))
+    if (!(await can(session, "documents", "Create")))
       throw new AppError("FORBIDDEN", "Document upload permission is required.", 403);
 
     const body = await request.json();

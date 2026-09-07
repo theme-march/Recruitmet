@@ -1,3 +1,6 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("master-data/[type]", GETHandler);
+export const POST = withApiAccess("master-data/[type]", POSTHandler);
 import { z } from "zod";
 import { can } from "@/lib/authorization";
 import { AppError, errorResponse } from "@/lib/errors";
@@ -6,7 +9,7 @@ import { getSession } from "@/lib/session";
 
 const schema = z.object({ code: z.string().min(1).max(100), name: z.string().min(1).max(250), description: z.string().max(1000).optional(), country: z.string().max(100).optional(), parentId: z.string().min(10).optional(), color: z.string().max(30).optional(), sortOrder: z.number().int().default(0), active: z.boolean().default(true) });
 
-export async function GET(_: Request, { params }: { params: Promise<{ type: string }> }) {
+async function GETHandler(_: Request, { params }: { params: Promise<{ type: string }> }) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);
@@ -16,7 +19,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ type: stri
   } catch (error) { return errorResponse(error); }
 }
 
-export async function POST(request: Request, { params }: { params: Promise<{ type: string }> }) {
+async function POSTHandler(request: Request, { params }: { params: Promise<{ type: string }> }) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);

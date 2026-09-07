@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
-import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { Dashboard, type DashboardData, type ActiveCountryCard } from "@/components/modules/dashboard";
-import DashboardLoading from "./loading";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 
@@ -93,6 +90,8 @@ function matchesCountry(countryName: string, countryCode: string, targetCountry:
 async function DashboardDataLoader({ sessionPromise }: { sessionPromise: ReturnType<typeof getSession> }) {
   const session = await sessionPromise;
   if (!session) redirect("/login");
+  const { can } = await import("@/lib/authorization");
+  if (!await can(session, "dashboard", "read")) return <section style={{ padding: 32 }}><h1>Welcome, {session.user.name}</h1><p>Use the sidebar to open the work assigned to your role. Contact your Super Administrator if you need more access.</p></section>;
 
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
@@ -423,14 +422,5 @@ async function DashboardDataLoader({ sessionPromise }: { sessionPromise: ReturnT
 }
 
 export default async function Page() {
-  await connection();
-  const sessionPromise = getSession();
-
-  return (
-    <Suspense fallback={<DashboardLoading />}>
-      <DashboardDataLoader sessionPromise={sessionPromise} />
-    </Suspense>
-  );
+  return <DashboardDataLoader sessionPromise={getSession()} />;
 }
-
-

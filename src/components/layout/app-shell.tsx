@@ -5,9 +5,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { moduleItemPath, moduleItemSlug, modules } from "@/lib/modules";
-import { allModuleIds, moduleIdsForRole, type AppRole } from "@/lib/roles";
+import { allModuleIds, moduleIdsForRole } from "@/lib/roles";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { countryCandidatesQueryOptions } from "@/lib/queries/country-candidates";
+import { NavigationPending } from "@/components/layout/navigation-pending";
+import { countriesQueryOptions } from "@/lib/queries/countries";
 
-type Profile = { name: string; role: string; roleKey: AppRole; home: string; office: string | null; unreadNotifications: number; allowedModules?: string[] };
+import { meQueryOptions } from "@/lib/queries/me";
 type SearchResult = { id: string; fileNo: string; name: string; passport: string | null; country: string; stage: string };
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -15,10 +19,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [moduleQuery, setModuleQuery] = useState("");
   const [globalQuery, setGlobalQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const profileQuery = useQuery(meQueryOptions());
+  const profile = profileQuery.data?.data ?? null;
   const [expandedModule, setExpandedModule] = useState<string | null>(null);
-  const [navCounts, setNavCounts] = useState<Record<string, Record<string, number>>>({});
-  const [dbCountries, setDbCountries] = useState<Array<{ id: string; name: string; code: string; active: boolean; candidateCount: number }>>([]);
+  const queryClient = useQueryClient();
+  const { data: navCounts = {} } = useQuery({
+    queryKey: ["nav-counts"],
+    queryFn: async ({ signal }): Promise<Record<string, Record<string, number>>> => {
+      const response = await fetch("/api/nav-counts", { signal });
+      if (!response.ok) throw new Error("Could not load navigation counts");
+      return (await response.json()).data;
+    },
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+  const { data: dbCountries = [] } = useQuery(countriesQueryOptions());
   const path = usePathname();
   const isPortalRoute = path.startsWith("/portal");
   const routeParts = path.split("/").filter(Boolean);
@@ -35,7 +50,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       : (profile.allowedModules || moduleIdsForRole(profile.roleKey));
 
     const nonCountryModules = modules.filter(
-      (m) => !["ksa", "dubai", "other-country"].includes(m.id) && !m.hidden && allowed.includes(m.id as any)
+      (m) => !["ksa", "dubai", "other-country"].includes(m.id) && !m.hidden && (allowed.includes(m.id as any) || (m.id === "call-center" && allowed.includes("registration")))
     );
 
     const countryMods = dbCountries.length > 0
@@ -71,21 +86,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       combined.push(...countryMods as any);
     }
 
-    return combined.filter(
+    return combined.map(m => ({
+      ...m,
+      items: m.items.filter(item => {
+        if (profile.roleKey === "SUPER_ADMIN") return true;
+        const permissionModule = /interview/i.test(item.label) ? "registration" : m.id;
+        return (profile.granularPermissions?.[permissionModule] ?? []).includes(/^(Create|Add|New)\b/.test(item.label) ? "create" : "read");
+      }),
+    })).filter(m => m.items.length > 0).filter(
       (m) =>
         m.label.toLowerCase().includes(moduleQuery.toLowerCase()) ||
         m.items.some((item) => item.label.toLowerCase().includes(moduleQuery.toLowerCase()))
     );
-  }, [moduleQuery, profile, dbCountries]);
-
-  useEffect(() => {
-    void fetch("/api/me").then((response) => response.ok ? response.json() : null).then((body) => setProfile(body?.data ?? null));
-    void fetch("/api/countries").then((response) => response.ok ? response.json() : null).then((body) => setDbCountries(body?.data ?? []));
-  }, []);
-
-  useEffect(() => {
-    void fetch("/api/nav-counts").then((response) => response.ok ? response.json() : null).then((body) => setNavCounts(body?.data ?? {}));
-  }, [path]);
+  }, [moduleQuery, profile, dbCountries, isPortalRoute]);
 
   useEffect(() => {
     const current = path.match(/^\/module\/([^/]+)/)?.[1];
@@ -221,6 +234,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <kbd>Ctrl K</kbd>
         </div>
         <nav>
+          {!profile && <div style={{ padding: "16px", fontSize: "13px" }}>
+            {profileQuery.isPending ? <p role="status">Loading navigation…</p>
+              : profileQuery.data?.data === null ? <p role="alert">Your session has expired. <Link href="/login">Sign in again</Link></p>
+              : <div role="alert"><p>Unable to load navigation.</p><button type="button" disabled={profileQuery.isFetching} onClick={() => void profileQuery.refetch()}>Retry</button></div>}
+          </div>}
           {visible.map((module, index) => {
             const activeModule = module.id === "dashboard" ? path === "/dashboard" : selectedModule === module.id;
             const expanded = expandedModule === module.id || Boolean(moduleQuery);
@@ -232,6 +250,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <Link prefetch={true} onClick={() => setOpen(false)} href="/dashboard" className={`nav-main dashboard-link ${activeModule ? "active" : ""}`}>
                     <span className="nav-icon"><module.icon size={19} /></span>
                     <span>{module.label}</span>
+                    <NavigationPending />
                   </Link>
                 </div>
               );
@@ -239,6 +258,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
             if (module.items.length === 1) {
               const singleItem = module.items[0];
+              const prefetchCountry = () => {
+                if (singleItem.label !== "Candidates List") return;
+                const country = module.id === "ksa" ? "Saudi Arabia"
+                  : module.id === "other-country" ? "Other Country" : module.label;
+                void queryClient.prefetchQuery(countryCandidatesQueryOptions(country));
+              };
               const singleCount =
                 module.id === "country-setup"
                   ? (dbCountries.length || (navCounts[module.id]?.[singleItem.label] ?? 0))
@@ -251,6 +276,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <Link
                     prefetch={true}
                     onClick={() => setOpen(false)}
+                    onMouseEnter={prefetchCountry}
+                    onFocus={prefetchCountry}
+                    onTouchStart={prefetchCountry}
                     href={moduleItemPath(module.id, singleItem.label)}
                     className={`nav-main ${activeModule ? "active active-module" : ""}`}
                     style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
@@ -260,6 +288,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       <span>{module.label}</span>
                     </span>
                     {!hideBadge && <span className="nav-badge">{singleCount}</span>}
+                    <NavigationPending />
                   </Link>
                 </div>
               );
@@ -294,6 +323,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                           <i /> <span>{item.label}</span>
                         </span>
                         {!isActionItem && <span className="nav-badge">{count}</span>}
+                        <NavigationPending />
                       </Link>
                     );
                   })}
@@ -333,6 +363,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 >
                   Admin
                 </span>
+                <NavigationPending />
               </Link>
             </div>
           )}
@@ -378,8 +409,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="profile">
               <div className="avatar">{initials}</div>
               <span>
-                <b>{profile?.name ?? "Officer"}</b>
-                <small>{profile?.role ?? "Call Center"}</small>
+                <b>{profile?.name ?? "Account"}</b>
+                <small>{profile?.role ?? (profileQuery.isPending ? "Loading…" : "Unavailable")}</small>
               </span>
               <ChevronDown size={16} />
             </div>
@@ -391,4 +422,3 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
-

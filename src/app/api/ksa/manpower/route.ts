@@ -1,3 +1,5 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("ksa/manpower", GETHandler);
 import { can, officeScope } from "@/lib/authorization";
 import { AppError, errorResponse } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
@@ -8,7 +10,7 @@ type Requirements = { loanNeeded?: boolean; bmetFinger?: boolean; bmetTraining?:
 const req = (value: unknown): Requirements => value && typeof value === "object" && !Array.isArray(value) ? value as Requirements : {};
 const bool = (filter: string, value: boolean) => !filter || value === (filter === "Yes");
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);

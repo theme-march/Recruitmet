@@ -9,7 +9,7 @@ export default async function AdminControlPage({
   searchParams: Promise<{ tab?: string }>;
 }) {
   await connection();
-  const { session } = await requireRole("CALL_CENTER");
+  const { session } = await requireRole("SUPER_ADMIN");
   const { tab = "users" } = await searchParams;
 
   const officeFilter = session.user.officeId ? { officeId: session.user.officeId } : {};

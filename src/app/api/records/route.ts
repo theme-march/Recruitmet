@@ -1,3 +1,5 @@
+import { withApiAccess } from "@/lib/api-access";
+export const POST = withApiAccess("records", POSTHandler);
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
@@ -8,7 +10,7 @@ const input = z.object({ resource: z.enum(["lead","candidate","interviewSchedule
 const text = (value: unknown) => typeof value === "string" ? value.trim() : "";
 const required = (data: Record<string, unknown>, key: string) => { const value = text(data[key]); if (!value) throw new Error(`${key} is required`); return value; };
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const parsed = input.safeParse(await request.json());

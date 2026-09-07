@@ -1,7 +1,11 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useRef, useState, useMemo } from "react";
 import Link from "next/link";
+import { useMutation, useMutationState, useQuery, useQueryClient } from "@tanstack/react-query";
+import { countriesKey, countriesQueryOptions, countryStatusKey, countryStatusMutationOptions, type CountryRecord } from "@/lib/queries/countries";
+import { useAccess } from "@/hooks/use-access";
+export type { CountryRecord } from "@/lib/queries/countries";
 import {
   Globe,
   Plus,
@@ -34,27 +38,7 @@ import {
   getDefaultStagesForCountry,
 } from "@/lib/country-pipeline";
 
-export type CountryRecord = {
-  id: string;
-  name: string;
-  code: string;
-  currency: string;
-  timezone: string;
-  phoneCode: string | null;
-  workflowType: string;
-  active: boolean;
-  candidateCount: number;
-  workflow?: Array<{
-    id: string;
-    code: string;
-    name: string;
-    sortOrder: number;
-    active: boolean;
-    terminal?: boolean;
-  }>;
-  createdAt: string;
-  updatedAt: string;
-};
+
 
 const FLAG_MAP: Record<string, string> = {
   sa: "🇸🇦",
@@ -102,8 +86,17 @@ export function getCountryFlagEmoji(code: string, name: string): string {
 }
 
 export function CountryManagementPage() {
-  const [countries, setCountries] = useState<CountryRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const countryQuery = useQuery(countriesQueryOptions());
+  const countries = countryQuery.data ?? [];
+  const loading = countryQuery.isPending;
+  const { allows } = useAccess();
+  const statusMutation = useMutation(countryStatusMutationOptions(queryClient));
+  const pendingCountryIds = useMutationState({
+    filters: { mutationKey: countryStatusKey, status: "pending" },
+    select: mutation => (mutation.state.variables as { id: string }).id,
+  });
+  const pendingClicks = useRef(new Set<string>());
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTab, setFilterTab] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
 
@@ -242,25 +235,11 @@ export function CountryManagementPage() {
   };
 
   const fetchCountries = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch("/api/countries");
-      const json = await res.json();
-      if (json.success) {
-        setCountries(json.data);
-      } else {
-        toast.error(json.error || "Failed to load countries");
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to load countries");
-    } finally {
-      setLoading(false);
-    }
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: countriesKey }),
+      queryClient.invalidateQueries({ queryKey: ["nav-counts"] }),
+    ]);
   };
-
-  useEffect(() => {
-    fetchCountries();
-  }, []);
 
   const openCreateModal = () => {
     setEditingCountry(null);
@@ -351,18 +330,15 @@ export function CountryManagementPage() {
   };
 
   const handleToggleActive = async (country: CountryRecord) => {
+    if (pendingClicks.current.has(country.id) || !allows("country-setup", "edit")) return;
+    pendingClicks.current.add(country.id);
     try {
-      const res = await fetch("/api/countries", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: country.id, active: !country.active }),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.error || "Failed to update status");
+      await statusMutation.mutateAsync({ id: country.id, active: !country.active });
       toast.success(`Country "${country.name}" is now ${!country.active ? "Active" : "Inactive"}`);
-      await fetchCountries();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to update status");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update status");
+    } finally {
+      pendingClicks.current.delete(country.id);
     }
   };
 
@@ -410,7 +386,7 @@ export function CountryManagementPage() {
           <button
             type="button"
             onClick={fetchCountries}
-            disabled={loading}
+            disabled={countryQuery.isFetching}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -425,7 +401,7 @@ export function CountryManagementPage() {
               cursor: "pointer",
             }}
           >
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Refresh
+            <RefreshCw size={14} className={countryQuery.isFetching ? "animate-spin" : ""} /> Refresh
           </button>
 
           <button
@@ -565,7 +541,12 @@ export function CountryManagementPage() {
         </div>
 
         {/* Countries Table / Cards */}
-        {loading ? (
+        {countryQuery.isError && !countryQuery.data ? (
+          <div role="alert" style={{ padding: 32 }}>
+            <p>{countryQuery.error.message}</p>
+            <button type="button" onClick={() => countryQuery.refetch()}>Retry</button>
+          </div>
+        ) : loading ? (
           <div style={{ padding: "40px", textAlign: "center", color: "var(--muted)" }}>
             <RefreshCw size={24} className="animate-spin" style={{ margin: "0 auto 10px" }} />
             <p>Loading destination countries...</p>
@@ -656,6 +637,9 @@ export function CountryManagementPage() {
                       <td style={{ padding: "14px 16px" }}>
                         <button
                           type="button"
+                          disabled={pendingCountryIds.includes(c.id) || !allows("country-setup", "edit")}
+                          aria-busy={pendingCountryIds.includes(c.id)}
+                          aria-label={`${c.active ? "Deactivate" : "Activate"} ${c.name}`}
                           onClick={() => handleToggleActive(c)}
                           style={{
                             display: "inline-flex",
@@ -672,7 +656,7 @@ export function CountryManagementPage() {
                           }}
                         >
                           {c.active ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
-                          {c.active ? "Active" : "Inactive"}
+                          {pendingCountryIds.includes(c.id) ? "Saving…" : c.active ? "Active" : "Inactive"}
                         </button>
                       </td>
 

@@ -1,3 +1,6 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("interviews", GETHandler);
+export const POST = withApiAccess("interviews", POSTHandler);
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { can } from "@/lib/authorization";
@@ -21,7 +24,7 @@ const schema = z.object({
   candidateIds: z.array(z.string()).optional().default([]),
 });
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);
@@ -100,7 +103,7 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);

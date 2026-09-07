@@ -1,9 +1,11 @@
+import { withApiAccess } from "@/lib/api-access";
+export const POST = withApiAccess("interviews/[id]/convert", POSTHandler);
 import { AppError, errorResponse } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { Prisma } from "@prisma/client";
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+async function POSTHandler(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);

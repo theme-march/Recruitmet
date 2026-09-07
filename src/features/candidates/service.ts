@@ -13,7 +13,7 @@ export async function createCandidate(
   input: CandidateInput,
   session: NonNullable<AwaitedSession>,
 ) {
-  if (!(await can(session, "registration", "Add"))) {
+  if (!(await can(session, "call-center", "Add"))) {
     throw new AppError("FORBIDDEN", "Add permission is required.", 403);
   }
 
@@ -82,7 +82,7 @@ export async function listCandidates(
   input: { skip: number; take: number; q?: string },
   session: NonNullable<AwaitedSession>,
 ) {
-  if (!(await can(session, "registration", "View"))) {
+  if (!(await can(session, "call-center", "View"))) {
     throw new AppError("FORBIDDEN", "View permission is required.", 403);
   }
   const where = {

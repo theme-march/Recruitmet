@@ -1,2 +1,4 @@
+import { withApiAccess } from "@/lib/api-access";
+export const POST = withApiAccess("flights/[id]/flown", POSTHandler);
 import {getSession} from "@/lib/session"; import {AppError,errorResponse} from "@/lib/errors"; import {markFlightFlown} from "@/features/flights/service";
-export async function POST(_:Request,{params}:{params:Promise<{id:string}>}){try{const session=await getSession();if(!session)throw new AppError("UNAUTHORIZED","Sign in is required.",401);const{id}=await params,result=await markFlightFlown(id,session);return Response.json({data:result})}catch(error){return errorResponse(error)}}
+async function POSTHandler(_:Request,{params}:{params:Promise<{id:string}>}){try{const session=await getSession();if(!session)throw new AppError("UNAUTHORIZED","Sign in is required.",401);const{id}=await params,result=await markFlightFlown(id,session);return Response.json({data:result})}catch(error){return errorResponse(error)}}

@@ -1,9 +1,11 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("all-candidates", GETHandler);
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { AppError, errorResponse } from "@/lib/errors";
 import { getCandidatesData } from "@/server/data/candidates";
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);

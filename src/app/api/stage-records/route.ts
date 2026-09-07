@@ -1,3 +1,5 @@
+import { withApiAccess } from "@/lib/api-access";
+export const POST = withApiAccess("stage-records", POSTHandler);
 import { can, officeScope } from "@/lib/authorization";
 import { AppError, errorResponse } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
@@ -12,7 +14,7 @@ const checked = (form: FormData, key: string) => form.get(key) === "true";
 const number = (form: FormData, key: string, fallback = 0) => { const result = optional(form, key); return result ? Number(result) : fallback; };
 const jsonFields = (form: FormData) => { const result: Record<string, string> = {}; for (const [key, entry] of form.entries()) if (!["attachment", "fileLookup", "module", "stage"].includes(key) && typeof entry === "string") result[key] = entry; return result; };
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);

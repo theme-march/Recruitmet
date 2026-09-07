@@ -1,9 +1,11 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("nav-counts", GETHandler);
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { officeScope } from "@/lib/authorization";
 import { NextResponse } from "next/server";
 
-export async function GET() {
+async function GETHandler() {
   try {
     const session = await getSession();
     if (!session) {

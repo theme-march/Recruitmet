@@ -1,3 +1,7 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("work-calls", GETHandler);
+export const POST = withApiAccess("work-calls", POSTHandler);
+export const PATCH = withApiAccess("work-calls", PATCHHandler);
 import { z } from "zod";
 import { can } from "@/lib/authorization";
 import { AppError, errorResponse } from "@/lib/errors";
@@ -52,7 +56,7 @@ const schema = z.object({
 const validDate = (value: string) => value && !Number.isNaN(new Date(value).getTime()) ? new Date(value) : null;
 const jsonObject = (value: unknown) => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);
@@ -172,7 +176,7 @@ export async function GET(request: Request) {
   } catch (error) { return errorResponse(error); }
 }
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);
@@ -308,7 +312,7 @@ const updateSchema = z.object({
   followUpDate: z.string().optional(),
 });
 
-export async function PATCH(request: Request) {
+async function PATCHHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);
@@ -469,5 +473,4 @@ export async function PATCH(request: Request) {
     return errorResponse(error);
   }
 }
-
 

@@ -1,3 +1,5 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("ksa/hold-files", GETHandler);
 import { can, officeScope } from "@/lib/authorization";
 import { AppError, errorResponse } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
@@ -7,7 +9,7 @@ import { workflowCountryWhere, workflowModule } from "@/lib/workflow-country";
 const dayStart = (value: string) => value ? new Date(`${value}T00:00:00`) : null;
 const dayEnd = (value: string) => value ? new Date(`${value}T23:59:59.999`) : null;
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);

@@ -1,3 +1,5 @@
+import { can } from "@/lib/authorization";
+import { countryModule } from "@/lib/permission-policy";
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { redirect, notFound } from "next/navigation";
@@ -10,22 +12,7 @@ export async function generateMetadata({
 }: {
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
-  const { id } = await params;
-  const file = await prisma.processingFile.findFirst({
-    where: { OR: [{ id }, { fileNo: id }] },
-    select: { fileNo: true, candidate: { select: { fullName: true } } },
-  });
-
-  if (!file) {
-    return {
-      title: "Candidate File Not Found | Orbit Overseas",
-    };
-  }
-
-  return {
-    title: `File ${file.fileNo} - ${file.candidate.fullName} | Orbit Recruitment OS`,
-    description: `Dossier and recruitment lifecycle workflow for file ${file.fileNo}`,
-  };
+  return { title: "Candidate Dossier | Orbit Overseas" };
 }
 
 export default async function FilePage({
@@ -44,10 +31,12 @@ export default async function FilePage({
     where: {
       OR: [{ id }, { fileNo: id }],
     },
-    select: { id: true, fileNo: true },
+    select: { id: true, fileNo: true, country: true },
   });
 
+  if (file && !await can(session, countryModule(file.country), "read") && !await can(session, "files", "read")) redirect("/dashboard");
   if (!file) {
+    if (!await can(session, "call-center", "read")) redirect("/dashboard");
     const workCall = await prisma.workCall.findFirst({
       where: { OR: [{ id }, { leadNo: id }] },
       select: { id: true },

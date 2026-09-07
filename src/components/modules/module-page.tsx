@@ -1,159 +1,45 @@
-import dynamic from "next/dynamic";
-import { Suspense } from "react";
 import { getSession } from "@/lib/session";
-import { connection } from "next/server";
 import { redirect } from "next/navigation";
-import { ComponentSkeleton } from "@/components/layout/component-skeleton";
-
-// Dynamic on-demand loading for components (Code-splitting & streaming)
-const CreateWorkCallPage = dynamic(
-  () => import("@/components/modules/create-work-call-page").then((mod) => mod.CreateWorkCallPage),
-  { loading: () => <ComponentSkeleton /> }
-);
-
 import { AllCandidatesListPage } from "@/components/modules/all-candidates-list-page";
 import { CountryCandidatesListPage } from "@/components/modules/country-candidates-list-page";
-
-const WorkCallListPage = dynamic(
-  () => import("@/components/modules/work-call-list-page").then((mod) => mod.WorkCallListPage),
-  { loading: () => <ComponentSkeleton /> }
-);
-
-const OfficerDashboardPage = dynamic(
-  () => import("@/components/modules/officer-dashboard-page").then((mod) => mod.OfficerDashboardPage),
-  { loading: () => <ComponentSkeleton /> }
-);
-
-const InterviewListPage = dynamic(
-  () => import("@/components/modules/interview-list-page").then((mod) => mod.InterviewListPage),
-  { loading: () => <ComponentSkeleton /> }
-);
-
-const WorksDemandsPage = dynamic(
-  () => import("@/components/modules/works-demands-page").then((mod) => mod.WorksDemandsPage),
-  { loading: () => <ComponentSkeleton /> }
-);
-
-const AgentsPage = dynamic(
-  () => import("@/components/modules/agents-page").then((mod) => mod.AgentsPage),
-  { loading: () => <ComponentSkeleton /> }
-);
-
-const PaymentCollectionPage = dynamic(
-  () => import("@/components/modules/payment-collection-page").then((mod) => mod.PaymentCollectionPage),
-  { loading: () => <ComponentSkeleton /> }
-);
-
-const DubaiDocumentsPage = dynamic(
-  () => import("@/components/modules/dubai-documents-page").then((mod) => mod.DubaiDocumentsPage),
-  { loading: () => <ComponentSkeleton /> }
-);
-
-const CountryManagementPage = dynamic(
-  () => import("@/components/modules/country-management-page").then((mod) => mod.CountryManagementPage),
-  { loading: () => <ComponentSkeleton /> }
-);
-
-const TutorialLibraryPage = dynamic(
-  () => import("@/components/modules/tutorial-library-page").then((mod) => mod.TutorialLibraryPage),
-  { loading: () => <ComponentSkeleton /> }
-);
-
-const KsaPassportPage = dynamic(
-  () => import("@/components/ksa/ksa-passport-page").then((mod) => mod.KsaPassportPage),
-  { loading: () => <ComponentSkeleton /> }
-);
-
-const KsaMedicalPage = dynamic(
-  () => import("@/components/ksa/ksa-medical-page").then((mod) => mod.KsaMedicalPage),
-  { loading: () => <ComponentSkeleton /> }
-);
-
-const KsaMofaPage = dynamic(
-  () => import("@/components/ksa/ksa-mofa-page").then((mod) => mod.KsaMofaPage),
-  { loading: () => <ComponentSkeleton /> }
-);
-
-const KsaTakamulPage = dynamic(
-  () => import("@/components/ksa/ksa-takamul-page").then((mod) => mod.KsaTakamulPage),
-  { loading: () => <ComponentSkeleton /> }
-);
-
-const KsaBioFingerPage = dynamic(
-  () => import("@/components/ksa/ksa-bio-finger-page").then((mod) => mod.KsaBioFingerPage),
-  { loading: () => <ComponentSkeleton /> }
-);
-
-const KsaPoliceClearancePage = dynamic(
-  () => import("@/components/ksa/ksa-police-clearance-page").then((mod) => mod.KsaPoliceClearancePage),
-  { loading: () => <ComponentSkeleton /> }
-);
-
-const KsaFirstPaymentPage = dynamic(
-  () => import("@/components/ksa/ksa-first-payment-page").then((mod) => mod.KsaFirstPaymentPage),
-  { loading: () => <ComponentSkeleton /> }
-);
-
-const KsaPreConfirmPage = dynamic(
-  () => import("@/components/ksa/ksa-pre-confirm-page").then((mod) => mod.KsaPreConfirmPage),
-  { loading: () => <ComponentSkeleton /> }
-);
-
-const KsaVisaStampingPage = dynamic(
-  () => import("@/components/ksa/ksa-visa-stamping-page").then((mod) => mod.KsaVisaStampingPage),
-  { loading: () => <ComponentSkeleton /> }
-);
-
-const KsaVisaHoldPage = dynamic(
-  () => import("@/components/ksa/ksa-visa-hold-page").then((mod) => mod.KsaVisaHoldPage),
-  { loading: () => <ComponentSkeleton /> }
-);
-
-const KsaSecondPaymentPage = dynamic(
-  () => import("@/components/ksa/ksa-second-payment-page").then((mod) => mod.KsaSecondPaymentPage),
-  { loading: () => <ComponentSkeleton /> }
-);
-
-const KsaHoldFilePage = dynamic(
-  () => import("@/components/ksa/ksa-hold-file-page").then((mod) => mod.KsaHoldFilePage),
-  { loading: () => <ComponentSkeleton /> }
-);
-
-const KsaManpowerPage = dynamic(
-  () => import("@/components/ksa/ksa-manpower-page").then((mod) => mod.KsaManpowerPage),
-  { loading: () => <ComponentSkeleton /> }
-);
-
-const KsaReadyFlightPage = dynamic(
-  () => import("@/components/ksa/ksa-ready-flight-page").then((mod) => mod.KsaReadyFlightPage),
-  { loading: () => <ComponentSkeleton /> }
-);
-
-const KsaFlightPage = dynamic(
-  () => import("@/components/ksa/ksa-flight-page").then((mod) => mod.KsaFlightPage),
-  { loading: () => <ComponentSkeleton /> }
-);
-
-const KsaReturnedFilesPage = dynamic(
-  () => import("@/components/ksa/ksa-returned-files-page").then((mod) => mod.KsaReturnedFilesPage),
-  { loading: () => <ComponentSkeleton /> }
-);
-
-const ModuleView = dynamic(
-  () => import("@/components/modules/module-view").then((mod) => mod.ModuleView),
-  { loading: () => <ComponentSkeleton /> }
-);
+import { CreateWorkCallPage } from "@/components/modules/create-work-call-page";
+import { OfficerDashboardPage } from "@/components/modules/officer-dashboard-page";
+import { InterviewListPage } from "@/components/modules/interview-list-page";
+import { WorksDemandsPage } from "@/components/modules/works-demands-page";
+import { AgentsPage } from "@/components/modules/agents-page";
+import { PaymentCollectionPage } from "@/components/modules/payment-collection-page";
+import { DubaiDocumentsPage } from "@/components/modules/dubai-documents-page";
+import { CountryManagementPage } from "@/components/modules/country-management-page";
+import { TutorialLibraryPage } from "@/components/modules/tutorial-library-page";
+import { KsaPassportPage } from "@/components/ksa/ksa-passport-page";
+import { KsaMedicalPage } from "@/components/ksa/ksa-medical-page";
+import { KsaMofaPage } from "@/components/ksa/ksa-mofa-page";
+import { KsaTakamulPage } from "@/components/ksa/ksa-takamul-page";
+import { KsaBioFingerPage } from "@/components/ksa/ksa-bio-finger-page";
+import { KsaPoliceClearancePage } from "@/components/ksa/ksa-police-clearance-page";
+import { KsaFirstPaymentPage } from "@/components/ksa/ksa-first-payment-page";
+import { KsaPreConfirmPage } from "@/components/ksa/ksa-pre-confirm-page";
+import { KsaVisaStampingPage } from "@/components/ksa/ksa-visa-stamping-page";
+import { KsaVisaHoldPage } from "@/components/ksa/ksa-visa-hold-page";
+import { KsaSecondPaymentPage } from "@/components/ksa/ksa-second-payment-page";
+import { KsaHoldFilePage } from "@/components/ksa/ksa-hold-file-page";
+import { KsaManpowerPage } from "@/components/ksa/ksa-manpower-page";
+import { KsaReadyFlightPage } from "@/components/ksa/ksa-ready-flight-page";
+import { KsaFlightPage } from "@/components/ksa/ksa-flight-page";
+import { KsaReturnedFilesPage } from "@/components/ksa/ksa-returned-files-page";
 
 export async function ModulePage({ moduleId, initialTab }: { moduleId: string; initialTab: string }) {
-  await connection();
   const session = await getSession();
   if (!session) redirect("/login");
+  const { can } = await import("@/lib/authorization");
+  const permissionModule = /interview/i.test(initialTab) ? "registration" : moduleId;
+  if (!await can(session, permissionModule, /^(Create|Add|New)\b/.test(initialTab) ? "create" : "read")) {
+    return <section style={{ padding: 32 }}><h1>Access not granted</h1><p>Your role does not have access to this work. Ask your Super Administrator to update your role.</p></section>;
+  }
 
-  return (
-    <Suspense fallback={<ComponentSkeleton />}>
-      {renderModuleContent(moduleId, initialTab, session.user.name)}
-    </Suspense>
-  );
+  // Keep authorization at the page boundary. Next.js retains the current page
+  // during navigation until this server work and the destination code are ready.
+  return renderModuleContent(moduleId, initialTab, session.user.name);
 }
 
 function renderModuleContent(moduleId: string, initialTab: string, officerName: string) {

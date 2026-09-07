@@ -1,3 +1,6 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("candidates", GETHandler);
+export const POST = withApiAccess("candidates", POSTHandler);
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/session";
 import { AppError, errorResponse } from "@/lib/errors";
@@ -5,7 +8,7 @@ import { parsePagination, pageResult } from "@/lib/pagination";
 import { candidateCreateSchema } from "@/features/candidates/schemas";
 import { createCandidate, listCandidates } from "@/features/candidates/service";
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);
@@ -17,7 +20,7 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);

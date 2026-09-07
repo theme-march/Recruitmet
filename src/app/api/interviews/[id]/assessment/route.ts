@@ -1,3 +1,5 @@
+import { withApiAccess } from "@/lib/api-access";
+export const PATCH = withApiAccess("interviews/[id]/assessment", PATCHHandler);
 import { z } from "zod";
 import { assessInterview } from "@/features/interviews/service";
 import { AppError, errorResponse } from "@/lib/errors";
@@ -21,7 +23,7 @@ const schema = z.object({
     .default([]),
 });
 
-export async function PATCH(
+async function PATCHHandler(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {

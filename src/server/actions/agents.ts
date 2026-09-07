@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requirePermission, requireSuperAdmin } from "@/lib/authorization";
 import { getSession } from "@/lib/session";
 import bcrypt from "bcryptjs";
 import type { ServerActionResult } from "./files";
@@ -33,7 +34,9 @@ export async function createAgentAction(
     if (!session) {
       return { success: false, error: "Unauthorized. Please sign in." };
     }
+    await requirePermission(session, "agents", "create");
 
+    if (input.enablePortalLogin) requireSuperAdmin(session);
     if (!input.name || input.name.trim().length < 2) {
       return { success: false, error: "Agent name must be at least 2 characters." };
     }

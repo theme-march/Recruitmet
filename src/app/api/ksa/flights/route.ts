@@ -1,3 +1,5 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("ksa/flights", GETHandler);
 import { can, officeScope } from "@/lib/authorization";
 import { AppError, errorResponse } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
@@ -9,7 +11,7 @@ type Requirements = { loanNeeded?: boolean; bmetFinger?: boolean; bmetTraining?:
 const object = <T,>(value: unknown) => value && typeof value === "object" && !Array.isArray(value) ? value as T : {} as T;
 const start = (value: string) => value ? new Date(`${value}T00:00:00`) : null; const end = (value: string) => value ? new Date(`${value}T23:59:59.999`) : null; const within = (value: string | null, from: string, to: string) => (!from || Boolean(value && new Date(value) >= start(from)!)) && (!to || Boolean(value && new Date(value) <= end(to)!)); const bool = (filter: string, value: boolean) => !filter || value === (filter === "Yes");
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   try {
 const session = await getSession(); if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401); if (!(await can(session, workflowModule(request), "View"))) throw new AppError("FORBIDDEN", "View permission is required.", 403); const url = new URL(request.url); const p = (key: string) => (url.searchParams.get(key) ?? "").trim(); const page = Math.max(1, Number(p("page")) || 1); const pageSize = Math.min(100, Math.max(10, Number(p("pageSize")) || 20));
 const files = await prisma.processingFile.findMany({ where: { ...officeScope(session), country: workflowCountryWhere(request), OR: [{ currentStage: "Flight" }, { flights: { some: {} } }] }, orderBy: { updatedAt: "desc" }, take: 5000, include: { candidate: true, passport: true, assignedTo: { select: { id: true, name: true } }, office: { select: { id: true, name: true } }, workflowEvents: { where: { stage: "Ready To Flight" }, take: 1, orderBy: { createdAt: "desc" } }, manpower: { take: 1, orderBy: { createdAt: "desc" } }, visas: { take: 1, orderBy: { createdAt: "desc" } }, payments: { where: { type: "Second Payment" }, take: 1, orderBy: { createdAt: "desc" } }, flights: { take: 1, orderBy: { flight: { departureAt: "desc" } }, include: { flight: true } } } });

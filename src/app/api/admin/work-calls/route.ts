@@ -1,3 +1,6 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("admin/work-calls", GETHandler);
+export const PATCH = withApiAccess("admin/work-calls", PATCHHandler);
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { AppError, errorResponse } from "@/lib/errors";
@@ -12,7 +15,7 @@ const updateLeadSchema = z.object({
   notesText: z.string().optional(),
 });
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);
@@ -45,7 +48,7 @@ export async function GET(request: Request) {
   }
 }
 
-export async function PATCH(request: Request) {
+async function PATCHHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);

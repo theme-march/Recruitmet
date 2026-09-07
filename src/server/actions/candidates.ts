@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requirePermission, requireSuperAdmin } from "@/lib/authorization";
 import { getSession } from "@/lib/session";
 import { RecordStatus } from "@prisma/client";
 import { candidateCreateSchema } from "@/features/candidates/schemas";
@@ -20,6 +21,7 @@ export async function createCandidateAction(
     if (!session) {
       return { success: false, error: "Unauthorized. Please sign in." };
     }
+    await requirePermission(session, "call-center", "create");
 
     const validated = candidateCreateSchema.parse(input);
     const candidate = await createCandidate(validated, session);
@@ -52,6 +54,7 @@ export async function updateCandidateStatusAction(
     if (!session) {
       return { success: false, error: "Unauthorized. Please sign in." };
     }
+    await requirePermission(session, "call-center", "edit");
 
     const candidate = await prisma.candidate.findUnique({
       where: { id: candidateId },

@@ -1,3 +1,6 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("ksa/bio-finger", GETHandler);
+export const POST = withApiAccess("ksa/bio-finger", POSTHandler);
 import { can, officeScope } from "@/lib/authorization";
 import { AppError, errorResponse } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
@@ -7,7 +10,7 @@ type UploadRow = { fileNo?: string; candidateNo?: string; passportNumber?: strin
 const start = (value: string) => value ? new Date(`${value}T00:00:00`) : null; const end = (value: string) => value ? new Date(`${value}T23:59:59.999`) : null;
 const within = (value: string | null, from: string, to: string) => (!from || Boolean(value && new Date(value) >= start(from)!)) && (!to || Boolean(value && new Date(value) <= end(to)!));
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   try {
     const session = await getSession(); if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401); if (!(await can(session, "ksa", "View"))) throw new AppError("FORBIDDEN", "View permission is required.", 403);
     const url = new URL(request.url); const p = (key: string) => (url.searchParams.get(key) ?? "").trim(); const page = Math.max(1, Number(p("page")) || 1); const pageSize = Math.min(100, Math.max(10, Number(p("pageSize")) || 10));
@@ -86,7 +89,7 @@ export async function GET(request: Request) {
   } catch (error) { return errorResponse(error); }
 }
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   try {
     const session = await getSession(); if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401); if (!(await can(session, "ksa", "Create"))) throw new AppError("FORBIDDEN", "Create permission is required.", 403); const body = await request.json() as { rows?: UploadRow[] }; const rows = body.rows ?? []; if (!rows.length || rows.length > 500) throw new AppError("INVALID_CSV", "CSV must contain between 1 and 500 rows.", 422); let imported = 0; const errors: string[] = [];
     for (const [index, row] of rows.entries()) { const identifier = row.fileNo || row.candidateNo || row.passportNumber; if (!identifier) { errors.push(`Row ${index + 2}: identifier is required.`); continue; } const file = await prisma.processingFile.findFirst({ where: { ...officeScope(session), country: { contains: "Saudi" }, OR: [{ fileNo: identifier }, { candidate: { candidateNo: identifier } }, { passport: { passportNumber: identifier } }] } }); if (!file) { errors.push(`Row ${index + 2}: file not found for ${identifier}.`); continue; } await prisma.biometricProcess.create({ data: { fileId: file.id, type: "KSA Bio Finger", status: row.status || "Pending", appointmentDate: row.appointmentDate ? new Date(row.appointmentDate) : null, presentDate: row.presentDate ? new Date(row.presentDate) : null, completedAt: row.completedAt ? new Date(row.completedAt) : null, evidenceKey: row.evidenceKey || null } }); imported++; }

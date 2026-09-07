@@ -7,18 +7,10 @@ import { loginRisk, recordLogin } from "@/features/auth/service";
 import { errorResponse } from "@/lib/errors";
 import { requestContext } from "@/lib/request-context";
 import { roleHome } from "@/lib/roles";
-import { syncDatabaseForCallCenter } from "@/lib/workflow-country";
 
 export async function POST(request: Request) {
   const ctx = requestContext(request);
   try {
-    // Auto-sync & fix database (roles, inactive flags, users)
-    try {
-      await syncDatabaseForCallCenter();
-    } catch (e) {
-      console.warn("syncDatabaseForCallCenter warning:", e);
-    }
-
     const parsed = loginSchema.parse(await request.json());
     const identity = parsed.identity.trim();
 
@@ -48,7 +40,7 @@ export async function POST(request: Request) {
       passwordValid = await bcrypt.compare(parsed.password, user.passwordHash);
     }
 
-    if (!user || user.status !== "ACTIVE" || !passwordValid) {
+    if (!user || user.status !== "ACTIVE" || user.role.status !== "ACTIVE" || !passwordValid) {
       await recordLogin({ ...ctx, userId: user?.id, identity: parsed.identity, result: "Failed", reason: "Invalid credentials or account state" });
       return NextResponse.json({ error: "Invalid credentials or inactive account.", captchaRequired: false }, { status: 401 });
     }
@@ -74,4 +66,3 @@ export async function POST(request: Request) {
     return errorResponse(error);
   }
 }
-

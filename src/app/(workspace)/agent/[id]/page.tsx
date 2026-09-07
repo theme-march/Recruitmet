@@ -1,3 +1,4 @@
+import { can } from "@/lib/authorization";
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
@@ -11,15 +12,7 @@ export async function generateMetadata({
 }: {
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
-  const { id } = await params;
-  const agent = await prisma.agent.findFirst({
-    where: { OR: [{ id }, { code: id }] },
-    select: { name: true, code: true },
-  });
-
-  return {
-    title: agent ? `Agent: ${agent.name} (${agent.code}) | Orbit Overseas` : "Agent Dossier | Orbit Overseas",
-  };
+  return { title: "Agent Dossier | Orbit Overseas" };
 }
 
 export default async function AgentPage({
@@ -30,6 +23,7 @@ export default async function AgentPage({
   await connection();
   const session = await getSession();
   if (!session) redirect("/login");
+  if (!await can(session, "agents", "read")) redirect("/dashboard");
 
   const roleKey = toAppRole(session.user.role.name);
 

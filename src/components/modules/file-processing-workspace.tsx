@@ -1,4 +1,6 @@
 "use client";
+import { useAccess } from "@/hooks/use-access";
+import { countryModule } from "@/lib/permission-policy";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -395,6 +397,7 @@ export function FileProcessingWorkspace({
   fileId?: string;
   initialData?: ProcessingFileData;
 } = {}) {
+  const { allows } = useAccess();
   const queryClient = useQueryClient();
   const params = useParams();
   const id = fileId || (params?.id as string);
@@ -506,6 +509,7 @@ export function FileProcessingWorkspace({
   });
 
   const file = query.data;
+  const canEditFile = allows("files", "edit") || allows(countryModule(file?.country ?? ""), "edit");
   const stages = useMemo(() => {
     if (!file) return otherStages;
 
@@ -643,6 +647,10 @@ export function FileProcessingWorkspace({
   };
 
   async function handleStageUpdate(action: string, payload: Record<string, unknown>) {
+    if (!canEditFile || (action === "record-payment" && !allows("payment-collection", "create"))) {
+      toast.error("Your role does not have permission for this action.");
+      return;
+    }
     setSaving(true);
     try {
       const targetId = file?.id || id;
@@ -873,6 +881,7 @@ export function FileProcessingWorkspace({
               <button
                 type="button"
                 className="btn-modal-hold"
+                disabled={!canEditFile || !allows("exceptions", "hold")}
                 onClick={() => setShowHoldModal(true)}
                 style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
               >
@@ -881,6 +890,7 @@ export function FileProcessingWorkspace({
               <button
                 type="button"
                 className="btn-modal-return"
+                disabled={!canEditFile || !allows("exceptions", "return")}
                 onClick={() => setShowReturnModal(true)}
                 style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
               >

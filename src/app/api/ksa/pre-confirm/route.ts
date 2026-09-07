@@ -1,3 +1,5 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("ksa/pre-confirm", GETHandler);
 import { can, officeScope } from "@/lib/authorization";
 import { AppError, errorResponse } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
@@ -7,7 +9,7 @@ import { workflowCountryWhere, workflowModule } from "@/lib/workflow-country";
 type Meta = { isReMedical?: boolean };
 const meta = (value: unknown): Meta => value && typeof value === "object" ? value as Meta : {};
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   try {
 const session = await getSession(); if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401); if (!(await can(session, workflowModule(request), "View"))) throw new AppError("FORBIDDEN", "View permission is required.", 403); const url = new URL(request.url); const p = (key: string) => (url.searchParams.get(key) ?? "").trim().toLowerCase(); const page = Math.max(1, Number(url.searchParams.get("page")) || 1); const pageSize = Math.min(100, Math.max(10, Number(url.searchParams.get("pageSize")) || 20));
     const files = await prisma.processingFile.findMany({ where: { ...officeScope(session), country: workflowCountryWhere(request), currentStage: new URL(request.url).searchParams.get("stage") || "Pre Confirm File" }, orderBy: { updatedAt: "desc" }, take: 5000, include: { candidate: true, passport: true, assignedTo: { select: { id: true, name: true } }, office: { select: { id: true, name: true } }, payments: { where: { type: "First Payment" }, take: 1, orderBy: { createdAt: "desc" } }, medical: { take: 1, orderBy: { createdAt: "desc" } }, mofa: { take: 1, orderBy: { createdAt: "desc" } }, takamul: { take: 1, orderBy: { createdAt: "desc" } }, biometrics: { where: { type: "KSA Bio Finger" }, take: 1, orderBy: { createdAt: "desc" } }, police: { take: 1, orderBy: { createdAt: "desc" } } } });

@@ -1,3 +1,5 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("module-data", GETHandler);
 import { can, officeScope } from "@/lib/authorization";
 import { AppError, errorResponse } from "@/lib/errors";
 import { pageResult, parsePagination } from "@/lib/pagination";
@@ -7,11 +9,11 @@ import type { Prisma } from "@prisma/client";
 
 const fileModules = new Set(["files", "ksa", "dubai", "other-country"]);
 const nonStageTabs = new Set(["All Files", "All Candidates", "New Files", "Active Files", "Completed Files", "Hold Files", "Return Files", "Expired Files", "File Details", "Passport Management", "Passport List"]);
-const countryFor = (moduleId: string) => moduleId === "ksa" ? "Saudi Arabia" : moduleId === "dubai" ? "Dubai" : undefined;
+const countryFor = (moduleId: string) => moduleId === "ksa" ? "Saudi Arabia" : moduleId === "dubai" ? "Dubai" : moduleId === "other-country" ? "Other Country" : undefined;
 const dateAtStart = (value: string | null) => (value ? new Date(`${value}T00:00:00`) : undefined);
 const dateAtEnd = (value: string | null) => (value ? new Date(`${value}T23:59:59.999`) : undefined);
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);
@@ -347,5 +349,3 @@ export async function GET(request: Request) {
     return errorResponse(error);
   }
 }
-
-

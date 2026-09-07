@@ -34,6 +34,6 @@ export const getSession = cache(async () => {
     where: { tokenHash: hashToken(token) },
     include: { user: { include: { role: true, office: true } } },
   });
-  if (!session || session.expiresAt < new Date() || session.user.status !== "ACTIVE") return null;
+  if (!session || session.expiresAt < new Date() || session.user.status !== "ACTIVE" || session.user.role.status !== "ACTIVE") return null;
   return session;
 });

@@ -1,3 +1,6 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("admin/master-data", GETHandler);
+export const POST = withApiAccess("admin/master-data", POSTHandler);
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { AppError, errorResponse } from "@/lib/errors";
@@ -12,7 +15,7 @@ const createDemandSchema = z.object({
   salary: z.number().optional(),
 });
 
-export async function GET() {
+async function GETHandler() {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);
@@ -37,7 +40,7 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);

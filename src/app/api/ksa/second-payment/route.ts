@@ -1,3 +1,5 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("ksa/second-payment", GETHandler);
 import { can, officeScope } from "@/lib/authorization";
 import { AppError, errorResponse } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
@@ -7,7 +9,7 @@ import { workflowCountryWhere, workflowModule } from "@/lib/workflow-country";
 const start = (value: string) => value ? new Date(`${value}T00:00:00`) : null;
 const end = (value: string) => value ? new Date(`${value}T23:59:59.999`) : null;
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   try {
 const session = await getSession(); if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401); if (!(await can(session, workflowModule(request), "View"))) throw new AppError("FORBIDDEN", "View permission is required.", 403); const url = new URL(request.url); const p = (key: string) => (url.searchParams.get(key) ?? "").trim(); const page = Math.max(1, Number(p("page")) || 1); const pageSize = Math.min(100, Math.max(10, Number(p("pageSize")) || 20));
 const files = await prisma.processingFile.findMany({ where: { ...officeScope(session), country: workflowCountryWhere(request), OR: [{ currentStage: { in: ["Pending 2nd Payment", "Pending Second Payment"] } }, { payments: { some: { type: "Second Payment" } } }] }, orderBy: { updatedAt: "desc" }, take: 5000, include: { candidate: true, passport: true, assignedTo: { select: { id: true, name: true } }, office: { select: { id: true, name: true } }, payments: { where: { type: "Second Payment" }, take: 1, orderBy: { createdAt: "desc" } }, visas: { take: 1, orderBy: { createdAt: "desc" } } } });

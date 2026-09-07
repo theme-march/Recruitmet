@@ -1,10 +1,14 @@
+import { withApiAccess } from "@/lib/api-access";
+export const GET = withApiAccess("me", GETHandler);
 import { AppError, errorResponse } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { roleHome, roleLabel, toAppRole } from "@/lib/roles";
-import { can } from "@/lib/authorization";
+import { getRoleCatalog } from "@/lib/role-administration";
+import { can, roleGrants } from "@/lib/authorization";
+import { hasPermission } from "@/lib/permission-policy";
 
-export async function GET() {
+async function GETHandler() {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);
@@ -22,42 +26,24 @@ export async function GET() {
     const canDeleteInterviews = isSuperAdmin || (await can(session, "registration", "Delete"));
     const canManageInterviews = canCreateInterviews || canEditInterviews;
 
-    let allowedModules: string[] = [
-      "dashboard",
-      "call-center",
-      "ksa",
-      "dubai",
-      "other-country",
-      "office-vendor",
-      "registration",
-      "payment-collection",
-      "document",
-      "tutorials",
-    ];
-
-    if (!isSuperAdmin && session.user.roleId) {
-      const userRole = await prisma.role.findUnique({
-        where: { id: session.user.roleId },
-        include: { permissions: { include: { permission: true } } },
-      });
-      if (userRole && userRole.permissions.length > 0) {
-        const perms = userRole.permissions.map((p) => p.permission.module);
-        allowedModules = Array.from(new Set(["dashboard", ...perms]));
-      }
-    }
+    const catalog = await getRoleCatalog();
+    const grants = await roleGrants(session.user.roleId);
+    const allowedModules = catalog.filter(m => isSuperAdmin || hasPermission(grants, m.id, "read")).map(m => m.id);
+    const granularPermissions = Object.fromEntries(catalog.map(m => [m.id, m.actions.filter(a => isSuperAdmin || hasPermission(grants, m.id, a))]));
 
     return Response.json(
       {
         data: {
           name: session.user.name,
           email: session.user.email,
-          role: roleLabel(roleKey),
+          role: roleKey === "CUSTOM" ? session.user.role.name : roleLabel(roleKey),
           roleKey,
           home: roleHome(roleKey),
           office: session.user.office?.name ?? null,
           agentId: session.user.agentId ?? null,
           unreadNotifications,
           allowedModules,
+          granularPermissions,
           permissions: {
             canManageDemands,
             canCreateDemands,
@@ -72,7 +58,7 @@ export async function GET() {
       },
       {
         headers: {
-          "Cache-Control": "private, max-age=30, stale-while-revalidate=60",
+          "Cache-Control": "private, no-store",
         },
       }
     );
