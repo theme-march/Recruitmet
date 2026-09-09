@@ -1,3 +1,4 @@
+import { recordDeposit, resolvePaymentFile } from "@/features/payments/service";
 import { withApiAccess } from "@/lib/api-access";
 export const GET = withApiAccess("agents/[id]", GETHandler);
 export const PATCH = withApiAccess("agents/[id]", PATCHHandler);
@@ -796,84 +797,21 @@ async function PATCHHandler(request: Request, { params }: { params: Promise<{ id
     }
 
     // 0.6. Record Candidate Payment Directly from Agent Profile
-    if (input.action === "record-candidate-payment" && (input.fileId || input.candidateId)) {
-      let fileId = input.fileId;
-      let candidateId = input.candidateId;
-
-      if (!fileId && candidateId) {
-        const f = await prisma.processingFile.findFirst({
-          where: { candidateId },
-          orderBy: { createdAt: "desc" },
-        });
-        if (f) fileId = f.id;
-      }
-
-      if (!candidateId && fileId) {
-        const f = await prisma.processingFile.findUnique({
-          where: { id: fileId },
-          select: { candidateId: true },
-        });
-        if (f) candidateId = f.candidateId;
-      }
-
-      if (!candidateId) {
-        throw new AppError("BAD_REQUEST", "Candidate not found.", 400);
-      }
-
-      const numAmount = input.amount !== undefined ? Number(input.amount) : 0;
-      if (numAmount <= 0) {
-        throw new AppError("BAD_REQUEST", "Payment amount must be greater than 0.", 400);
-      }
-
-      const paymentType = input.paymentType?.trim() || input.title?.trim() || "Candidate Payment Deposit";
-      const paymentMethod = input.paymentMethod || input.method || "Cash at Office";
-      const reference = input.reference || `REC-${Date.now().toString().slice(-6)}`;
-      const collectedDate = input.collectedAt ? new Date(input.collectedAt) : new Date();
-
-      const newPayment = await prisma.payment.create({
-        data: {
-          paymentNo: `PAY-${Date.now().toString().slice(-8)}`,
-          fileId: fileId || undefined,
-          candidateId,
-          type: paymentType,
-          amount: numAmount,
-          currency: "BDT",
-          status: "PAID",
-          method: paymentMethod,
-          reference,
-          collectedAt: collectedDate,
-          collector: session.user.name || "Agent Accounts",
-          note: input.paymentNote || input.description || `Collected via Agent ${agent.name}`,
-        },
-      });
-
-      // If a receipt voucher file was uploaded, attach to document table
-      if (input.documentUrl || input.fileData) {
-        await prisma.document.create({
-          data: {
-            documentNo: `DOC-${Date.now().toString().slice(-8)}`,
-            candidateId,
-            fileId: fileId || undefined,
-            type: "payment_voucher",
-            fileName: input.fileName || `${paymentType}-Receipt.pdf`,
-            url: input.documentUrl || input.fileData,
-          },
-        }).catch(() => {});
-      }
-
-      // If file exists, ensure it stays ACTIVE
-      if (fileId) {
-        await prisma.processingFile.update({
-          where: { id: fileId },
-          data: { status: "ACTIVE" },
-        }).catch(() => {});
-      }
-
-      return NextResponse.json({
-        ok: true,
-        message: `Payment of ৳ ${numAmount.toLocaleString()} BDT (${paymentType}) recorded successfully!`,
-        data: newPayment,
-      });
+    if (input.action === "record-candidate-payment") {
+      const file = await resolvePaymentFile(session, input.fileId, input.candidateId);
+      const belongs = await prisma.processingFile.findFirst({ where: {
+        id: file.id, OR: [{ agent: agent.name }, { agent: agent.code },
+          { candidate: { source: agent.name } }, { candidate: { source: agent.code } }],
+      }, select: { id: true } });
+      if (!belongs) throw new AppError("NOT_FOUND", "Candidate file is not linked to this agent.", 404);
+      const payment = await recordDeposit({
+        fileId: file.id, candidateId: file.candidateId, amount: input.amount,
+        type: input.paymentType?.trim() || input.title?.trim() || "Candidate Payment Deposit",
+        method: input.paymentMethod || input.method || "Cash at Office", reference: input.reference || undefined,
+        collectedAt: input.collectedAt || undefined, note: input.paymentNote || input.description || undefined,
+        voucher: input.documentUrl || input.fileData || undefined, fileName: input.fileName || undefined,
+      }, request.headers.get("idempotency-key") || "", session);
+      return NextResponse.json({ ok: true, message: "Payment recorded successfully.", data: payment });
     }
 
     // 1. Link / Assign a Candidate File to this Agent

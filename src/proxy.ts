@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
+import { authSecret } from "@/lib/auth-policy";
 
 const publicPaths = [
   "/login",
@@ -22,7 +23,7 @@ export async function proxy(request: NextRequest) {
     if (!token) throw new Error("No session");
     await jwtVerify(
       token,
-      new TextEncoder().encode(process.env.AUTH_SECRET || "unsafe-development-secret"),
+      authSecret(),
       { algorithms: ["HS256"] }
     );
     return NextResponse.next();

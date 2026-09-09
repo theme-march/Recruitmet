@@ -549,6 +549,8 @@ model Payment {
   currency    String           @default("BDT")
   method      String?
   reference   String?
+  idempotencyKey String? @unique
+  requestHash    String?
   dueDate     DateTime?
   collectedAt DateTime?
   collector   String?

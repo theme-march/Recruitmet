@@ -1,3 +1,4 @@
+import { recordDeposit } from "@/features/payments/service";
 import { withApiAccess } from "@/lib/api-access";
 export const GET = withApiAccess("files/[id]", GETHandler);
 export const PATCH = withApiAccess("files/[id]", PATCHHandler);
@@ -581,51 +582,13 @@ async function PATCHHandler(request: Request, { params }: { params: Promise<{ id
 
     // 4. Record Payment
     if (action === "record-payment") {
-      const { amount, type, method, reference, targetStage, documentUrl, fileName } = z.object({
-        amount: z.coerce.number().min(0),
-        type: z.string().nullish(),
-        method: z.string().nullish(),
-        reference: z.string().nullish(),
-        targetStage: z.string().nullish(),
-        documentUrl: z.string().nullish(),
-        fileName: z.string().nullish(),
-      }).parse(body);
-
-      const paymentType = type?.trim() || "Payment Deposit";
-      await prisma.payment.create({
-        data: {
-          paymentNo: `PAY-${Date.now().toString().slice(-8)}`,
-          fileId,
-          candidateId: file.candidateId,
-          type: paymentType,
-          amount,
-          status: "PAID",
-          method: method || "Cash",
-          reference: reference || `REC-${Date.now().toString().slice(-6)}`,
-        },
-      });
-
-      if (documentUrl) {
-        await prisma.document.create({
-          data: {
-            documentNo: `DOC-${Date.now().toString().slice(-8)}`,
-            candidateId: file.candidateId,
-            fileId,
-            type: "payment_voucher",
-            fileName: fileName || `${paymentType}-Voucher.pdf`,
-            url: documentUrl,
-          },
-        }).catch(() => {});
-      }
-
-      const nextStage = targetStage || (/saudi/i.test(file.country) ? "Takamul" : /dubai/i.test(file.country) ? "Approval Application" : "E-Visa Stamping");
-
-      await prisma.processingFile.update({
-        where: { id: fileId },
-        data: { currentStage: nextStage, status: "ACTIVE" },
-      });
-
-      return NextResponse.json({ ok: true, message: `Payment of ৳ ${amount.toLocaleString()} BDT (${paymentType}) recorded successfully!` });
+      const payment = await recordDeposit({
+        fileId, candidateId: file.candidateId, amount: body.amount,
+        type: body.type?.trim() || "Payment Deposit", method: body.method || "Cash",
+        reference: body.reference || undefined, voucher: body.documentUrl || undefined,
+        fileName: body.fileName || undefined,
+      }, request.headers.get("idempotency-key") || "", session);
+      return NextResponse.json({ ok: true, message: "Payment recorded successfully. Update the processing stage separately when its requirements are complete.", data: payment });
     }
 
     // 4.5 Update Takamul Skill Test

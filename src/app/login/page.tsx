@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+import { LoginChallenge } from "@/components/auth/login-challenge";
 
 export default function Login() {
   const [show, setShow] = useState(false);
@@ -12,43 +14,40 @@ export default function Login() {
   const [error, setError] = useState("");
   const [captchaRequired, setCaptchaRequired] = useState(false);
   const router = useRouter();
+  const client = useQueryClient();
+  const [captchaToken, setCaptchaToken] = useState("");
+  const [challengeAttempt, setChallengeAttempt] = useState(0);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setError("");
     const form = new FormData(event.currentTarget);
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        identity: form.get("identity"),
-        password: form.get("password"),
-        remember: form.get("remember") === "on",
-        captchaToken: form.get("captchaToken") || undefined,
-      }),
-    });
     try {
-      const text = await response.text();
-      let body: any = {};
-      try {
-        body = text ? JSON.parse(text) : {};
-      } catch {
-        body = { error: { message: "Server returned an invalid response" } };
-      }
-      setLoading(false);
+      const response = await fetch("/api/auth/login", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          identity: form.get("identity"), password: form.get("password"),
+          remember: form.get("remember") === "on", captchaToken: captchaToken || undefined,
+        }),
+      });
+      const body = await response.json();
       if (!response.ok) {
-        setError(body.error?.message || body.error || "Sign in failed");
+        setError(typeof body.error === "string" ? body.error : body.error?.message || "Sign in failed");
         setCaptchaRequired(body.error?.code === "CAPTCHA_REQUIRED");
+        setCaptchaToken("");
+        setChallengeAttempt(attempt => attempt + 1);
         return;
       }
+      client.clear();
       toast.success(`Welcome back, ${body.user.name}`);
       router.replace(body.user.home ?? "/dashboard");
       router.refresh();
-    } catch (err) {
-      setLoading(false);
-      setError(err instanceof Error ? err.message : "Sign in failed");
-    }
+    } catch {
+      setError("Unable to sign in. Check your connection and try again.");
+      setCaptchaToken("");
+      setChallengeAttempt(attempt => attempt + 1);
+    } finally { setLoading(false); }
   }
 
   return (
@@ -95,14 +94,14 @@ export default function Login() {
             <b>ORBIT CALL CENTER</b>
           </div>
           <span className="welcome">OFFICE LOGIN</span>
-          <h2>Sign in to Call Center</h2>
-          <p>Enter your officer credentials to access the panel.</p>
-          {error && <div className="form-error">{error}</div>}
+          <h2>Sign in to ORBIT</h2>
+          <p>Enter your staff credentials to access your permitted work.</p>
+          {error && <div className="form-error" role="alert">{error}</div>}
           <label>
             Email or username
             <div>
               <Mail />
-              <input name="identity" defaultValue="callcenter@orbit.com" required />
+              <input name="identity" autoComplete="username" required />
             </div>
           </label>
           <label>
@@ -112,31 +111,15 @@ export default function Login() {
               <input
                 name="password"
                 type={show ? "text" : "password"}
-                defaultValue="Admin@123"
+                autoComplete="current-password"
                 required
               />
-              <button type="button" onClick={() => setShow(!show)}>
+              <button type="button" aria-label={show ? "Hide password" : "Show password"} onClick={() => setShow(!show)}>
                 {show ? <EyeOff /> : <Eye />}
               </button>
             </div>
           </label>
-          {captchaRequired && (
-            <label>
-              Verification code
-              <div>
-                <ShieldCheck />
-                <input
-                  name="captchaToken"
-                  placeholder="Enter CAPTCHA token"
-                  required
-                />
-              </div>
-              <small>
-                Development token: development-captcha. Connect a production
-                CAPTCHA provider before launch.
-              </small>
-            </label>
-          )}
+          {captchaRequired && <LoginChallenge key={challengeAttempt} onToken={setCaptchaToken} />}
           <div className="login-options">
             <label>
               <input name="remember" type="checkbox" defaultChecked /> Remember
@@ -144,11 +127,11 @@ export default function Login() {
             </label>
             <Link href="/forgot-password">Forgot password?</Link>
           </div>
-          <button className="login-button" disabled={loading}>
+          <button className="login-button" disabled={loading || (captchaRequired && !captchaToken)}>
             {loading ? "Signing in..." : "Sign in to Office Panel"}
           </button>
           <div className="login-help">
-            Call Center Single Role Platform.
+            Role-based recruitment workspace.
             <br />
             Need help? <b>Contact office administrator</b>
           </div>
@@ -157,4 +140,3 @@ export default function Login() {
     </div>
   );
 }
-

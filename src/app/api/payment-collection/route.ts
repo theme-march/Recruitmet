@@ -3,6 +3,7 @@ export const GET = withApiAccess("payment-collection", GETHandler);
 export const POST = withApiAccess("payment-collection", POSTHandler);
 import { can, officeScope } from "@/lib/authorization";
 import { AppError, errorResponse } from "@/lib/errors";
+import { recordDeposit, resolvePaymentFile } from "@/features/payments/service";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 
@@ -187,83 +188,15 @@ async function POSTHandler(request: Request) {
       throw new AppError("FORBIDDEN", "Payment collection write permission is required.", 403);
 
     const body = await request.json();
-    const { fileId, candidateId, amount, type, method, reference, collectedAt, notes, fileData, fileName } = body;
-
-    let targetFileId = fileId;
-    let targetCandidateId = candidateId;
-
-    if (!targetFileId && targetCandidateId) {
-      const f = await prisma.processingFile.findFirst({
-        where: { candidateId: targetCandidateId },
-        orderBy: { createdAt: "desc" },
-      });
-      if (f) targetFileId = f.id;
-    }
-
-    if (!targetCandidateId && targetFileId) {
-      const f = await prisma.processingFile.findUnique({
-        where: { id: targetFileId },
-        select: { candidateId: true },
-      });
-      if (f) targetCandidateId = f.candidateId;
-    }
-
-    if (!targetCandidateId) {
-      throw new AppError("BAD_REQUEST", "Candidate or file identifier is required.", 400);
-    }
-
-    const numAmount = Number(amount) || 0;
-    if (numAmount <= 0) {
-      throw new AppError("BAD_REQUEST", "Payment amount must be greater than 0.", 400);
-    }
-
-    const paymentType = type?.trim() || "Candidate Payment Deposit";
-    const paymentMethod = method || "Cash at Office";
-    const refNo = reference || `REC-${Date.now().toString().slice(-6)}`;
-    const colDate = collectedAt ? new Date(collectedAt) : new Date();
-
-    const newPayment = await prisma.payment.create({
-      data: {
-        paymentNo: `PAY-${Date.now().toString().slice(-8)}`,
-        fileId: targetFileId || undefined,
-        candidateId: targetCandidateId,
-        type: paymentType,
-        amount: numAmount,
-        currency: "BDT",
-        status: "PAID",
-        method: paymentMethod,
-        reference: refNo,
-        collectedAt: colDate,
-        collector: session.user.name || "Accounts Department",
-        note: notes || "Payment collected via payment collection dashboard",
-      },
-    });
-
-    if (fileData) {
-      await prisma.document.create({
-        data: {
-          documentNo: `DOC-${Date.now().toString().slice(-8)}`,
-          candidateId: targetCandidateId,
-          fileId: targetFileId || undefined,
-          type: "payment_voucher",
-          fileName: fileName || `${paymentType}-Slip.pdf`,
-          url: fileData,
-        },
-      });
-    }
-
-    if (targetFileId) {
-      await prisma.processingFile.update({
-        where: { id: targetFileId },
-        data: { updatedAt: new Date() },
-      });
-    }
-
-    return Response.json({
-      success: true,
-      message: `Payment of ৳ ${numAmount.toLocaleString()} recorded successfully!`,
-      data: newPayment,
-    });
+    const file = await resolvePaymentFile(session, body.fileId, body.candidateId);
+    const payment = await recordDeposit({
+      fileId: file.id, candidateId: file.candidateId, amount: body.amount,
+      type: body.type?.trim() || "Candidate Payment Deposit",
+      method: body.method || "Cash at Office", reference: body.reference || undefined,
+      collectedAt: body.collectedAt || undefined, note: body.notes || undefined,
+      voucher: body.fileData || undefined, fileName: body.fileName || undefined,
+    }, request.headers.get("idempotency-key") || "", session);
+    return Response.json({ success: true, message: "Payment recorded successfully.", data: payment });
   } catch (error) {
     return errorResponse(error);
   }

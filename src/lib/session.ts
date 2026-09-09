@@ -4,19 +4,19 @@ import { cookies } from "next/headers";
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 import { createHash } from "node:crypto";
 import { prisma } from "@/lib/prisma";
+import { authSecret, sessionExpiresAt } from "@/lib/auth-policy";
 
 export const SESSION_COOKIE = "orbit_session";
-const key = new TextEncoder().encode(process.env.AUTH_SECRET || "unsafe-development-secret");
 
 export type SessionPayload = JWTPayload & { userId: string; role: string; officeId?: string };
 
-export async function signSession(payload: Omit<SessionPayload, "iat" | "exp">) {
-  return new SignJWT(payload).setProtectedHeader({ alg: "HS256" }).setIssuedAt().setExpirationTime("8h").sign(key);
+export async function signSession(payload: Omit<SessionPayload, "iat" | "exp">, expires = sessionExpiresAt()) {
+  return new SignJWT(payload).setProtectedHeader({ alg: "HS256" }).setJti(crypto.randomUUID()).setIssuedAt().setExpirationTime(Math.floor(expires.getTime() / 1000)).sign(authSecret());
 }
 
 export async function verifySessionToken(token?: string) {
   if (!token) return null;
-  try { return (await jwtVerify(token, key, { algorithms: ["HS256"] })).payload as SessionPayload; }
+  try { return (await jwtVerify(token, authSecret(), { algorithms: ["HS256"] })).payload as SessionPayload; }
   catch { return null; }
 }
 

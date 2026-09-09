@@ -1,4 +1,5 @@
 "use client";
+import { usePaymentRequest } from "@/hooks/use-payment-request";
 import { useAccess } from "@/hooks/use-access";
 import { countryModule } from "@/lib/permission-policy";
 
@@ -654,7 +655,7 @@ export function FileProcessingWorkspace({
     setSaving(true);
     try {
       const targetId = file?.id || id;
-      const res = await fetch(`/api/files/${targetId}`, {
+      const res = await (action === "record-payment" ? paymentRequest : fetch)(`/api/files/${targetId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, ...payload }),

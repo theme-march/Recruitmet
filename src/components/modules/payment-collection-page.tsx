@@ -1,4 +1,5 @@
 "use client";
+import { usePaymentRequest } from "@/hooks/use-payment-request";
 
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -228,7 +229,7 @@ export function PaymentCollectionPage() {
     if (!selectedFile) return;
     setSavingPayment(true);
     try {
-      const res = await fetch("/api/payment-collection", {
+      const res = await paymentRequest("/api/payment-collection", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
