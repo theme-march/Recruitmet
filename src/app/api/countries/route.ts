@@ -5,7 +5,7 @@ export const PATCH = withApiAccess("countries", PATCHHandler);
 export const DELETE = withApiAccess("countries", DELETEHandler);
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getDefaultStagesForCountry } from "@/lib/country-pipeline";
+import { getDefaultStagesForCountry, getCountryFlagEmoji } from "@/lib/country-pipeline";
 
 
 async function GETHandler() {
@@ -116,6 +116,7 @@ function matchesCountryName(countryName: string, countryCode: string, targetName
         id: country.id,
         name: country.name,
         code: country.code,
+        flag: country.flag || getCountryFlagEmoji(country.code, country.name),
         currency: country.currency || "USD",
         timezone: country.timezone || "UTC",
         phoneCode: country.phoneCode || "",
@@ -145,7 +146,7 @@ function matchesCountryName(countryName: string, countryCode: string, targetName
 async function POSTHandler(req: Request) {
   try {
     const body = await req.json();
-    const { name, code, currency, timezone, phoneCode, workflowType, active } = body;
+    const { name, code, flag, currency, timezone, phoneCode, workflowType, active } = body;
 
     if (!name || !name.trim()) {
       return NextResponse.json({ success: false, error: "Country name is required" }, { status: 400 });
@@ -153,6 +154,7 @@ async function POSTHandler(req: Request) {
 
     const cleanName = name.trim();
     const cleanCode = (code || cleanName.slice(0, 2)).trim().toUpperCase();
+    const cleanFlag = (flag && flag.trim()) ? flag.trim() : getCountryFlagEmoji(cleanCode, cleanName);
 
     // Check duplicate name or code in memory/database
     const all = await prisma.country.findMany();
@@ -164,17 +166,42 @@ async function POSTHandler(req: Request) {
       return NextResponse.json({ success: false, error: `Country "${cleanName}" or code "${cleanCode}" already exists` }, { status: 409 });
     }
 
-    const newCountry = await prisma.country.create({
-      data: {
-        name: cleanName,
-        code: cleanCode,
-        currency: currency?.trim().toUpperCase() || "USD",
-        timezone: timezone?.trim() || "UTC",
-        phoneCode: phoneCode?.trim() || null,
-        workflowType: workflowType?.trim() || "GENERAL",
-        active: active !== undefined ? Boolean(active) : true,
-      },
-    });
+    let newCountry: any;
+    try {
+      newCountry = await prisma.country.create({
+        data: {
+          name: cleanName,
+          code: cleanCode,
+          flag: cleanFlag,
+          currency: currency?.trim().toUpperCase() || "USD",
+          timezone: timezone?.trim() || "UTC",
+          phoneCode: phoneCode?.trim() || null,
+          workflowType: workflowType?.trim() || "GENERAL",
+          active: active !== undefined ? Boolean(active) : true,
+        },
+      });
+    } catch (err: any) {
+      if (err?.message && err.message.includes("Unknown argument `flag`")) {
+        newCountry = await prisma.country.create({
+          data: {
+            name: cleanName,
+            code: cleanCode,
+            currency: currency?.trim().toUpperCase() || "USD",
+            timezone: timezone?.trim() || "UTC",
+            phoneCode: phoneCode?.trim() || null,
+            workflowType: workflowType?.trim() || "GENERAL",
+            active: active !== undefined ? Boolean(active) : true,
+          },
+        });
+        await prisma.$executeRawUnsafe(
+          "UPDATE Country SET flag = ? WHERE id = ?",
+          cleanFlag,
+          newCountry.id
+        ).catch(() => {});
+      } else {
+        throw err;
+      }
+    }
 
     // Auto-populate default workflow stages
     const defaultStages = getDefaultStagesForCountry(newCountry.name, newCountry.workflowType);
@@ -206,7 +233,7 @@ async function POSTHandler(req: Request) {
 async function PATCHHandler(req: Request) {
   try {
     const body = await req.json();
-    const { id, name, code, currency, timezone, phoneCode, workflowType, active, stages } = body;
+    const { id, name, code, flag, currency, timezone, phoneCode, workflowType, active, stages } = body;
 
     if (!id) {
       return NextResponse.json({ success: false, error: "Country ID is required" }, { status: 400 });
@@ -220,6 +247,9 @@ async function PATCHHandler(req: Request) {
     const updateData: Record<string, any> = {};
     if (name !== undefined) updateData.name = name.trim();
     if (code !== undefined) updateData.code = code.trim().toUpperCase();
+    if (flag !== undefined) {
+      updateData.flag = (flag && flag.trim()) ? flag.trim() : getCountryFlagEmoji(updateData.code || existing.code, updateData.name || existing.name);
+    }
     if (currency !== undefined) updateData.currency = currency.trim().toUpperCase();
     if (timezone !== undefined) updateData.timezone = timezone.trim();
     if (phoneCode !== undefined) updateData.phoneCode = phoneCode?.trim() || null;
@@ -240,10 +270,30 @@ async function PATCHHandler(req: Request) {
       }
     }
 
-    const updated = await prisma.country.update({
-      where: { id },
-      data: updateData,
-    });
+    let updated: any;
+    try {
+      updated = await prisma.country.update({
+        where: { id },
+        data: updateData,
+      });
+    } catch (err: any) {
+      if (err?.message && err.message.includes("Unknown argument `flag`")) {
+        const { flag, ...rest } = updateData;
+        updated = await prisma.country.update({
+          where: { id },
+          data: rest,
+        });
+        if (flag) {
+          await prisma.$executeRawUnsafe(
+            "UPDATE Country SET flag = ? WHERE id = ?",
+            flag,
+            id
+          ).catch(() => {});
+        }
+      } else {
+        throw err;
+      }
+    }
 
     // If stages provided, replace countryWorkflowStage records
     if (Array.isArray(stages)) {

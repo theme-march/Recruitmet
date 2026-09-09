@@ -8,7 +8,7 @@ import { AgentPortalView } from "@/components/modules/agent-portal-view";
 
 export const metadata: Metadata = {
   title: "Agent Partner Portal | Orbit Overseas",
-  description: "Live candidate submissions, commission ledger, and file processing status",
+  description: "Live candidate submissions, financial ledger, and file processing status",
 };
 
 export default async function AgentPortalPage({

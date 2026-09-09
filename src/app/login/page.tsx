@@ -55,7 +55,9 @@ export default function Login() {
       <section className="login-visual">
         <div className="login-copy">
           <div className="brand login-brand">
-            <span className="brand-mark"><Headphones size={22} /></span>
+            <span className="brand-mark" style={{ display: "grid", placeItems: "center", background: "transparent", overflow: "hidden" }}>
+              <img src="/logo.png" alt="Logo" width={32} height={32} style={{ objectFit: "contain" }} />
+            </span>
             <span>
               <b>ORBIT</b>
               <small>CALL CENTER PANEL</small>

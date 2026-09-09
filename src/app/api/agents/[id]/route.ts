@@ -1,4 +1,5 @@
 import { recordDeposit, resolvePaymentFile } from "@/features/payments/service";
+import { placeException, releaseFileHold } from "@/features/exceptions/service";
 import { withApiAccess } from "@/lib/api-access";
 export const GET = withApiAccess("agents/[id]", GETHandler);
 export const PATCH = withApiAccess("agents/[id]", PATCHHandler);
@@ -20,7 +21,6 @@ const updateAgentSchema = z.object({
   address: z.string().nullable().optional(),
   country: z.string().nullable().optional(),
   status: z.enum(["Active", "Inactive", "Blocked"]).optional(),
-  commissionRate: z.string().optional(),
   agreementKey: z.string().nullable().optional(),
   enablePortalLogin: z.boolean().optional(),
   portalEmail: z.string().email().nullable().optional().or(z.literal("")),
@@ -55,6 +55,10 @@ const updateAgentSchema = z.object({
   paymentNote: z.string().optional(),
   documentUrl: z.string().optional(),
   fileName: z.string().optional(),
+  // Hold / Exception Action Fields
+  reason: z.string().optional(),
+  note: z.string().optional(),
+  expectedRelease: z.string().optional(),
 });
 
 async function GETHandler(_: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -116,6 +120,7 @@ async function GETHandler(_: Request, { params }: { params: Promise<{ id: string
         visas: { select: { visaNumber: true, status: true, expiryDate: true }, take: 1, orderBy: { createdAt: "desc" } },
         manpower: { select: { reference: true, status: true }, take: 1, orderBy: { createdAt: "desc" } },
         flights: { select: { ticketNo: true, flight: { select: { flightNo: true, departureAt: true } } }, take: 1 },
+        holds: { where: { type: "Hold", status: "On Hold" }, take: 1, orderBy: { createdAt: "desc" } },
         workflowEvents: { where: { stage: "AGENT_NOTE" }, orderBy: { createdAt: "desc" } },
         payments: {
           select: {
@@ -174,6 +179,24 @@ async function GETHandler(_: Request, { params }: { params: Promise<{ id: string
       },
     });
 
+    // 3.5 Fetch any candidates referred by this agent who do not have a processing file yet
+    const linkedCandidateIds = new Set(files.map((f) => f.candidateId));
+    const extraCandidates = await prisma.candidate.findMany({
+      where: {
+        OR: [
+          { source: agent.name },
+          { source: agent.code },
+        ],
+        id: { notIn: Array.from(linkedCandidateIds) },
+      },
+      include: {
+        interviews: {
+          include: { schedule: true },
+          orderBy: { scheduledAt: "desc" },
+        },
+      },
+    });
+
     // 4. Calculate Country-wise breakdown & candidate ledger
     const countryMap: Record<
       string,
@@ -189,10 +212,12 @@ async function GETHandler(_: Request, { params }: { params: Promise<{ id: string
     const getPackageCostForCountry = (c: string) => /dubai/i.test(c) ? 300000 : 350000;
 
     const candidateLedger = files.map((f) => {
+      const isHold = f.status === "HOLD";
       const isCompleted =
-        f.status === "COMPLETED" ||
+        !isHold &&
+        (f.status === "COMPLETED" ||
         f.currentStage === "Flight" ||
-        f.flights.length > 0;
+        f.flights.length > 0);
 
       const normCountry = normalizeCountry(f.country || f.candidate.preferredCountry || "Other");
       const candidatePackage = 350000; // Simplified default
@@ -230,8 +255,10 @@ async function GETHandler(_: Request, { params }: { params: Promise<{ id: string
         countryMap[normCountry].inProcess += 1;
       }
 
-      const completionStatus = isCompleted ? "Completed" : "Incomplete";
-      const completionNote = isCompleted
+      const completionStatus = isHold ? "Hold" : isCompleted ? "Completed" : "Incomplete";
+      const completionNote = isHold
+        ? "⏸️ Placed on Hold"
+        : isCompleted
         ? (f.flights.length > 0 ? "✈️ Flight Scheduled / Done" : "✅ Visa Stamped & Approved")
         : `⏳ Stage: ${f.currentStage || "Passport Entry"}`;
 
@@ -429,6 +456,8 @@ async function GETHandler(_: Request, { params }: { params: Promise<{ id: string
         isCompleted,
         completionStatus,
         completionNote,
+        holdReason: f.holds?.[0]?.reason || null,
+        holdNote: f.holds?.[0]?.note || null,
         missingDocs,
         missingDocsCount: missingDocs.length,
         completedDocs,
@@ -480,10 +509,86 @@ async function GETHandler(_: Request, { params }: { params: Promise<{ id: string
       };
     });
 
+    const extraLedger = extraCandidates.map((c) => {
+      const normCountry = normalizeCountry(c.preferredCountry || "Other");
+      const candidatePackage = 350000;
+
+      if (!countryMap[normCountry]) {
+        countryMap[normCountry] = {
+          country: normCountry,
+          candidateCount: 0,
+          totalPackage: 0,
+          totalCollected: 0,
+          totalDue: 0,
+          totalAdvance: 0,
+          inProcess: 0,
+          completed: 0,
+        };
+      }
+      countryMap[normCountry].candidateCount += 1;
+      countryMap[normCountry].totalPackage += candidatePackage;
+      countryMap[normCountry].totalDue += candidatePackage;
+      countryMap[normCountry].inProcess += 1;
+      grandTotalPackage += candidatePackage;
+      grandTotalDue += candidatePackage;
+
+      const latestInterview = c.interviews?.[0];
+      const interviewStatus = latestInterview
+        ? latestInterview.result === "Scheduled"
+          ? "Waiting For Interview"
+          : latestInterview.result
+        : "Not Scheduled";
+
+      return {
+        fileId: `cand-${c.id}`,
+        fileNo: c.candidateNo,
+        candidateId: c.id,
+        candidateNo: c.candidateNo,
+        fullName: c.fullName,
+        phone: c.phone,
+        passportNumber: c.passportNo || "N/A",
+        country: normCountry,
+        profession: c.profession || "General Worker",
+        currentStage: "Registration",
+        status: c.status,
+        isCompleted: false,
+        completionStatus: "Incomplete",
+        completionNote: "⏳ Registered · File creation pending",
+        missingDocs: [],
+        missingDocsCount: 0,
+        completedDocs: [],
+        hasMissingDocs: false,
+        documentStatus: "Incomplete",
+        interviewStatus,
+        interviewRating: latestInterview?.rating || null,
+        interviewDate: latestInterview?.scheduledAt?.toISOString() || null,
+        interviewTitle: latestInterview?.schedule?.title || latestInterview?.title || null,
+        interviewCompany: latestInterview?.schedule?.company || latestInterview?.company || null,
+        passportVerification: "Pending",
+        passportExpiryDate: null,
+        medicalResult: "Pending",
+        medicalExpiryDate: null,
+        medicalTestDate: null,
+        policeExpiryDate: null,
+        visaNumber: "Pending",
+        visaStatus: "Pending",
+        visaExpiryDate: null,
+        flightDate: null,
+        totalPackage: candidatePackage,
+        totalPaid: 0,
+        dueAmount: candidatePackage,
+        advanceAmount: 0,
+        notes: [],
+        payments: [],
+        createdAt: c.createdAt.toISOString(),
+      };
+    });
+
+    const fullCandidateLedger = [...candidateLedger, ...extraLedger];
     const countryBreakdown = Object.values(countryMap);
 
-    const totalCandidates = files.length;
-    const completedCount = candidateLedger.filter((c) => c.isCompleted).length;
+    const totalCandidates = fullCandidateLedger.length;
+    const completedCount = fullCandidateLedger.filter((c) => c.isCompleted).length;
     const incompleteCount = totalCandidates - completedCount;
     const completionPercentage = totalCandidates > 0 ? Math.round((completedCount / totalCandidates) * 100) : 0;
     const activeDossiers = files.filter((f) => f.status === "ACTIVE").length;
@@ -491,14 +596,14 @@ async function GETHandler(_: Request, { params }: { params: Promise<{ id: string
     const visaStamped = files.filter((f) => f.visas.length > 0).length;
 
     // Missing documents metric calculation
-    const totalCandidatesWithMissingDocs = candidateLedger.filter((c) => c.hasMissingDocs).length;
+    const totalCandidatesWithMissingDocs = fullCandidateLedger.filter((c) => c.hasMissingDocs).length;
     const totalCompleteDocsCandidates = totalCandidates - totalCandidatesWithMissingDocs;
-    const totalMissingDocsCount = candidateLedger.reduce((sum, c) => sum + c.missingDocsCount, 0);
-    const missingPassports = candidateLedger.filter((c) => (c.missingDocs || []).some((d: any) => d.category === "PASSPORT")).length;
-    const missingMedicals = candidateLedger.filter((c) => (c.missingDocs || []).some((d: any) => d.category === "MEDICAL")).length;
-    const missingPolices = candidateLedger.filter((c) => (c.missingDocs || []).some((d: any) => d.category === "POLICE")).length;
-    const missingNids = candidateLedger.filter((c) => (c.missingDocs || []).some((d: any) => d.category === "NID")).length;
-    const missingVisas = candidateLedger.filter((c) => (c.missingDocs || []).some((d: any) => d.category === "VISA")).length;
+    const totalMissingDocsCount = fullCandidateLedger.reduce((sum, c) => sum + c.missingDocsCount, 0);
+    const missingPassports = fullCandidateLedger.filter((c) => (c.missingDocs || []).some((d: any) => d.category === "PASSPORT")).length;
+    const missingMedicals = fullCandidateLedger.filter((c) => (c.missingDocs || []).some((d: any) => d.category === "MEDICAL")).length;
+    const missingPolices = fullCandidateLedger.filter((c) => (c.missingDocs || []).some((d: any) => d.category === "POLICE")).length;
+    const missingNids = fullCandidateLedger.filter((c) => (c.missingDocs || []).some((d: any) => d.category === "NID")).length;
+    const missingVisas = fullCandidateLedger.filter((c) => (c.missingDocs || []).some((d: any) => d.category === "VISA")).length;
 
     // 5. Structure Interviews list
     const interviewList = files.map((f) => {
@@ -543,18 +648,14 @@ async function GETHandler(_: Request, { params }: { params: Promise<{ id: string
     const selectionRate = totalInterviewRegistrations > 0 ? Math.round((totalSelected / totalInterviewRegistrations) * 100) : 0;
     const inProcessFromInterview = interviewList.filter((i) => i.fileId && i.fileStatus !== "COMPLETED").length;
 
-    // Parse commission rate & agent notes / documents
+    // Parse agent notes / documents
     const rule = (agent.commissionRule as Record<string, unknown>) || {};
-    const rateString = String(rule?.rate || "৳ 25,000 / candidate");
-    const numericRateMatch = rateString.replace(/[^0-9]/g, "");
-    const perCandidateRate = numericRateMatch ? parseInt(numericRateMatch, 10) : 25000;
-    const totalCommissionEarned = totalCandidates * perCandidateRate;
 
     const agentNotes = (rule.agentNotes as Array<{ id: string; title: string; content: string; tag?: string; author?: string; createdAt: string }>) || [
       {
         id: "NOTE-DEFAULT-1",
         title: "Agreed Deployment Terms & SLA",
-        content: `Agency agreement active with ${agent.name}. Commission settled on candidate visa stamping & flight departure.`,
+        content: `Agency agreement active with ${agent.name}. Account settlement on candidate visa stamping & flight departure.`,
         tag: "Agreement",
         author: "Management",
         createdAt: agent.createdAt.toISOString(),
@@ -608,12 +709,10 @@ async function GETHandler(_: Request, { params }: { params: Promise<{ id: string
         country: agent.country || "Dhaka",
         district: agent.country || "Dhaka",
         status: agent.status,
-        commissionRate: rateString,
         agreementKey: agent.agreementKey || `AGR-${agent.code}`,
         hasPortalAccess: !!portalUser && portalUser.status === "ACTIVE",
         portalLoginEmail: portalUser?.email || agent.email || null,
         portalLastLoginAt: portalUser?.lastLoginAt ? new Date(portalUser.lastLoginAt).toISOString() : null,
-        totalEarnedCommission: totalCommissionEarned,
         totalCandidateCount: totalCandidates,
         completedCandidateCount: completedCount,
         incompleteCandidateCount: incompleteCount,
@@ -637,8 +736,6 @@ async function GETHandler(_: Request, { params }: { params: Promise<{ id: string
           totalCollectedFromCandidates: grandTotalCollected,
           totalDue: grandTotalDue,
           totalAdvance: grandTotalAdvance,
-          perCandidateRate,
-          totalCommissionEarned,
           totalCandidatesWithMissingDocs,
           totalCompleteDocsCandidates,
           totalMissingDocsCount,
@@ -659,7 +756,7 @@ async function GETHandler(_: Request, { params }: { params: Promise<{ id: string
         },
         interviews: interviewList,
         countryBreakdown,
-        candidates: candidateLedger,
+        candidates: fullCandidateLedger,
         availableCandidates: availableCandidates.map((c) => ({
           id: c.id,
           candidateNo: c.candidateNo,
@@ -814,19 +911,77 @@ async function PATCHHandler(request: Request, { params }: { params: Promise<{ id
       return NextResponse.json({ ok: true, message: "Payment recorded successfully.", data: payment });
     }
 
+    // 0.7. Place Candidate On Hold Directly from Agent Profile
+    if (input.action === "hold-candidate" && (input.fileId || input.candidateId)) {
+      let fileId = input.fileId;
+      if (!fileId && input.candidateId) {
+        const f = await prisma.processingFile.findFirst({
+          where: { candidateId: input.candidateId },
+          orderBy: { createdAt: "desc" },
+        });
+        if (f) fileId = f.id;
+      }
+      if (!fileId) throw new AppError("NOT_FOUND", "Candidate file not found.", 404);
+
+      const holdRecord = await placeException(
+        {
+          fileId,
+          type: "Hold",
+          reason: input.reason || "Agent Request / Candidate on Hold",
+          note: input.note || "Placed on hold from Agent profile",
+          expectedRelease: input.expectedRelease ? new Date(input.expectedRelease) : undefined,
+        },
+        session
+      );
+
+      return NextResponse.json({
+        ok: true,
+        message: "Candidate file has been placed on hold.",
+        data: holdRecord,
+      });
+    }
+
+    // 0.8. Release Candidate From Hold Directly from Agent Profile
+    if (input.action === "release-candidate-hold" && (input.fileId || input.candidateId)) {
+      let fileId = input.fileId;
+      if (!fileId && input.candidateId) {
+        const f = await prisma.processingFile.findFirst({
+          where: { candidateId: input.candidateId },
+          orderBy: { createdAt: "desc" },
+        });
+        if (f) fileId = f.id;
+      }
+      if (!fileId) throw new AppError("NOT_FOUND", "Candidate file not found.", 404);
+
+      const releasedFile = await releaseFileHold(
+        fileId,
+        input.reason || input.note || "Released from hold via agent profile",
+        session
+      );
+
+      return NextResponse.json({
+        ok: true,
+        message: "Candidate hold has been released successfully.",
+        data: releasedFile,
+      });
+    }
+
     // 1. Link / Assign a Candidate File to this Agent
     if (input.action === "link-candidate" && (input.fileId || input.candidateId)) {
+      let candId = input.candidateId;
       if (input.fileId) {
-        await prisma.processingFile.update({
+        const fileRec = await prisma.processingFile.update({
           where: { id: input.fileId },
           data: { agent: agent.name },
+          select: { candidateId: true },
         });
+        if (!candId && fileRec.candidateId) candId = fileRec.candidateId;
       }
-      if (input.candidateId) {
+      if (candId) {
         await prisma.candidate.update({
-          where: { id: input.candidateId },
+          where: { id: candId },
           data: { source: agent.name },
-        });
+        }).catch(() => {});
       }
       return NextResponse.json({
         ok: true,
@@ -836,10 +991,27 @@ async function PATCHHandler(request: Request, { params }: { params: Promise<{ id
 
     // 2. Unlink a Candidate File from this Agent
     if (input.action === "unlink-candidate" && input.fileId) {
+      const fileRec = await prisma.processingFile.findUnique({
+        where: { id: input.fileId },
+        select: { candidateId: true },
+      });
       await prisma.processingFile.update({
         where: { id: input.fileId },
         data: { agent: "Direct" },
       });
+      if (fileRec?.candidateId) {
+        const cand = await prisma.candidate.findUnique({
+          where: { id: fileRec.candidateId },
+          select: { source: true },
+        });
+        const normSrc = (cand?.source || "").toLowerCase().trim();
+        if (normSrc === agent.name.toLowerCase().trim() || normSrc === agent.code.toLowerCase().trim()) {
+          await prisma.candidate.update({
+            where: { id: fileRec.candidateId },
+            data: { source: "Direct" },
+          }).catch(() => {});
+        }
+      }
       return NextResponse.json({
         ok: true,
         message: `Candidate unlinked from Agent "${agent.name}".`,
@@ -1000,9 +1172,6 @@ async function PATCHHandler(request: Request, { params }: { params: Promise<{ id
     if (input.country !== undefined) updateData.country = input.country ? input.country.trim() : null;
     if (input.status) updateData.status = input.status;
     if (input.agreementKey !== undefined) updateData.agreementKey = input.agreementKey;
-    if (input.commissionRate) {
-      updateData.commissionRule = { ...currentRule, rate: input.commissionRate, type: "custom" };
-    }
 
     const updated = await prisma.agent.update({
       where: { id },
@@ -1020,7 +1189,7 @@ async function PATCHHandler(request: Request, { params }: { params: Promise<{ id
         agentRole = await prisma.role.create({
           data: {
             name: "Agent Partner",
-            description: "Read-only access for agent partners to view their candidates and commissions.",
+            description: "Read-only access for agent partners to view their candidates and file processing status.",
           },
         });
       }

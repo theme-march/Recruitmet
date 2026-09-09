@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Check, Download, Printer, ShieldCheck, X } from "lucide-react";
 import { useState } from "react";
@@ -82,12 +82,15 @@ export function MoneyReceiptModal({
         <div className="money-receipt-paper printable-area" id="printable-receipt">
           {/* Header */}
           <div className="receipt-header">
-            <div className="agency-branding">
-              <h1>ORBIT OVERSEAS RECRUITMENT</h1>
-              <p className="agency-license">Govt. Approved Overseas Employment Recruiting Agency | <b>RL-1284</b></p>
-              <p className="agency-contact">
-                Head Office: Orbit Tower, Level 6, Dhaka, Bangladesh · Tel: +880 1700-000000 · Email: accounts@orbitoverseas.com
-              </p>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: "14px" }}>
+              <img src="/logo.png" alt="Logo" width={46} height={46} style={{ objectFit: "contain", marginTop: "2px" }} />
+              <div className="agency-branding">
+                <h1>ORBIT OVERSEAS RECRUITMENT</h1>
+                <p className="agency-license">Govt. Approved Overseas Employment Recruiting Agency | <b>RL-1284</b></p>
+                <p className="agency-contact">
+                  Head Office: Orbit Tower, Level 6, Dhaka, Bangladesh · Tel: +880 1700-000000 · Email: accounts@orbitoverseas.com
+                </p>
+              </div>
             </div>
             <div className="receipt-badge-box">
               <span className="receipt-tag">MONEY RECEIPT</span>

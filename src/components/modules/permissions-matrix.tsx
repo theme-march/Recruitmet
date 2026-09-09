@@ -103,7 +103,7 @@ const moduleConfig: ModuleDefinition[] = [
   {
     id: "agents",
     label: "Agents & Channel Partners",
-    desc: "Agency broker directory, candidate referral commissions, and partner profiles",
+    desc: "Agency broker directory, candidate referrals, and partner profiles",
     icon: Users,
     hasExport: true,
   },

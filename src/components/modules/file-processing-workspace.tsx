@@ -29,6 +29,7 @@ import {
   Paperclip,
   Phone,
   Plane,
+  Play,
   Plus,
   Printer,
   Receipt,
@@ -399,6 +400,7 @@ export function FileProcessingWorkspace({
   initialData?: ProcessingFileData;
 } = {}) {
   const { allows } = useAccess();
+  const paymentRequest = usePaymentRequest();
   const queryClient = useQueryClient();
   const params = useParams();
   const id = fileId || (params?.id as string);
@@ -708,6 +710,28 @@ export function FileProcessingWorkspace({
     }
   }
 
+  async function handleReleaseHold() {
+    if (!confirm("Are you sure you want to release this file from HOLD and resume processing?")) return;
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/files/${id}/hold`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reason: "Hold released by officer from workspace",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || data.message || "Failed to release hold");
+      toast.success("File released from HOLD successfully!");
+      void query.refetch();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not release hold");
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
   async function handleReturnSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setActionLoading(true);
@@ -879,15 +903,28 @@ export function FileProcessingWorkspace({
               >
                 <Printer size={14} /> Print Receipt
               </button>
-              <button
-                type="button"
-                className="btn-modal-hold"
-                disabled={!canEditFile || !allows("exceptions", "hold")}
-                onClick={() => setShowHoldModal(true)}
-                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
-              >
-                <Clock size={14} /> Hold File
-              </button>
+              {file.status === "HOLD" ? (
+                <button
+                  type="button"
+                  className="btn-modal-hold"
+                  disabled={!canEditFile || (!allows("exceptions", "hold") && !allows("exceptions", "reprocess"))}
+                  onClick={handleReleaseHold}
+                  style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: "#059669", color: "#fff", borderColor: "#059669" }}
+                  title="Release File From Hold"
+                >
+                  <Play size={14} /> Release Hold
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn-modal-hold"
+                  disabled={!canEditFile || !allows("exceptions", "hold")}
+                  onClick={() => setShowHoldModal(true)}
+                  style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                >
+                  <Clock size={14} /> Hold File
+                </button>
+              )}
               <button
                 type="button"
                 className="btn-modal-return"
@@ -4381,7 +4418,7 @@ export function FileProcessingWorkspace({
                     style={{ width: "100%", height: "38px", padding: "0 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", outline: "none" }}
                   />
                   <small style={{ fontSize: "11px", color: "var(--muted)", display: "block", marginTop: "3px" }}>
-                    Assigning or changing agent partner will automatically route commissions and candidate ledger to their portal.
+                    Assigning or changing agent partner will automatically link the candidate file and ledger to their portal.
                   </small>
                 </div>
 

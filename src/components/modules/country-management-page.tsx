@@ -40,50 +40,15 @@ import {
 
 
 
-const FLAG_MAP: Record<string, string> = {
-  sa: "🇸🇦",
-  ksa: "🇸🇦",
-  ae: "🇦🇪",
-  uae: "🇦🇪",
-  dxb: "🇦🇪",
-  qa: "🇶🇦",
-  kw: "🇰🇼",
-  om: "🇴🇲",
-  bh: "🇧🇭",
-  my: "🇲🇾",
-  sg: "🇸🇬",
-  ro: "🇷🇴",
-  it: "🇮🇹",
-  pl: "🇵🇱",
-  jp: "🇯🇵",
-  hr: "🇭🇷",
-  ca: "🇨🇦",
-  mv: "🇲🇻",
-  bd: "🇧🇩",
-  in: "🇮🇳",
-};
-
-export function getCountryFlagEmoji(code: string, name: string): string {
-  const cLower = (code || "").trim().toLowerCase();
-  if (FLAG_MAP[cLower]) return FLAG_MAP[cLower];
-  const nLower = (name || "").trim().toLowerCase();
-  if (nLower.includes("romania") || cLower === "ro") return "🇷🇴";
-  if (nLower === "oman" || nLower.startsWith("oman ") || nLower.endsWith(" oman") || cLower === "om") return "🇴🇲";
-  if (nLower.includes("saudi") || nLower.includes("ksa") || cLower === "sa" || cLower === "ksa") return "🇸🇦";
-  if (nLower.includes("dubai") || nLower.includes("uae") || nLower.includes("emirates") || cLower === "ae" || cLower === "uae") return "🇦🇪";
-  if (nLower.includes("qatar") || cLower === "qa") return "🇶🇦";
-  if (nLower.includes("kuwait") || cLower === "kw") return "🇰🇼";
-  if (nLower.includes("bahrain") || cLower === "bh") return "🇧🇭";
-  if (nLower.includes("malaysia") || cLower === "my") return "🇲🇾";
-  if (nLower.includes("singapore") || cLower === "sg") return "🇸🇬";
-  if (nLower.includes("italy") || cLower === "it") return "🇮🇹";
-  if (nLower.includes("poland") || cLower === "pl") return "🇵🇱";
-  if (nLower.includes("japan") || cLower === "jp") return "🇯🇵";
-  if (nLower.includes("croatia") || cLower === "hr") return "🇭🇷";
-  if (nLower.includes("canada") || cLower === "ca") return "🇨🇦";
-  if (nLower.includes("maldives") || cLower === "mv") return "🇲🇻";
-  return "🌍";
-}
+import {
+  PRESET_COUNTRIES,
+  ALL_WORLD_COUNTRIES,
+  POPULAR_FLAGS,
+  PresetCountry,
+  resolveCountryFlagEmoji,
+} from "@/lib/country-data";
+import { getCountryFlagEmoji } from "@/lib/country-pipeline";
+export { getCountryFlagEmoji } from "@/lib/country-pipeline";
 
 export function CountryManagementPage() {
   const queryClient = useQueryClient();
@@ -106,12 +71,14 @@ export function CountryManagementPage() {
   const [formData, setFormData] = useState({
     name: "",
     code: "",
+    flag: "🌐",
     currency: "USD",
     timezone: "UTC",
     phoneCode: "",
     workflowType: "GENERAL",
     active: true,
   });
+  const [showFlagPalette, setShowFlagPalette] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Delete modal
@@ -243,9 +210,11 @@ export function CountryManagementPage() {
 
   const openCreateModal = () => {
     setEditingCountry(null);
+    setShowFlagPalette(false);
     setFormData({
       name: "",
       code: "",
+      flag: "🌐",
       currency: "USD",
       timezone: "UTC",
       phoneCode: "",
@@ -257,9 +226,11 @@ export function CountryManagementPage() {
 
   const openEditModal = (country: CountryRecord) => {
     setEditingCountry(country);
+    setShowFlagPalette(false);
     setFormData({
       name: country.name,
       code: country.code,
+      flag: country.flag || getCountryFlagEmoji(country.code, country.name, country.flag),
       currency: country.currency || "USD",
       timezone: country.timezone || "UTC",
       phoneCode: country.phoneCode || "",
@@ -267,6 +238,60 @@ export function CountryManagementPage() {
       active: country.active,
     });
     setModalMode("EDIT");
+  };
+
+  const applyPresetCountry = (preset: PresetCountry) => {
+    setFormData((prev) => ({
+      ...prev,
+      name: preset.name,
+      code: preset.code,
+      flag: preset.flag,
+      currency: preset.currency,
+      timezone: preset.timezone,
+      phoneCode: preset.phoneCode,
+      workflowType: preset.workflowType,
+    }));
+    setShowFlagPalette(false);
+  };
+
+  const handleNameChange = (nameInput: string) => {
+    const trimmed = nameInput.trim();
+    const matched = ALL_WORLD_COUNTRIES.find(
+      (p) =>
+        p.name.toLowerCase() === trimmed.toLowerCase() ||
+        p.code.toLowerCase() === trimmed.toLowerCase() ||
+        p.aliases?.some((a) => a.toLowerCase() === trimmed.toLowerCase())
+    );
+
+    if (matched) {
+      setFormData((prev) => ({
+        ...prev,
+        name: nameInput,
+        flag: matched.flag,
+        code: prev.code && prev.code !== "QA" && prev.code !== "KW" ? prev.code : matched.code,
+        currency: prev.currency === "USD" || !prev.currency ? matched.currency : prev.currency,
+        timezone: prev.timezone === "UTC" || !prev.timezone ? matched.timezone : prev.timezone,
+        phoneCode: !prev.phoneCode ? matched.phoneCode : prev.phoneCode,
+        workflowType: prev.workflowType === "GENERAL" ? matched.workflowType : prev.workflowType,
+      }));
+    } else {
+      const autoFlag = resolveCountryFlagEmoji(formData.code, nameInput);
+      setFormData((prev) => ({
+        ...prev,
+        name: nameInput,
+        flag: autoFlag !== "🌐" ? autoFlag : prev.flag,
+      }));
+    }
+  };
+
+  const handleCodeChange = (codeInput: string) => {
+    const upper = codeInput.toUpperCase();
+    const autoFlag = resolveCountryFlagEmoji(upper, formData.name);
+    setFormData((prev) => ({
+      ...prev,
+      code: upper,
+      flag: autoFlag !== "🌐" ? autoFlag : prev.flag,
+    }));
   };
 
   const handleSaveCountry = async (e: React.FormEvent) => {
@@ -575,7 +600,7 @@ export function CountryManagementPage() {
               </thead>
               <tbody>
                 {filteredCountries.map((c) => {
-                  const flag = getCountryFlagEmoji(c.code, c.name);
+                  const flag = c.flag || getCountryFlagEmoji(c.code, c.name, c.flag);
                   return (
                     <tr
                       key={c.id}
@@ -783,26 +808,153 @@ export function CountryManagementPage() {
 
             {/* Modal Form */}
             <form onSubmit={handleSaveCountry} style={{ padding: "22px", display: "flex", flexDirection: "column", gap: "16px" }}>
+              {/* Quick Presets Bar */}
+              <div style={{ background: "#f8fafc", padding: "10px 12px", borderRadius: "10px", border: "1px solid var(--line)" }}>
+                <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>
+                  ⚡ Quick Destination Presets (Click to autofill):
+                </span>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", maxHeight: "80px", overflowY: "auto" }}>
+                  {PRESET_COUNTRIES.slice(0, 18).map((preset) => (
+                    <button
+                      key={preset.code}
+                      type="button"
+                      onClick={() => applyPresetCountry(preset)}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        padding: "4px 8px",
+                        borderRadius: "6px",
+                        border: `1px solid ${formData.name.toLowerCase() === preset.name.toLowerCase() ? "#7258e8" : "#e2e8f0"}`,
+                        background: formData.name.toLowerCase() === preset.name.toLowerCase() ? "#f0edff" : "#ffffff",
+                        color: formData.name.toLowerCase() === preset.name.toLowerCase() ? "#7258e8" : "var(--ink)",
+                        fontSize: "12px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <span style={{ fontSize: "14px" }}>{preset.flag}</span>
+                      <span>{preset.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Destination Country Name & Flag */}
               <div>
                 <label style={{ fontSize: "12px", fontWeight: 800, color: "var(--ink)", display: "block", marginBottom: "6px" }}>
-                  Destination Country Name <span style={{ color: "#e11d48" }}>*</span>
+                  Destination Country Name &amp; Flag <span style={{ color: "#e11d48" }}>*</span>
                 </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g. Qatar, Kuwait, Japan, Croatia"
-                  style={{
-                    width: "100%",
-                    height: "42px",
-                    padding: "0 14px",
-                    borderRadius: "9px",
-                    border: "1px solid var(--line)",
-                    fontSize: "13.5px",
-                    fontWeight: 700,
-                  }}
-                />
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  {/* Flag selector trigger */}
+                  <button
+                    type="button"
+                    onClick={() => setShowFlagPalette(!showFlagPalette)}
+                    title="Click to choose Flag Emoji"
+                    style={{
+                      width: "48px",
+                      height: "42px",
+                      borderRadius: "9px",
+                      border: "1px solid var(--line)",
+                      background: "#f8fafc",
+                      fontSize: "24px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: "pointer",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {formData.flag || "🌐"}
+                  </button>
+
+                  <input
+                    type="text"
+                    title="Country Flag Emoji"
+                    value={formData.flag}
+                    onChange={(e) => setFormData({ ...formData, flag: e.target.value })}
+                    placeholder="🌐"
+                    maxLength={6}
+                    style={{
+                      width: "56px",
+                      height: "42px",
+                      textAlign: "center",
+                      borderRadius: "9px",
+                      border: "1px solid var(--line)",
+                      fontSize: "18px",
+                      flexShrink: 0,
+                    }}
+                  />
+
+                  {/* Country Name input with datalist */}
+                  <input
+                    type="text"
+                    required
+                    list="country-presets-list"
+                    value={formData.name}
+                    onChange={(e) => handleNameChange(e.target.value)}
+                    placeholder="e.g. Russia, Kuwait, Japan, Croatia"
+                    style={{
+                      flex: 1,
+                      height: "42px",
+                      padding: "0 14px",
+                      borderRadius: "9px",
+                      border: "1px solid var(--line)",
+                      fontSize: "13.5px",
+                      fontWeight: 700,
+                    }}
+                  />
+                  <datalist id="country-presets-list">
+                    {ALL_WORLD_COUNTRIES.map((p) => (
+                      <option key={p.code} value={p.name}>
+                        {p.flag} {p.name} ({p.code})
+                      </option>
+                    ))}
+                  </datalist>
+                </div>
+
+                {/* Optional flag picker palette */}
+                {showFlagPalette && (
+                  <div style={{ marginTop: "8px", background: "#f8fafc", border: "1px solid #dcd5fb", borderRadius: "10px", padding: "10px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                      <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase" }}>
+                        Select Flag Emoji:
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setShowFlagPalette(false)}
+                        style={{ border: "none", background: "transparent", fontSize: "11px", color: "var(--muted)", cursor: "pointer", fontWeight: 700 }}
+                      >
+                        Close ✕
+                      </button>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(36px, 1fr))", gap: "5px" }}>
+                      {POPULAR_FLAGS.map((pf) => (
+                        <button
+                          key={pf.code}
+                          type="button"
+                          title={pf.label}
+                          onClick={() => {
+                            setFormData((prev) => ({ ...prev, flag: pf.flag }));
+                            setShowFlagPalette(false);
+                          }}
+                          style={{
+                            height: "34px",
+                            fontSize: "20px",
+                            border: "1px solid #e2e8f0",
+                            background: formData.flag === pf.flag ? "#f0edff" : "#ffffff",
+                            borderRadius: "6px",
+                            cursor: "pointer",
+                            display: "grid",
+                            placeItems: "center",
+                          }}
+                        >
+                          {pf.flag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
@@ -815,8 +967,8 @@ export function CountryManagementPage() {
                     required
                     maxLength={3}
                     value={formData.code}
-                    onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                    placeholder="e.g. QA, KW, JP"
+                    onChange={(e) => handleCodeChange(e.target.value)}
+                    placeholder="e.g. RU, QA, KW, JP, RUS"
                     style={{
                       width: "100%",
                       height: "42px",

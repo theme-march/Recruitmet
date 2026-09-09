@@ -101,6 +101,8 @@ type CandidateItem = {
   isCompleted: boolean;
   completionStatus: string;
   completionNote: string;
+  holdReason?: string | null;
+  holdNote?: string | null;
   missingDocs?: MissingDocItem[];
   missingDocsCount?: number;
   completedDocs?: CompletedDocItem[];
@@ -194,9 +196,7 @@ type AgentProfileData = {
   country: string | null;
   district?: string | null;
   status: "Active" | "Inactive" | "Blocked";
-  commissionRate?: string;
   agreementKey: string | null;
-  totalEarnedCommission: number;
   totalCandidateCount: number;
   completedCandidateCount: number;
   incompleteCandidateCount: number;
@@ -234,8 +234,6 @@ type AgentProfileData = {
     totalCollectedFromCandidates: number;
     totalDue: number;
     totalAdvance: number;
-    perCandidateRate: number;
-    totalCommissionEarned: number;
     totalCandidatesWithMissingDocs?: number;
     totalCompleteDocsCandidates?: number;
     totalMissingDocsCount?: number;
@@ -299,7 +297,15 @@ export function AgentProfileDetail({
 
   const [searchQuery, setSearchQuery] = useState("");
   const [countryFilter, setCountryFilter] = useState("All");
-  const [completionTab, setCompletionTab] = useState<"All" | "Completed" | "Incomplete">("All");
+  const [completionTab, setCompletionTab] = useState<"All" | "Completed" | "Incomplete" | "Hold">("All");
+  const [holdCandidate, setHoldCandidate] = useState<CandidateItem | null>(null);
+  const [releaseCandidate, setReleaseCandidate] = useState<CandidateItem | null>(null);
+  const [savingHold, setSavingHold] = useState(false);
+  const [savingRelease, setSavingRelease] = useState(false);
+  const [holdReason, setHoldReason] = useState("Agent request / candidate temporary hold");
+  const [holdNote, setHoldNote] = useState("");
+  const [expectedReleaseDate, setExpectedReleaseDate] = useState("");
+  const [releaseReason, setReleaseReason] = useState("Issue resolved, resuming processing");
   const [activeMainTab, setActiveMainTab] = useState<"ledger" | "missing" | "expiry" | "interviews" | "docs">("ledger");
   const [docStatusFilter, setDocStatusFilter] = useState<"All" | "Missing" | "Complete">("All");
   const [missingCategoryFilter, setMissingCategoryFilter] = useState<string>("ALL");
@@ -769,6 +775,69 @@ export function AgentProfileDetail({
     }
   };
 
+  const handleHoldCandidateSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!holdCandidate) return;
+    setSavingHold(true);
+    try {
+      const res = await fetch(`/api/agents/${agentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "hold-candidate",
+          fileId: holdCandidate.fileId,
+          candidateId: holdCandidate.candidateId,
+          reason: holdReason,
+          note: holdNote,
+          expectedRelease: expectedReleaseDate || undefined,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error?.message || "Failed to place candidate on hold");
+
+      toast.success(`Candidate "${holdCandidate.fullName}" has been placed on hold.`);
+      setHoldCandidate(null);
+      setHoldNote("");
+      setExpectedReleaseDate("");
+      await queryClient.invalidateQueries({ queryKey: ["agent-full-details", agentId] });
+      await refetch();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to place on hold");
+    } finally {
+      setSavingHold(false);
+    }
+  };
+
+  const handleReleaseCandidateSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!releaseCandidate) return;
+    setSavingRelease(true);
+    try {
+      const res = await fetch(`/api/agents/${agentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "release-candidate-hold",
+          fileId: releaseCandidate.fileId,
+          candidateId: releaseCandidate.candidateId,
+          reason: releaseReason,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error?.message || "Failed to release candidate hold");
+
+      toast.success(`Candidate "${releaseCandidate.fullName}" hold released successfully.`);
+      setReleaseCandidate(null);
+      setReleaseReason("Issue resolved, resuming processing");
+      await queryClient.invalidateQueries({ queryKey: ["agent-full-details", agentId] });
+      await refetch();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to release hold");
+    } finally {
+      setSavingRelease(false);
+    }
+  };
+
   const handleUpdateAgent = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitting(true);
@@ -981,8 +1050,9 @@ export function AgentProfileDetail({
   }
 
   const filteredCandidates = agentData.candidates.filter((cand) => {
-    if (completionTab === "Completed" && !cand.isCompleted) return false;
-    if (completionTab === "Incomplete" && cand.isCompleted) return false;
+    if (completionTab === "Completed" && (!cand.isCompleted || cand.status === "HOLD")) return false;
+    if (completionTab === "Incomplete" && (cand.isCompleted || cand.status === "HOLD")) return false;
+    if (completionTab === "Hold" && cand.status !== "HOLD") return false;
     if (docStatusFilter === "Missing" && !cand.hasMissingDocs && (!cand.missingDocs || cand.missingDocs.length === 0)) return false;
     if (docStatusFilter === "Complete" && (cand.hasMissingDocs || (cand.missingDocs && cand.missingDocs.length > 0))) return false;
     if (countryFilter !== "All") {
@@ -1032,6 +1102,8 @@ export function AgentProfileDetail({
     return true;
   });
 
+  const candidatesOnHold = (agentData.candidates || []).filter((c) => c.status === "HOLD");
+
   // Top 5 Executive KPI Calculations (with fallback to direct candidate array sums)
   const totalCandidatesCount =
     agentData.totalCandidateCount ??
@@ -1040,15 +1112,13 @@ export function AgentProfileDetail({
     0;
 
   const completedCandidatesCount =
+    agentData.candidates?.filter((c) => c.isCompleted && c.status !== "HOLD").length ??
     agentData.completedCandidateCount ??
-    (agentData as any).metrics?.completedCount ??
-    agentData.candidates?.filter((c) => c.isCompleted).length ??
     0;
 
   const incompleteCandidatesCount =
+    agentData.candidates?.filter((c) => !c.isCompleted && c.status !== "HOLD").length ??
     agentData.incompleteCandidateCount ??
-    (agentData as any).metrics?.incompleteCount ??
-    agentData.candidates?.filter((c) => !c.isCompleted).length ??
     0;
 
   const totalCollectedBDT =
@@ -1068,11 +1138,6 @@ export function AgentProfileDetail({
     (agentData as any).metrics?.totalAdvance ??
     agentData.candidates?.reduce((sum, c) => sum + (c.advanceAmount || 0), 0) ??
     0;
-
-  const totalCommissionBDT =
-    agentData.totalEarnedCommission ??
-    (agentData as any).metrics?.totalCommissionEarned ??
-    totalCandidatesCount * 20000;
 
   // Screening & Pipeline Metrics Calculations
   const totalRegistered = allInterviews.length > 0 ? allInterviews.length : totalCandidatesCount;
@@ -1517,33 +1582,6 @@ export function AgentProfileDetail({
                   Adv: + {formatTk(totalAdvanceBDT)}
                 </span>
               )}
-            </div>
-          </div>
-        </div>
-
-        {/* Card 5: TOTAL COMMISSION */}
-        <div
-          style={{
-            background: "#ffffff",
-            border: "1px solid var(--line)",
-            borderRadius: "16px",
-            padding: "16px 18px",
-            boxShadow: "var(--shadow)",
-            display: "flex",
-            alignItems: "center",
-            gap: "14px",
-          }}
-        >
-          <div style={{ width: "42px", height: "42px", borderRadius: "12px", background: "#fefce8", color: "#ca8a04", display: "grid", placeItems: "center", flexShrink: 0 }}>
-            <TrendingUp size={20} />
-          </div>
-          <div>
-            <span style={{ fontSize: "10.5px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
-              TOTAL COMMISSION
-            </span>
-            <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginTop: "2px" }}>
-              <b style={{ fontSize: "20px", fontWeight: 900, color: "var(--ink)" }}>{formatTk(totalCommissionBDT)}</b>
-              <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 700 }}>BDT</span>
             </div>
           </div>
         </div>
@@ -2043,7 +2081,7 @@ export function AgentProfileDetail({
                     cursor: "pointer",
                   }}
                 >
-                  🟢 Completed ({agentData.completedCandidateCount})
+                  🟢 Completed ({completedCandidatesCount})
                 </button>
 
                 <button
@@ -2061,7 +2099,25 @@ export function AgentProfileDetail({
                     cursor: "pointer",
                   }}
                 >
-                  ⏳ In-Process ({agentData.incompleteCandidateCount})
+                  ⏳ In-Process ({incompleteCandidatesCount})
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCompletionTab("Hold")}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: "8px",
+                    border: "1px solid",
+                    borderColor: completionTab === "Hold" ? "#b45309" : "#fde68a",
+                    background: completionTab === "Hold" ? "#b45309" : "#fffbeb",
+                    color: completionTab === "Hold" ? "#ffffff" : "#b45309",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  ⏸️ On Hold ({candidatesOnHold.length})
                 </button>
 
                 <button
@@ -2224,17 +2280,39 @@ export function AgentProfileDetail({
                               fontWeight: 800,
                               padding: "3px 8px",
                               borderRadius: "6px",
-                              background: cand.isCompleted ? "#ecfdf5" : "#eff6ff",
-                              color: cand.isCompleted ? "#059669" : "#2563eb",
-                              border: `1px solid ${cand.isCompleted ? "#a7f3d0" : "#bfdbfe"}`,
+                              background: cand.status === "HOLD"
+                                ? "#fffbeb"
+                                : cand.isCompleted
+                                ? "#ecfdf5"
+                                : "#eff6ff",
+                              color: cand.status === "HOLD"
+                                ? "#b45309"
+                                : cand.isCompleted
+                                ? "#059669"
+                                : "#2563eb",
+                              border: `1px solid ${
+                                cand.status === "HOLD"
+                                  ? "#fde68a"
+                                  : cand.isCompleted
+                                  ? "#a7f3d0"
+                                  : "#bfdbfe"
+                              }`,
                               display: "inline-block",
                             }}
                           >
-                            {cand.isCompleted ? "🟢 COMPLETED" : `⚡ ${cand.currentStage || "Passport Entry"}`}
+                            {cand.status === "HOLD"
+                              ? "⏸️ ON HOLD"
+                              : cand.isCompleted
+                              ? "🟢 COMPLETED"
+                              : `⚡ ${cand.currentStage || "Passport Entry"}`}
                           </span>
 
                           <div style={{ marginTop: "4px" }}>
-                            {cand.isCompleted ? (
+                            {cand.status === "HOLD" ? (
+                              <span style={{ fontSize: "11px", fontWeight: 700, color: "#d97706", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                                ⏸️ {cand.holdReason ? `Hold: ${cand.holdReason}` : "Candidate on Hold"}
+                              </span>
+                            ) : cand.isCompleted ? (
                               <span style={{ fontSize: "11px", fontWeight: 700, color: "#0d9488", display: "inline-flex", alignItems: "center", gap: "4px" }}>
                                 ✈️ Flight Scheduled / Done
                               </span>
@@ -2454,6 +2532,50 @@ export function AgentProfileDetail({
                           >
                             <FileText size={12} /> {cand.notes?.length ? `Note (${cand.notes.length})` : "Note"}
                           </button>
+
+                          {cand.status === "HOLD" ? (
+                            <button
+                              type="button"
+                              onClick={() => setReleaseCandidate(cand)}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "3px",
+                                padding: "5px 9px",
+                                borderRadius: "6px",
+                                background: "#ecfdf5",
+                                color: "#059669",
+                                border: "1px solid #a7f3d0",
+                                fontSize: "11px",
+                                fontWeight: 700,
+                                cursor: "pointer",
+                              }}
+                              title="Release Candidate from Hold"
+                            >
+                              ▶️ Release
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setHoldCandidate(cand)}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "3px",
+                                padding: "5px 9px",
+                                borderRadius: "6px",
+                                background: "#fffbeb",
+                                color: "#b45309",
+                                border: "1px solid #fde68a",
+                                fontSize: "11px",
+                                fontWeight: 700,
+                                cursor: "pointer",
+                              }}
+                              title="Place Candidate on Hold"
+                            >
+                              ⏸️ Hold
+                            </button>
+                          )}
 
                           <Link
                             href={`/file/${cand.fileId}`}
@@ -4430,6 +4552,157 @@ export function AgentProfileDetail({
                 </button>
                 <button type="submit" disabled={savingNote} style={{ padding: "8px 18px", borderRadius: "8px", background: "#7258e8", color: "#fff", border: "none", fontSize: "12px", fontWeight: 800, cursor: "pointer" }}>
                   {savingNote ? "Saving..." : "Save Note"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 9.5 CANDIDATE HOLD MODAL */}
+      {holdCandidate && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", backdropFilter: "blur(4px)", display: "grid", placeItems: "center", zIndex: 9999, padding: "20px" }}>
+          <div style={{ background: "#ffffff", borderRadius: "16px", maxWidth: "480px", width: "100%", padding: "24px", boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid #f1f5f9", paddingBottom: "12px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "20px" }}>⏸️</span>
+                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "var(--ink)" }}>Place Candidate on Hold</h3>
+              </div>
+              <button type="button" onClick={() => setHoldCandidate(null)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--muted)" }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "10px", padding: "12px", marginBottom: "16px" }}>
+              <div style={{ fontWeight: 800, fontSize: "13px", color: "#92400e" }}>{holdCandidate.fullName}</div>
+              <div style={{ fontSize: "11.5px", color: "#b45309", marginTop: "2px" }}>
+                Passport: <b>{holdCandidate.passportNumber || "N/A"}</b> · File: <b>{holdCandidate.fileNo}</b> · Stage: <b>{holdCandidate.currentStage || "Passport"}</b>
+              </div>
+            </div>
+
+            <form onSubmit={handleHoldCandidateSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              <div>
+                <label style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", display: "block", marginBottom: "4px" }}>
+                  Hold Reason *
+                </label>
+                <select
+                  value={holdReason}
+                  onChange={(e) => setHoldReason(e.target.value)}
+                  style={{ width: "100%", height: "38px", padding: "0 10px", borderRadius: "8px", border: "1px solid var(--line)", fontSize: "12.5px", outline: "none", background: "#fafafd" }}
+                  required
+                >
+                  <option value="Agent request / candidate temporary hold">Agent request / candidate temporary hold</option>
+                  <option value="Candidate personal emergency / requested delay">Candidate personal emergency / requested delay</option>
+                  <option value="Medical re-test required / fitness pending">Medical re-test required / fitness pending</option>
+                  <option value="Police clearance delayed / under review">Police clearance delayed / under review</option>
+                  <option value="Financial / payment delay">Financial / payment delay</option>
+                  <option value="Passport correction / re-issue in progress">Passport correction / re-issue in progress</option>
+                  <option value="Visa allocation hold by employer / agency">Visa allocation hold by employer / agency</option>
+                  <option value="Other administrative reason">Other administrative reason</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", display: "block", marginBottom: "4px" }}>
+                  Expected Release Date (Optional)
+                </label>
+                <input
+                  type="date"
+                  value={expectedReleaseDate}
+                  onChange={(e) => setExpectedReleaseDate(e.target.value)}
+                  style={{ width: "100%", height: "38px", padding: "0 10px", borderRadius: "8px", border: "1px solid var(--line)", fontSize: "12.5px", outline: "none" }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", display: "block", marginBottom: "4px" }}>
+                  Internal Notes / Remarks
+                </label>
+                <textarea
+                  value={holdNote}
+                  onChange={(e) => setHoldNote(e.target.value)}
+                  rows={3}
+                  placeholder="Explain why this candidate is being held and next action steps..."
+                  style={{ width: "100%", padding: "8px 10px", borderRadius: "8px", border: "1px solid var(--line)", fontSize: "12.5px", outline: "none", resize: "none" }}
+                />
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "6px" }}>
+                <button
+                  type="button"
+                  onClick={() => setHoldCandidate(null)}
+                  style={{ padding: "8px 14px", borderRadius: "8px", background: "#f1f5f9", border: "none", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingHold}
+                  style={{ padding: "8px 20px", borderRadius: "8px", background: "#d97706", color: "#fff", border: "none", fontSize: "12px", fontWeight: 800, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                >
+                  {savingHold ? "Holding..." : "⏸️ Confirm Hold"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 9.6 CANDIDATE RELEASE HOLD MODAL */}
+      {releaseCandidate && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", backdropFilter: "blur(4px)", display: "grid", placeItems: "center", zIndex: 9999, padding: "20px" }}>
+          <div style={{ background: "#ffffff", borderRadius: "16px", maxWidth: "480px", width: "100%", padding: "24px", boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid #f1f5f9", paddingBottom: "12px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "20px" }}>▶️</span>
+                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "var(--ink)" }}>Release Candidate From Hold</h3>
+              </div>
+              <button type="button" onClick={() => setReleaseCandidate(null)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--muted)" }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "10px", padding: "12px", marginBottom: "16px" }}>
+              <div style={{ fontWeight: 800, fontSize: "13px", color: "#065f46" }}>{releaseCandidate.fullName}</div>
+              <div style={{ fontSize: "11.5px", color: "#047857", marginTop: "2px" }}>
+                Passport: <b>{releaseCandidate.passportNumber || "N/A"}</b> · File: <b>{releaseCandidate.fileNo}</b>
+              </div>
+              {releaseCandidate.holdReason && (
+                <div style={{ fontSize: "11px", color: "#b45309", marginTop: "4px" }}>
+                  Current Hold Reason: <i>{releaseCandidate.holdReason}</i>
+                </div>
+              )}
+            </div>
+
+            <form onSubmit={handleReleaseCandidateSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              <div>
+                <label style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", display: "block", marginBottom: "4px" }}>
+                  Release Reason / Notes *
+                </label>
+                <textarea
+                  value={releaseReason}
+                  onChange={(e) => setReleaseReason(e.target.value)}
+                  rows={3}
+                  required
+                  placeholder="Reason for releasing hold (e.g., medical test cleared, payment received, ready to proceed)..."
+                  style={{ width: "100%", padding: "8px 10px", borderRadius: "8px", border: "1px solid var(--line)", fontSize: "12.5px", outline: "none", resize: "none" }}
+                />
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "6px" }}>
+                <button
+                  type="button"
+                  onClick={() => setReleaseCandidate(null)}
+                  style={{ padding: "8px 14px", borderRadius: "8px", background: "#f1f5f9", border: "none", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingRelease}
+                  style={{ padding: "8px 20px", borderRadius: "8px", background: "#059669", color: "#fff", border: "none", fontSize: "12px", fontWeight: 800, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                >
+                  {savingRelease ? "Releasing..." : "▶️ Release Candidate"}
                 </button>
               </div>
             </form>

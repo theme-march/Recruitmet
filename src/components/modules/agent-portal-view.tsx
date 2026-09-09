@@ -160,11 +160,9 @@ type AgentProfileData = {
   address: string | null;
   country: string | null;
   status: "Active" | "Inactive" | "Blocked";
-  commissionRate?: string;
   agreementKey: string | null;
   hasPortalAccess?: boolean;
   portalLoginEmail?: string | null;
-  totalEarnedCommission: number;
   totalCandidateCount: number;
   completedCandidateCount: number;
   incompleteCandidateCount: number;
@@ -187,8 +185,6 @@ type AgentProfileData = {
     totalCollectedFromCandidates: number;
     totalDue: number;
     totalAdvance: number;
-    perCandidateRate: number;
-    totalCommissionEarned: number;
     totalCandidatesWithMissingDocs?: number;
     totalCompleteDocsCandidates?: number;
     totalMissingDocsCount?: number;
@@ -894,21 +890,6 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
         <div style={{ background: "#fff", borderRadius: "14px", padding: "18px 20px", border: "1px solid var(--line)", boxShadow: "var(--shadow)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
             <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase" }}>
-              Total Commission Earned
-            </span>
-            <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#f5f3ff", color: "#7c3aed", display: "grid", placeItems: "center" }}>
-              <Wallet size={18} />
-            </div>
-          </div>
-          <div style={{ fontSize: "22px", fontWeight: 900, color: "#7c3aed" }}>
-            {formatTk(agentData.totalEarnedCommission || (agentData.totalCandidateCount * 25000))}
-          </div>
-          <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>Accrued agency commission</span>
-        </div>
-
-        <div style={{ background: "#fff", borderRadius: "14px", padding: "18px 20px", border: "1px solid var(--line)", boxShadow: "var(--shadow)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
-            <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase" }}>
               Candidate Collections
             </span>
             <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#ecfdf5", color: "#059669", display: "grid", placeItems: "center" }}>
@@ -1076,7 +1057,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
           )}
         </button>
 
-        {/* Tab 4: Commission Statement */}
+        {/* Tab 4: Financial Ledger */}
         <button
           type="button"
           onClick={() => setActiveTab("ledger")}
@@ -1098,7 +1079,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
           }}
         >
           <FileSpreadsheet size={16} />
-          <span>Commission Statement &amp; Ledger</span>
+          <span>Financial Ledger &amp; Collections</span>
         </button>
 
         {/* Tab 5: Interview Calls */}
@@ -2180,7 +2161,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
         </div>
       )}
 
-      {/* 5. TAB 2: FINANCIAL LEDGER & COMMISSION STATEMENT */}
+      {/* 5. TAB 2: FINANCIAL LEDGER & COLLECTIONS */}
       {activeTab === "ledger" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           
@@ -2200,7 +2181,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
           >
             <div>
               <h3 style={{ fontSize: "16px", fontWeight: 800, margin: 0, color: "var(--ink)" }}>
-                Agency Commission &amp; Candidate Collections Ledger
+                Candidate Collections &amp; Accounts Ledger
               </h3>
               <p style={{ fontSize: "12.5px", color: "var(--muted)", margin: "4px 0 0" }}>
                 Candidate-by-candidate accounts record and payment ledger under partner agreement: <b>{agentData.agreementKey || "Standard"}</b>
@@ -2245,7 +2226,6 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                     <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px" }}>Package Cost</th>
                     <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px" }}>Paid Amount</th>
                     <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px" }}>Due Balance</th>
-                    <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px" }}>Agency Commission</th>
                     <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px", textAlign: "right" }}>Receipts</th>
                   </tr>
                 </thead>
@@ -2264,14 +2244,6 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                       <td style={{ padding: "14px 16px", fontWeight: 800, color: "#059669" }}>{formatTk(cand.totalPaid)}</td>
                       <td style={{ padding: "14px 16px", fontWeight: 700, color: cand.dueAmount > 0 ? "#e11d48" : "#059669" }}>
                         {formatTk(cand.dueAmount)}
-                      </td>
-                      <td style={{ padding: "14px 16px" }}>
-                        <span style={{ fontWeight: 800, color: "#7c3aed" }}>
-                          ৳ 25,000
-                        </span>
-                        <span style={{ fontSize: "11px", color: "var(--muted)", display: "block" }}>
-                          {cand.currentStage.includes("Flight") ? "Accrued & Ready" : "In-Pipeline"}
-                        </span>
                       </td>
                       <td style={{ padding: "14px 16px", textAlign: "right" }}>
                         {cand.paymentHistory && cand.paymentHistory.length > 0 ? (
@@ -2812,7 +2784,6 @@ function Candidate360DossierModal({
             <span><b>Agreed Package:</b> <span style={{ color: "#4c1d95", fontWeight: 800 }}>{formatTk(fileData?.packageCost || candidate.packageCost)}</span></span>
             <span><b>Paid by Candidate:</b> <span style={{ color: "#047857", fontWeight: 800 }}>{formatTk(fileData?.totalPaid || candidate.totalPaid)}</span></span>
             <span><b>Remaining Due:</b> <span style={{ color: (candidate.dueAmount > 0) ? "#b91c1c" : "#047857", fontWeight: 800 }}>{formatTk(fileData?.dueAmount || candidate.dueAmount)}</span></span>
-            <span><b>Agency Commission:</b> <span style={{ color: "#7c3aed", fontWeight: 800 }}>৳ 25,000</span></span>
           </div>
           <span style={{ color: "var(--muted)", fontSize: "11px" }}>
             🔒 All files, visas &amp; vouchers are verified and view/download only.

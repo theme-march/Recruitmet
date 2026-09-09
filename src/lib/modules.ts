@@ -19,16 +19,16 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 export type ModuleItem = { id: string; label: string };
-export type AppModule = { id: string; label: string; icon: LucideIcon; items: ModuleItem[]; hidden?: boolean };
+export type AppModule = { id: string; label: string; icon: LucideIcon; flag?: string; isCountry?: boolean; items: ModuleItem[]; hidden?: boolean };
 
 const list = (s: string) => s.split("|").map((label, i) => ({ id: `${i + 1}`, label }));
 
 export const modules: AppModule[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, items: list("Dashboard") },
   { id: "call-center", label: "Candidates", icon: Users, items: list("Create Candidate|Candidate List|Registration & interviews") },
-  { id: "ksa", label: "Saudi Arabia", icon: Globe, items: list("Candidates List") },
-  { id: "dubai", label: "Dubai", icon: Building2, items: list("Candidates List") },
-  { id: "other-country", label: "Other Country", icon: Plane, items: list("Candidates List") },
+  { id: "ksa", label: "Saudi Arabia", icon: Globe, flag: "🇸🇦", isCountry: true, items: list("Candidates List") },
+  { id: "dubai", label: "Dubai", icon: Building2, flag: "🇦🇪", isCountry: true, items: list("Candidates List") },
+  { id: "other-country", label: "Other Country", icon: Plane, flag: "🌐", isCountry: true, items: list("Candidates List") },
   { id: "office-vendor", label: "Works & Demands", icon: Handshake, items: list("Works & Demands") },
   { id: "agents", label: "Agents", icon: Users, items: list("Agent List") },
   { id: "payment-collection", label: "Payment Collection", icon: Receipt, items: list("Payment Collect") },

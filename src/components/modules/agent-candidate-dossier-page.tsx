@@ -304,12 +304,6 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
           </div>
           <span style={{ fontSize: "11px", color: "var(--muted)" }}>Pending candidate balance</span>
         </div>
-
-        <div style={{ background: "#fff", borderRadius: "14px", padding: "18px 20px", border: "1px solid var(--line)", boxShadow: "var(--shadow)" }}>
-          <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase" }}>Agency Commission</span>
-          <div style={{ fontSize: "22px", fontWeight: 900, color: "#7c3aed", marginTop: "4px" }}>৳ 25,000</div>
-          <span style={{ fontSize: "11px", color: "var(--muted)" }}>Accrued partner commission</span>
-        </div>
       </div>
 
       {/* 3. TABLE FILTER JUMP PILLS */}

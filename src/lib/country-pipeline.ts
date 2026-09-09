@@ -272,26 +272,9 @@ export const FLAG_MAP: Record<string, string> = {
   other: "🌐",
 };
 
-export function getCountryFlagEmoji(code: string, name: string): string {
-  const cLower = (code || "").trim().toLowerCase();
-  if (FLAG_MAP[cLower]) return FLAG_MAP[cLower];
-  const nLower = (name || "").trim().toLowerCase();
-  if (nLower.includes("romania") || cLower === "ro") return "🇷🇴";
-  if (nLower === "oman" || nLower.startsWith("oman ") || nLower.endsWith(" oman") || cLower === "om") return "🇴🇲";
-  if (nLower.includes("saudi") || nLower.includes("ksa") || cLower === "sa" || cLower === "ksa") return "🇸🇦";
-  if (nLower.includes("dubai") || nLower.includes("uae") || nLower.includes("emirates") || cLower === "ae" || cLower === "uae") return "🇦🇪";
-  if (nLower.includes("qatar") || cLower === "qa") return "🇶🇦";
-  if (nLower.includes("kuwait") || cLower === "kw") return "🇰🇼";
-  if (nLower.includes("bahrain") || cLower === "bh") return "🇧🇭";
-  if (nLower.includes("malaysia") || cLower === "my") return "🇲🇾";
-  if (nLower.includes("singapore") || cLower === "sg") return "🇸🇬";
-  if (nLower.includes("italy") || cLower === "it") return "🇮🇹";
-  if (nLower.includes("poland") || cLower === "pl") return "🇵🇱";
-  if (nLower.includes("japan") || cLower === "jp") return "🇯🇵";
-  if (nLower.includes("croatia") || cLower === "hr") return "🇭🇷";
-  if (nLower.includes("canada") || cLower === "ca") return "🇨🇦";
-  if (nLower.includes("maldives") || cLower === "mv") return "🇲🇻";
-  if (nLower.includes("other") || cLower === "other") return "🌐";
-  return "🌐";
+import { resolveCountryFlagEmoji } from "./country-data.ts";
+
+export function getCountryFlagEmoji(code?: string | null, name?: string | null, explicitFlag?: string | null): string {
+  return resolveCountryFlagEmoji(code, name, explicitFlag);
 }
 

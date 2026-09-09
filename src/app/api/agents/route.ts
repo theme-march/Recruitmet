@@ -19,7 +19,6 @@ const createAgentSchema = z.object({
   address: z.string().optional(),
   country: z.string().optional(),
   status: z.enum(["Active", "Inactive", "Blocked"]).default("Active"),
-  commissionRate: z.string().optional(),
   agreementKey: z.string().optional(),
   enablePortalLogin: z.boolean().optional(),
   portalEmail: z.string().email().optional().or(z.literal("")),
@@ -85,7 +84,7 @@ async function POSTHandler(request: Request) {
         address: input.address?.trim() || null,
         country: input.country?.trim() || "Dhaka",
         status: input.status,
-        commissionRule: input.commissionRate ? { rate: input.commissionRate, type: "custom" } : { rate: "Standard", type: "fixed" },
+        commissionRule: { agentNotes: [], documents: [] },
         agreementKey: input.agreementKey?.trim() || `AGR-${agentCode}`,
       },
     });
@@ -107,7 +106,7 @@ async function POSTHandler(request: Request) {
         agentRole = await prisma.role.create({
           data: {
             name: "Agent Partner",
-            description: "Read-only access for agent partners to view their candidates and commissions.",
+            description: "Read-only access for agent partners to view their candidates and file processing status.",
           },
         });
       }

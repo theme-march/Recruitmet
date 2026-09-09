@@ -1,6 +1,20 @@
 "use client";
 
-import { Bell, Building2, ChevronDown, Command, Globe, Headphones, LogOut, Menu, Search, Settings, ShieldCheck, Users, X } from "lucide-react";
+import {
+  Bell,
+  Building2,
+  ChevronDown,
+  Command,
+  Globe,
+  Headphones,
+  LogOut,
+  Menu,
+  Search,
+  Settings,
+  ShieldCheck,
+  Users,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -10,9 +24,17 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { countryCandidatesQueryOptions } from "@/lib/queries/country-candidates";
 import { NavigationPending } from "@/components/layout/navigation-pending";
 import { countriesQueryOptions } from "@/lib/queries/countries";
+import { getCountryFlagEmoji } from "@/lib/country-pipeline";
 
 import { meQueryOptions } from "@/lib/queries/me";
-type SearchResult = { id: string; fileNo: string; name: string; passport: string | null; country: string; stage: string };
+type SearchResult = {
+  id: string;
+  fileNo: string;
+  name: string;
+  passport: string | null;
+  country: string;
+  stage: string;
+};
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -25,7 +47,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const { data: navCounts = {} } = useQuery({
     queryKey: ["nav-counts"],
-    queryFn: async ({ signal }): Promise<Record<string, Record<string, number>>> => {
+    queryFn: async ({
+      signal,
+    }): Promise<Record<string, Record<string, number>>> => {
       const response = await fetch("/api/nav-counts", { signal });
       if (!response.ok) throw new Error("Could not load navigation counts");
       return (await response.json()).data;
@@ -45,59 +69,97 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return [];
     }
 
-    const allowed = profile.roleKey === "SUPER_ADMIN"
-      ? allModuleIds
-      : (profile.allowedModules || moduleIdsForRole(profile.roleKey));
+    const allowed =
+      profile.roleKey === "SUPER_ADMIN"
+        ? allModuleIds
+        : profile.allowedModules || moduleIdsForRole(profile.roleKey);
 
     const nonCountryModules = modules.filter(
-      (m) => !["ksa", "dubai", "other-country"].includes(m.id) && !m.hidden && (allowed.includes(m.id as any) || (m.id === "call-center" && allowed.includes("registration")))
+      (m) =>
+        !["ksa", "dubai", "other-country"].includes(m.id) &&
+        !m.hidden &&
+        (allowed.includes(m.id as any) ||
+          (m.id === "call-center" && allowed.includes("registration"))),
     );
 
-    const countryMods = dbCountries.length > 0
-      ? dbCountries
-          .filter((c) => c.active)
-          .map((c) => {
-            const lower = c.name.toLowerCase();
-            const id = lower.includes("saudi")
-              ? "ksa"
-              : lower.includes("dubai")
-              ? "dubai"
-              : lower === "other" || lower === "other country"
-              ? "other-country"
-              : c.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const countryMods =
+      dbCountries.length > 0
+        ? dbCountries
+            .filter((c) => c.active)
+            .map((c) => {
+              const lower = c.name.toLowerCase();
+              const id = lower.includes("saudi")
+                ? "ksa"
+                : lower.includes("dubai")
+                  ? "dubai"
+                  : lower === "other" || lower === "other country"
+                    ? "other-country"
+                    : c.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
-            const icon = lower.includes("saudi") ? Globe : lower.includes("dubai") ? Building2 : Globe;
+              const icon = lower.includes("saudi")
+                ? Globe
+                : lower.includes("dubai")
+                  ? Building2
+                  : Globe;
+              const flag =
+                c.flag || getCountryFlagEmoji(c.code, c.name, c.flag);
 
-            return {
-              id,
-              label: c.name,
-              icon,
-              items: [{ id: "1", label: "Candidates List" }],
-              candidateCount: c.candidateCount,
-            };
-          })
-      : modules.filter((m) => ["ksa", "dubai", "other-country"].includes(m.id));
+              return {
+                id,
+                label: c.name,
+                icon,
+                flag,
+                isCountry: true,
+                items: [{ id: "1", label: "Candidates List" }],
+                candidateCount: c.candidateCount,
+              };
+            })
+        : modules
+            .filter((m) => ["ksa", "dubai", "other-country"].includes(m.id))
+            .map((m) => ({
+              ...m,
+              flag:
+                m.flag ||
+                getCountryFlagEmoji(
+                  m.id === "ksa" ? "SA" : m.id === "dubai" ? "AE" : "OTHER",
+                  m.label,
+                ),
+              isCountry: true,
+            }));
 
-    const callCenterIdx = nonCountryModules.findIndex((m) => m.id === "call-center");
+    const callCenterIdx = nonCountryModules.findIndex(
+      (m) => m.id === "call-center",
+    );
     const combined = [...nonCountryModules];
     if (callCenterIdx >= 0) {
-      combined.splice(callCenterIdx + 1, 0, ...countryMods as any);
+      combined.splice(callCenterIdx + 1, 0, ...(countryMods as any));
     } else {
-      combined.push(...countryMods as any);
+      combined.push(...(countryMods as any));
     }
 
-    return combined.map(m => ({
-      ...m,
-      items: m.items.filter(item => {
-        if (profile.roleKey === "SUPER_ADMIN") return true;
-        const permissionModule = /interview/i.test(item.label) ? "registration" : m.id;
-        return (profile.granularPermissions?.[permissionModule] ?? []).includes(/^(Create|Add|New)\b/.test(item.label) ? "create" : "read");
-      }),
-    })).filter(m => m.items.length > 0).filter(
-      (m) =>
-        m.label.toLowerCase().includes(moduleQuery.toLowerCase()) ||
-        m.items.some((item) => item.label.toLowerCase().includes(moduleQuery.toLowerCase()))
-    );
+    return combined
+      .map((m) => ({
+        ...m,
+        items: m.items.filter((item) => {
+          if (profile.roleKey === "SUPER_ADMIN") return true;
+          const permissionModule = /interview/i.test(item.label)
+            ? "registration"
+            : m.id;
+          return (
+            profile.granularPermissions?.[permissionModule] ?? []
+          ).includes(
+            /^(Create|Add|New)\b/.test(item.label) ? "create" : "read",
+          );
+        }),
+      }))
+      .filter((m) => m.items.length > 0)
+      .filter(
+        (m) =>
+          m.label.toLowerCase().includes(moduleQuery.toLowerCase()) ||
+          m.items.some((item) =>
+            item.label.toLowerCase().includes(moduleQuery.toLowerCase()),
+          ),
+      );
   }, [moduleQuery, profile, dbCountries, isPortalRoute]);
 
   useEffect(() => {
@@ -107,8 +169,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (globalQuery.trim().length < 2) { setResults([]); return; }
-      void fetch(`/api/search?q=${encodeURIComponent(globalQuery.trim())}`).then((response) => response.ok ? response.json() : []).then(setResults);
+      if (globalQuery.trim().length < 2) {
+        setResults([]);
+        return;
+      }
+      void fetch(`/api/search?q=${encodeURIComponent(globalQuery.trim())}`)
+        .then((response) => (response.ok ? response.json() : []))
+        .then(setResults);
     }, 250);
     return () => clearTimeout(timer);
   }, [globalQuery]);
@@ -118,11 +185,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     location.href = "/login";
   }
 
-  const initials = profile?.name.split(" ").map((part) => part[0]).slice(0, 2).join("") ?? "AG";
+  const initials =
+    profile?.name
+      .split(" ")
+      .map((part) => part[0])
+      .slice(0, 2)
+      .join("") ?? "AG";
 
   if (isPortalRoute) {
     return (
-      <div style={{ minHeight: "100vh", background: "#f8fafc", display: "flex", flexDirection: "column" }}>
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "#f8fafc",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
         <header
           style={{
             background: "#ffffff",
@@ -144,28 +223,57 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 width: "38px",
                 height: "38px",
                 borderRadius: "10px",
-                background: "#7258e8",
-                color: "#ffffff",
+                background: "transparent",
                 display: "grid",
                 placeItems: "center",
-                fontWeight: 900,
-                fontSize: "15px",
+                overflow: "hidden",
               }}
             >
-              <Users size={18} />
+              <img
+                src="/logo.png"
+                alt="Logo"
+                width={32}
+                height={32}
+                style={{ objectFit: "contain" }}
+              />
             </div>
             <div>
-              <b style={{ fontSize: "14.5px", letterSpacing: "-0.01em", color: "var(--ink)", display: "block" }}>
+              <b
+                style={{
+                  fontSize: "14.5px",
+                  letterSpacing: "-0.01em",
+                  color: "var(--ink)",
+                  display: "block",
+                }}
+              >
                 ORBIT
               </b>
-              <span style={{ fontSize: "10.5px", fontWeight: 800, color: "#7258e8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              <span
+                style={{
+                  fontSize: "10.5px",
+                  fontWeight: 800,
+                  color: "#7258e8",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                }}
+              >
                 Agent Partner Portal
               </span>
             </div>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "4px 12px", background: "#f8fafc", borderRadius: "10px", border: "1px solid var(--line)" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                padding: "4px 12px",
+                background: "#f8fafc",
+                borderRadius: "10px",
+                border: "1px solid var(--line)",
+              }}
+            >
               <div
                 style={{
                   width: "30px",
@@ -182,10 +290,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 {initials}
               </div>
               <div style={{ textAlign: "left" }}>
-                <b style={{ fontSize: "12px", color: "var(--ink)", display: "block" }}>
+                <b
+                  style={{
+                    fontSize: "12px",
+                    color: "var(--ink)",
+                    display: "block",
+                  }}
+                >
                   {profile?.name || "Agent Partner"}
                 </b>
-                <span style={{ fontSize: "10.5px", color: "#10b981", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "3px" }}>
+                <span
+                  style={{
+                    fontSize: "10.5px",
+                    color: "#10b981",
+                    fontWeight: 700,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "3px",
+                  }}
+                >
                   <ShieldCheck size={11} /> Verified Agent
                 </span>
               </div>
@@ -214,41 +337,105 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main style={{ flex: 1, width: "100%", maxWidth: "100%" }}>{children}</main>
+        <main style={{ flex: 1, width: "100%", maxWidth: "100%" }}>
+          {children}
+        </main>
       </div>
     );
   }
 
   return (
     <div className="app-shell">
-      {open && <div className="sidebar-backdrop" onClick={() => setOpen(false)} />}
+      {open && (
+        <div className="sidebar-backdrop" onClick={() => setOpen(false)} />
+      )}
       <aside className={`sidebar ${open ? "sidebar-open" : ""}`}>
         <div className="brand">
-          <span className="brand-mark"><Users size={20} /></span>
-          <span><b>ORBIT</b><small>CANDIDATES PANEL</small></span>
-          <button className="icon mobile" onClick={() => setOpen(false)}><X size={20} /></button>
+          <span
+            className="brand-mark"
+            style={{
+              display: "grid",
+              placeItems: "center",
+              background: "transparent",
+              overflow: "hidden",
+            }}
+          >
+            <img
+              src="/logo.png"
+              alt="Logo"
+              width={28}
+              height={28}
+              style={{ objectFit: "contain" }}
+            />
+          </span>
+          <span>
+            <b>StoreRepublic</b>
+            <small>Requirements PANEL</small>
+          </span>
+          <button className="icon mobile" onClick={() => setOpen(false)}>
+            <X size={20} />
+          </button>
         </div>
         <div className="side-search">
           <Search size={16} />
-          <input value={moduleQuery} onChange={(event) => setModuleQuery(event.target.value)} placeholder="Quick filter..." />
+          <input
+            value={moduleQuery}
+            onChange={(event) => setModuleQuery(event.target.value)}
+            placeholder="Quick filter..."
+          />
           <kbd>Ctrl K</kbd>
         </div>
         <nav>
-          {!profile && <div style={{ padding: "16px", fontSize: "13px" }}>
-            {profileQuery.isPending ? <p role="status">Loading navigation…</p>
-              : profileQuery.data?.data === null ? <p role="alert">Your session has expired. <Link href="/login">Sign in again</Link></p>
-              : <div role="alert"><p>Unable to load navigation.</p><button type="button" disabled={profileQuery.isFetching} onClick={() => void profileQuery.refetch()}>Retry</button></div>}
-          </div>}
+          {!profile && (
+            <div style={{ padding: "16px", fontSize: "13px" }}>
+              {profileQuery.isPending ? (
+                <p role="status">Loading navigation…</p>
+              ) : profileQuery.data?.data === null ? (
+                <p role="alert">
+                  Your session has expired.{" "}
+                  <Link href="/login">Sign in again</Link>
+                </p>
+              ) : (
+                <div role="alert">
+                  <p>Unable to load navigation.</p>
+                  <button
+                    type="button"
+                    disabled={profileQuery.isFetching}
+                    onClick={() => void profileQuery.refetch()}
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           {visible.map((module, index) => {
-            const activeModule = module.id === "dashboard" ? path === "/dashboard" : selectedModule === module.id;
-            const expanded = expandedModule === module.id || Boolean(moduleQuery);
-            const accent = ["#5ca8ec", "#f7bd23", "#8368ef", "#4fd3a1"][index % 4];
+            const activeModule =
+              module.id === "dashboard"
+                ? path === "/dashboard"
+                : selectedModule === module.id;
+            const expanded =
+              expandedModule === module.id || Boolean(moduleQuery);
+            const accent = ["#5ca8ec", "#f7bd23", "#8368ef", "#4fd3a1"][
+              index % 4
+            ];
 
             if (module.id === "dashboard") {
               return (
-                <div className="nav-group" key={module.id} style={{ "--nav-accent": accent } as React.CSSProperties}>
-                  <Link prefetch={true} onClick={() => setOpen(false)} href="/dashboard" className={`nav-main dashboard-link ${activeModule ? "active" : ""}`}>
-                    <span className="nav-icon"><module.icon size={19} /></span>
+                <div
+                  className="nav-group"
+                  key={module.id}
+                  style={{ "--nav-accent": accent } as React.CSSProperties}
+                >
+                  <Link
+                    prefetch={true}
+                    onClick={() => setOpen(false)}
+                    href="/dashboard"
+                    className={`nav-main dashboard-link ${activeModule ? "active" : ""}`}
+                  >
+                    <span className="nav-icon">
+                      <module.icon size={19} />
+                    </span>
                     <span>{module.label}</span>
                     <NavigationPending />
                   </Link>
@@ -260,19 +447,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               const singleItem = module.items[0];
               const prefetchCountry = () => {
                 if (singleItem.label !== "Candidates List") return;
-                const country = module.id === "ksa" ? "Saudi Arabia"
-                  : module.id === "other-country" ? "Other Country" : module.label;
-                void queryClient.prefetchQuery(countryCandidatesQueryOptions(country));
+                const country =
+                  module.id === "ksa"
+                    ? "Saudi Arabia"
+                    : module.id === "other-country"
+                      ? "Other Country"
+                      : module.label;
+                void queryClient.prefetchQuery(
+                  countryCandidatesQueryOptions(country),
+                );
               };
               const singleCount =
                 module.id === "country-setup"
-                  ? (dbCountries.length || (navCounts[module.id]?.[singleItem.label] ?? 0))
+                  ? dbCountries.length ||
+                    (navCounts[module.id]?.[singleItem.label] ?? 0)
                   : (module as any).candidateCount !== undefined
-                  ? (module as any).candidateCount
-                  : (navCounts[module.id]?.[singleItem.label] ?? 0);
-              const hideBadge = module.id === "document" || module.id === "payment-collection";
+                    ? (module as any).candidateCount
+                    : (navCounts[module.id]?.[singleItem.label] ?? 0);
+              const hideBadge =
+                module.id === "document" || module.id === "payment-collection";
               return (
-                <div className="nav-group" key={module.id} style={{ "--nav-accent": accent } as React.CSSProperties}>
+                <div
+                  className="nav-group"
+                  key={module.id}
+                  style={{ "--nav-accent": accent } as React.CSSProperties}
+                >
                   <Link
                     prefetch={true}
                     onClick={() => setOpen(false)}
@@ -281,13 +480,38 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     onTouchStart={prefetchCountry}
                     href={moduleItemPath(module.id, singleItem.label)}
                     className={`nav-main ${activeModule ? "active active-module" : ""}`}
-                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                    }}
                   >
                     <span className="nav-main-content">
-                      <span className="nav-icon"><module.icon size={19} /></span>
+                      <span
+                        className="nav-icon"
+                        style={
+                          (module as any).flag
+                            ? {
+                                fontSize: "17px",
+                                lineHeight: 1,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }
+                            : undefined
+                        }
+                      >
+                        {(module as any).flag ? (
+                          (module as any).flag
+                        ) : (
+                          <module.icon size={19} />
+                        )}
+                      </span>
                       <span>{module.label}</span>
                     </span>
-                    {!hideBadge && <span className="nav-badge">{singleCount}</span>}
+                    {!hideBadge && (
+                      <span className="nav-badge">{singleCount}</span>
+                    )}
                     <NavigationPending />
                   </Link>
                 </div>
@@ -295,22 +519,53 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             }
 
             return (
-              <div className={`nav-group ${expanded ? "expanded" : ""}`} key={module.id} style={{ "--nav-accent": accent } as React.CSSProperties}>
+              <div
+                className={`nav-group ${expanded ? "expanded" : ""}`}
+                key={module.id}
+                style={{ "--nav-accent": accent } as React.CSSProperties}
+              >
                 <button
                   type="button"
                   className={`nav-main nav-toggle ${activeModule ? "active-module" : ""}`}
                   aria-expanded={expanded}
-                  onClick={() => setExpandedModule((current) => current === module.id ? null : module.id)}
+                  onClick={() =>
+                    setExpandedModule((current) =>
+                      current === module.id ? null : module.id,
+                    )
+                  }
                 >
-                  <span className="nav-icon"><module.icon size={19} /></span>
+                  <span
+                    className="nav-icon"
+                    style={
+                      (module as any).flag
+                        ? {
+                            fontSize: "17px",
+                            lineHeight: 1,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }
+                        : undefined
+                    }
+                  >
+                    {(module as any).flag ? (
+                      (module as any).flag
+                    ) : (
+                      <module.icon size={19} />
+                    )}
+                  </span>
                   <span>{module.label}</span>
                   <ChevronDown className="nav-chevron" size={16} />
                 </button>
                 <div className="nav-children">
                   {module.items.map((item) => {
-                    const itemActive = activeModule && selectedPage === moduleItemSlug(item.label);
+                    const itemActive =
+                      activeModule &&
+                      selectedPage === moduleItemSlug(item.label);
                     const count = navCounts[module.id]?.[item.label] ?? 0;
-                    const isActionItem = /^(create|add|new|register\s*$)/i.test(item.label.trim());
+                    const isActionItem = /^(create|add|new|register\s*$)/i.test(
+                      item.label.trim(),
+                    );
                     return (
                       <Link
                         key={item.label}
@@ -322,7 +577,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         <span className="nav-child-label">
                           <i /> <span>{item.label}</span>
                         </span>
-                        {!isActionItem && <span className="nav-badge">{count}</span>}
+                        {!isActionItem && (
+                          <span className="nav-badge">{count}</span>
+                        )}
                         <NavigationPending />
                       </Link>
                     );
@@ -333,17 +590,44 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           })}
 
           {profile?.roleKey === "SUPER_ADMIN" && (
-            <div className="nav-group" style={{ "--nav-accent": "#8368ef" } as React.CSSProperties}>
+            <div
+              className="nav-group"
+              style={{ "--nav-accent": "#8368ef" } as React.CSSProperties}
+            >
               <Link
                 prefetch={true}
                 onClick={() => setOpen(false)}
                 href="/permissions"
                 className={`nav-main ${path === "/permissions" ? "active active-module" : ""}`}
-                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px" }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "6px",
+                }}
               >
-                <span className="nav-main-content" style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1, minWidth: 0 }}>
-                  <span className="nav-icon"><ShieldCheck size={19} /></span>
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Permissions</span>
+                <span
+                  className="nav-main-content"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    flex: 1,
+                    minWidth: 0,
+                  }}
+                >
+                  <span className="nav-icon">
+                    <ShieldCheck size={19} />
+                  </span>
+                  <span
+                    style={{
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Permissions
+                  </span>
                 </span>
                 <span
                   style={{
@@ -379,42 +663,70 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="main">
         <header>
-          <button className="icon menu-button" onClick={() => setOpen(true)}><Menu /></button>
-          <Link className="mobile-header-brand" href="/dashboard"><b>ORBIT</b><small>OFFICE PANEL</small></Link>
+          <button className="icon menu-button" onClick={() => setOpen(true)}>
+            <Menu />
+          </button>
+          <Link className="mobile-header-brand" href="/dashboard">
+            <b>ORBIT</b>
+            <small>OFFICE PANEL</small>
+          </Link>
           <div className="global-search">
             <Search size={18} />
-            <input value={globalQuery} onChange={(event) => setGlobalQuery(event.target.value)} placeholder="Search candidate, phone, lead..." />
-            <span><Command size={13} /> K</span>
+            <input
+              value={globalQuery}
+              onChange={(event) => setGlobalQuery(event.target.value)}
+              placeholder="Search candidate, phone, lead..."
+            />
+            <span>
+              <Command size={13} /> K
+            </span>
             {results.length > 0 && (
               <div className="search-results">
                 {results.map((result) => (
                   <Link
                     key={result.id}
                     href={`/file/${result.id}`}
-                    onClick={() => { setResults([]); setGlobalQuery(""); }}
+                    onClick={() => {
+                      setResults([]);
+                      setGlobalQuery("");
+                    }}
                   >
-                    <b>{result.fileNo} · {result.name}</b>
-                    <small>{result.passport ?? "No passport"} · {result.country} · {result.stage}</small>
+                    <b>
+                      {result.fileNo} · {result.name}
+                    </b>
+                    <small>
+                      {result.passport ?? "No passport"} · {result.country} ·{" "}
+                      {result.stage}
+                    </small>
                   </Link>
                 ))}
               </div>
             )}
           </div>
           <div className="header-actions">
-            <button className="icon"><Settings size={19} /></button>
+            <button className="icon">
+              <Settings size={19} />
+            </button>
             <button className="icon notification">
               <Bell size={19} />
-              {Boolean(profile?.unreadNotifications) && <i>{profile?.unreadNotifications}</i>}
+              {Boolean(profile?.unreadNotifications) && (
+                <i>{profile?.unreadNotifications}</i>
+              )}
             </button>
             <div className="profile">
               <div className="avatar">{initials}</div>
               <span>
                 <b>{profile?.name ?? "Account"}</b>
-                <small>{profile?.role ?? (profileQuery.isPending ? "Loading…" : "Unavailable")}</small>
+                <small>
+                  {profile?.role ??
+                    (profileQuery.isPending ? "Loading…" : "Unavailable")}
+                </small>
               </span>
               <ChevronDown size={16} />
             </div>
-            <button className="icon" title="Logout" onClick={logout}><LogOut size={18} /></button>
+            <button className="icon" title="Logout" onClick={logout}>
+              <LogOut size={18} />
+            </button>
           </div>
         </header>
         <main>{children}</main>

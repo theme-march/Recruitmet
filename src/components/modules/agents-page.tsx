@@ -43,7 +43,6 @@ type AgentItem = {
   country: string;
   district: string;
   status: "Active" | "Inactive" | "Blocked";
-  commissionRate?: string;
   agreementKey: string;
   totalCandidates: number;
   activeDossiers: number;
@@ -82,7 +81,6 @@ type AgentDetail = {
   country: string;
   district: string;
   status: "Active" | "Inactive" | "Blocked";
-  commissionRate?: string;
   agreementKey: string;
   hasPortalAccess?: boolean;
   portalLoginEmail?: string | null;
@@ -320,7 +318,7 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
             Agents &amp; Channel Partners
           </h1>
           <p style={{ fontSize: "13px", color: "var(--muted)", margin: "4px 0 0" }}>
-            Manage agency brokers, sub-agents, candidate referrals, commission agreements, and partner profiles.
+            Manage agency brokers, sub-agents, candidate referrals, agreements, and partner profiles.
           </p>
         </div>
 

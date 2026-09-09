@@ -16,7 +16,6 @@ export type CreateAgentInput = {
   address?: string;
   country?: string;
   status?: "Active" | "Inactive" | "Blocked";
-  commissionRate?: string;
   agreementKey?: string;
   enablePortalLogin?: boolean;
   portalEmail?: string;
@@ -61,9 +60,7 @@ export async function createAgentAction(
         address: input.address?.trim() || null,
         country: input.country?.trim() || "Dhaka",
         status: input.status || "Active",
-        commissionRule: input.commissionRate
-          ? { rate: input.commissionRate.trim(), type: "custom" }
-          : { rate: "৳ 25,000 / candidate", type: "fixed" },
+        commissionRule: { agentNotes: [], documents: [] },
         agreementKey: input.agreementKey?.trim() || `AGR-${code}`,
       },
     });
@@ -83,7 +80,7 @@ export async function createAgentAction(
           agentRole = await prisma.role.create({
             data: {
               name: "Agent Partner",
-              description: "Read-only access for agent partners to view their candidates and commissions.",
+              description: "Read-only access for agent partners to view their candidates and file processing status.",
             },
           });
         }

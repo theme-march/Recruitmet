@@ -88,6 +88,7 @@ type Data = {
 };
 
 export function PaymentCollectionPage() {
+  const paymentRequest = usePaymentRequest();
   const [query, setQuery] = useState("");
   const [appliedQuery, setAppliedQuery] = useState("");
   const [status, setStatus] = useState("");

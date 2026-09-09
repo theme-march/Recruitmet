@@ -465,6 +465,7 @@ model Country {
   id           String                 @id @default(cuid())
   code         String                 @unique
   name         String                 @unique
+  flag         String?
   currency     String
   timezone     String
   phoneCode    String?

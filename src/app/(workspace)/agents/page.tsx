@@ -10,7 +10,7 @@ import AgentsLoading from "./loading";
 
 export const metadata: Metadata = {
   title: "Agent Network & Partners | Orbit Overseas",
-  description: "Manage channel agents, commission tiers, and sub-agency performance",
+  description: "Manage channel agents, candidate referrals, and sub-agency performance",
 };
 
 async function AgentsDataLoader({ sessionPromise }: { sessionPromise: ReturnType<typeof getSession> }) {

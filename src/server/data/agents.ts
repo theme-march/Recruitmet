@@ -40,42 +40,77 @@ export async function getAgentsData(options: AgentQueryOptions = {}) {
 
   const agents = allAgents;
 
-  const files = await prisma.processingFile.findMany({
-    select: {
-      id: true,
-      fileNo: true,
-      agent: true,
-      country: true,
-      currentStage: true,
-      status: true,
-      candidate: {
-        select: {
-          id: true,
-          fullName: true,
-          phone: true,
-          source: true,
+  const [files, candidates] = await Promise.all([
+    prisma.processingFile.findMany({
+      select: {
+        id: true,
+        fileNo: true,
+        agent: true,
+        country: true,
+        currentStage: true,
+        status: true,
+        candidateId: true,
+        candidate: {
+          select: {
+            id: true,
+            fullName: true,
+            phone: true,
+            source: true,
+          },
         },
       },
-    },
-  });
+    }),
+    prisma.candidate.findMany({
+      select: {
+        id: true,
+        fullName: true,
+        phone: true,
+        source: true,
+      },
+    }),
+  ]);
 
   const enrichedAgents = agents.map((agent) => {
-    const agentFiles = files.filter(
-      (f) =>
-        (f.agent || "").toLowerCase().trim() === agent.name.toLowerCase().trim() ||
-        (f.agent || "").toLowerCase().trim() === agent.code.toLowerCase().trim()
-    );
+    const agentName = (agent.name || "").toLowerCase().trim();
+    const agentCode = (agent.code || "").toLowerCase().trim();
 
+    // 1. Gather all unique candidate IDs referred by this agent
+    const candidateIdsForAgent = new Set<string>();
+
+    for (const c of candidates) {
+      const src = (c.source || "").toLowerCase().trim();
+      if (src && (src === agentName || src === agentCode)) {
+        candidateIdsForAgent.add(c.id);
+      }
+    }
+
+    for (const f of files) {
+      const fAgent = (f.agent || "").toLowerCase().trim();
+      const candSource = (f.candidate?.source || "").toLowerCase().trim();
+      if (
+        (fAgent && (fAgent === agentName || fAgent === agentCode)) ||
+        (candSource && (candSource === agentName || candSource === agentCode))
+      ) {
+        if (f.candidate?.id) candidateIdsForAgent.add(f.candidate.id);
+        if (f.candidateId) candidateIdsForAgent.add(f.candidateId);
+      }
+    }
+
+    // 2. Gather all processing files associated with this agent or their candidates
+    const agentFiles = files.filter((f) => {
+      const fAgent = (f.agent || "").toLowerCase().trim();
+      const candSource = (f.candidate?.source || "").toLowerCase().trim();
+      return (
+        (fAgent && (fAgent === agentName || fAgent === agentCode)) ||
+        (candSource && (candSource === agentName || candSource === agentCode)) ||
+        (f.candidateId && candidateIdsForAgent.has(f.candidateId))
+      );
+    });
+
+    const totalCandidates = Math.max(candidateIdsForAgent.size, agentFiles.length);
     const activeDossiers = agentFiles.filter((f) => f.status === "ACTIVE" || (f.status as string) === "PROCESSING").length;
     const completedDossiers = agentFiles.filter((f) => f.status === "COMPLETED" || (f.currentStage || "").toLowerCase().includes("flight")).length;
 
-    let commissionRate = "৳ 25,000 / candidate";
-    if (agent.commissionRule && typeof agent.commissionRule === "object") {
-      const rule = agent.commissionRule as any;
-      commissionRate = rule.rate || rule.value || `${rule.amount || 25000} BDT`;
-    }
-
-    const estimatedCommission = completedDossiers * 25000;
     const portalUser = agent.email ? userByEmail.get(agent.email.toLowerCase().trim()) : null;
 
     return {
@@ -88,12 +123,10 @@ export async function getAgentsData(options: AgentQueryOptions = {}) {
       district: agent.country || agent.address || "Dhaka",
       address: agent.address || "—",
       status: agent.status,
-      commissionRate,
       agreementKey: agent.agreementKey || "—",
       totalCandidates: agentFiles.length,
       activeDossiers,
       completedDossiers,
-      estimatedCommission,
       hasPortalAccess: Boolean(portalUser),
       portalUsername: portalUser?.username || null,
       portalUserStatus: portalUser?.status || null,

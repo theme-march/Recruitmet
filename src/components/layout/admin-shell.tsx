@@ -44,7 +44,9 @@ export function AdminShell({ children, profile, variant }: Props) {
       {open && <button className="admin-backdrop" aria-label="Close menu" onClick={() => setOpen(false)} />}
       <aside className={open ? "open" : ""}>
         <div className="admin-brand">
-          <span>O</span>
+          <span style={{ display: "grid", placeItems: "center", background: "transparent", overflow: "hidden" }}>
+            <img src="/logo.png" alt="Logo" width={28} height={28} style={{ objectFit: "contain" }} />
+          </span>
           <div>
             <b>ORBIT</b>
             <small>{superAdmin ? "SUPER ADMIN CONTROL" : "MANAGEMENT"}</small>
