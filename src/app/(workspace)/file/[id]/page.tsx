@@ -26,10 +26,16 @@ export default async function FilePage({
 
   const { id } = await params;
 
-  // Verify file exists on server before client render
+  // Verify file exists on server before client render (supports file ID, fileNo, candidateId, candidateNo, or passportNo)
   const file = await prisma.processingFile.findFirst({
     where: {
-      OR: [{ id }, { fileNo: id }],
+      OR: [
+        { id },
+        { fileNo: id },
+        { candidateId: id },
+        { candidate: { candidateNo: id } },
+        { candidate: { passportNo: id } },
+      ],
     },
     select: { id: true, fileNo: true, country: true },
   });

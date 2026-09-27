@@ -6,16 +6,23 @@ import { countryModule } from "@/lib/permission-policy";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
+  Briefcase,
   Building2,
   Calendar,
+  Camera,
   Check,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   CircleDot,
   Clock,
+  Copy,
   CreditCard,
   DollarSign,
   Download,
+  ExternalLink,
   Eye,
+  FileBadge,
   FileCheck,
   FileText,
   Filter,
@@ -24,10 +31,13 @@ import {
   History,
   Layers,
   LayoutGrid,
+  Mail,
   MapPin,
+  MessageCircle,
   MessageSquare,
   Paperclip,
   Phone,
+  PhoneCall,
   Plane,
   Play,
   Plus,
@@ -50,6 +60,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useMemo } from "react";
 import { toast } from "sonner";
+import { CandidateProfileImageField } from "@/components/modules/candidate-profile-image-field";
 import { MoneyReceiptModal, type ReceiptData } from "@/components/modals/money-receipt-modal";
 import { DocumentViewerModal, type DocumentViewerData } from "@/components/modals/document-viewer-modal";
 import {
@@ -93,6 +104,7 @@ type ProcessingFileData = {
     nationalId?: string;
     source?: string;
     agentName?: string;
+    photo?: string | null;
     office?: { id: string; name: string } | string;
     status?: string;
     createdAt?: string;
@@ -408,8 +420,11 @@ export function FileProcessingWorkspace({
   const searchParams = useSearchParams();
   const stageParam = searchParams.get("stage") || searchParams.get("step") || searchParams.get("tab");
 
-  // Navigation & View Modes (Default to all-tables "dossier" so user sees EVERYTHING immediately)
-  const [mainView, setMainView] = useState<"dossier" | "pipeline" | "ledger" | "timeline">("dossier");
+  // Navigation & View Modes (Default to interactive "pipeline" so staff can immediately work on processing stages)
+  const viewParam = searchParams.get("view");
+  const [mainView, setMainView] = useState<"dossier" | "pipeline" | "ledger" | "timeline">(
+    viewParam === "dossier" || viewParam === "ledger" || viewParam === "timeline" ? viewParam : "pipeline"
+  );
   const [activeTab, setActiveTab] = useState<string>("Passport Entry");
   const [activeDossierSection, setActiveDossierSection] = useState<string>("all");
   
@@ -419,6 +434,8 @@ export function FileProcessingWorkspace({
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [showEditBioModal, setShowEditBioModal] = useState(false);
   const [savingBio, setSavingBio] = useState(false);
+  const [bioPhotoFile, setBioPhotoFile] = useState<File | null>(null);
+  const [removeBioPhoto, setRemoveBioPhoto] = useState(false);
   const [deductionAmount, setDeductionAmount] = useState(20000);
   const [actionLoading, setActionLoading] = useState(false);
   const [activeReceipt, setActiveReceipt] = useState<ReceiptData | null>(null);
@@ -565,12 +582,18 @@ export function FileProcessingWorkspace({
   const isOtherCountry = !isSaudi && !isDubai;
 
   useEffect(() => {
+    const viewParam = searchParams.get("view");
+    if (viewParam === "dossier" || viewParam === "ledger" || viewParam === "timeline") {
+      setMainView(viewParam);
+    } else if (viewParam === "pipeline") {
+      setMainView("pipeline");
+    }
+
     if (stageParam) {
+      setMainView("pipeline");
       if (stageParam.toLowerCase() === "payment") {
-        setMainView("pipeline");
         setActiveTab("Payment");
       } else {
-        setMainView("pipeline");
         setActiveTab(stageParam);
       }
     } else if (file?.currentStage) {
@@ -580,7 +603,7 @@ export function FileProcessingWorkspace({
         setActiveTab(file.currentStage);
       }
     }
-  }, [stageParam, file?.currentStage]);
+  }, [stageParam, file?.currentStage, searchParams]);
 
   // Data-Driven Stage Completion Checker
   const isStageCompleted = (stageId: string): boolean => {
@@ -792,261 +815,441 @@ export function FileProcessingWorkspace({
   const phoneClean = file.candidate.phone.replace(/[^+\d]/g, "");
   const showSection = (sec: string) => activeDossierSection === "all" || activeDossierSection === sec;
 
+  const currentStageStep = stages.findIndex((s) => s.id === file.currentStage) + 1 || 1;
+  const activeStageIndex = stages.findIndex((s) => s.id === activeTab);
+  const prevStage = activeStageIndex > 0 ? stages[activeStageIndex - 1] : null;
+  const nextStage = activeStageIndex < stages.length - 1 ? stages[activeStageIndex + 1] : null;
+
+  const copyCandidateId = () => {
+    navigator.clipboard.writeText(file.candidate.candidateNo);
+    toast.success(`Copied Candidate ID ${file.candidate.candidateNo} to clipboard!`);
+  };
+
   return (
     <div className="file-workspace-page">
       {/* 1. HERO CANDIDATE 360 COMMAND BAR */}
       <div className="candidate-hero-card">
         <div className="hero-top-row">
           <div className="hero-profile-info">
-            <div className="hero-avatar">{initials}</div>
-              <div className="hero-name-section">
-                <div className="flex items-center gap-2">
-                  <h1>{file.candidate.fullName}</h1>
-                  <CheckCircle2 size={20} className="text-emerald-500 inline" />
-                </div>
-                <div className="hero-badges-row">
-                  <span className="badge-file">FILE: {file.fileNo}</span>
-                  <span className="badge-country">{isDubai ? "🇦🇪" : "🇸🇦"} {file.country}</span>
-                  <span className="badge-current-stage">
-                    <CircleDot size={12} className="animate-pulse" /> Current Stage: {file.currentStage}
-                  </span>
-                  <span className={`badge-country ${file.status === "ACTIVE" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
-                    ● {file.status}
-                  </span>
-                  {file.agent && file.agent !== "Direct" && file.agent !== "Direct Office" ? (
-                    <Link
-                      href={file.agentRecord?.id ? `/agents/${file.agentRecord.id}` : `/module/agents/agent-list?q=${encodeURIComponent(file.agent)}`}
-                      className="badge-country"
-                      style={{ background: "#f0edff", color: "#7258e8", borderColor: "#dcd5fb", textDecoration: "none", fontWeight: 800 }}
-                      title="Click to view Agent Partner Profile"
-                    >
-                      🤝 Agent: {file.agentRecord?.name || file.agent} ➔
-                    </Link>
-                  ) : (
-                    <span className="badge-country bg-slate-50 text-slate-700 border-slate-200">
-                      🏢 Direct Office
-                    </span>
-                  )}
-                  <span className="badge-country bg-indigo-50 text-indigo-700 border-indigo-200">
-                    ⚡ {progressPercent}% Completed ({completedCount}/{stages.length} Stages)
-                  </span>
-                </div>
-              </div>
-            </div>
-            
-            {/* Quick Actions */}
-            <div className="hero-actions">
-              {file.agent && file.agent !== "Direct" && file.agent !== "Direct Office" && (
-                <Link
-                  href={file.agentRecord?.id ? `/agents/${file.agentRecord.id}` : `/module/agents/agent-list?q=${encodeURIComponent(file.agent)}`}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    background: "#f0edff",
-                    color: "#7258e8",
-                    border: "1px solid #dcd5fb",
-                    padding: "8px 14px",
-                    borderRadius: "9px",
-                    fontSize: "12px",
-                    fontWeight: 800,
-                    textDecoration: "none",
-                  }}
-                  title="Open Agent Profile & Candidate Notes"
-                >
-                  <Users size={14} className="text-purple-600" /> 🤝 Agent Profile ➔
-                </Link>
+            <div
+              className="hero-avatar"
+              style={{
+                cursor: "pointer",
+                position: "relative",
+                overflow: "hidden",
+              }}
+              onClick={() => setShowEditBioModal(true)}
+              title="Click to edit candidate profile bio & photo"
+            >
+              {file.candidate.photo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={`/api/candidates/${file.candidate.id}/photo?v=${file.candidate.updatedAt ? new Date(file.candidate.updatedAt).getTime() : Date.now()}`}
+                  alt={file.candidate.fullName}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : (
+                initials
               )}
-              <a
-                href={`tel:${phoneClean}`}
-                className="btn-modal-cancel"
-                style={{ display: "inline-flex", alignItems: "center", gap: "6px", textDecoration: "none" }}
-              >
-                <Phone size={14} className="text-emerald-600" /> Call Candidate
-              </a>
-              <button
-                type="button"
-                className="btn-print-receipt"
-                onClick={() =>
-                  setActiveReceipt({
-                    receiptNo: `MR-${file.fileNo.replace("FILE-", "")}`,
-                    date: new Date().toLocaleDateString("en-GB"),
-                    candidateName: file.candidate.fullName,
-                    candidateNo: file.candidate.candidateNo,
-                    fileNo: file.fileNo,
-                    passportNo: file.candidate.passportNo || file.passport?.passportNumber,
-                    phone: file.candidate.phone,
-                    country: file.country,
-                    profession: file.profession,
-                    paymentType: file.payments?.[0]?.type || "Candidate Payment Deposit",
-                    paymentMethod: file.payments?.[0]?.method || "Office Accounts",
-                    referenceNo: file.payments?.[0]?.reference || `REC-${file.fileNo}`,
-                    amount: totalPaid || 50000,
-                    totalPaid: totalPaid || 50000,
-                    totalPackage: totalPackageCost,
-                    officerName: file.assignedTo?.name || "Accounts Department",
-                  })
-                }
+              <div
                 style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  background: "#eff6ff",
-                  color: "#1d4ed8",
-                  border: "1px solid #bfdbfe",
-                  padding: "8px 14px",
-                  borderRadius: "9px",
-                  fontSize: "12px",
-                  fontWeight: 700,
-                  cursor: "pointer",
+                  position: "absolute",
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  background: "rgba(15, 23, 42, 0.6)",
+                  display: "grid",
+                  placeItems: "center",
+                  padding: "3px 0",
                 }}
               >
-                <Printer size={14} /> Print Receipt
-              </button>
-              {file.status === "HOLD" ? (
-                <button
-                  type="button"
-                  className="btn-modal-hold"
-                  disabled={!canEditFile || (!allows("exceptions", "hold") && !allows("exceptions", "reprocess"))}
-                  onClick={handleReleaseHold}
-                  style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: "#059669", color: "#fff", borderColor: "#059669" }}
-                  title="Release File From Hold"
-                >
-                  <Play size={14} /> Release Hold
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="btn-modal-hold"
-                  disabled={!canEditFile || !allows("exceptions", "hold")}
-                  onClick={() => setShowHoldModal(true)}
-                  style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
-                >
-                  <Clock size={14} /> Hold File
-                </button>
-              )}
-              <button
-                type="button"
-                className="btn-modal-return"
-                disabled={!canEditFile || !allows("exceptions", "return")}
-                onClick={() => setShowReturnModal(true)}
-                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
-              >
-                <CreditCard size={14} /> Return &amp; Refund
-              </button>
+                <Camera size={12} color="#fff" />
+              </div>
             </div>
-          </div>
 
-          {/* Quick Details Sub-strip */}
-          <div className="hero-subgrid">
-            <div className="hero-subitem">
-              <span>Candidate ID</span>
-              <b>{file.candidate.candidateNo}</b>
-            </div>
-            <div className="hero-subitem">
-              <span>Passport Number</span>
-              <b>{file.candidate.passportNo || file.passport?.passportNumber || "Not recorded"}</b>
-            </div>
-            <div className="hero-subitem">
-              <span>Profession</span>
-              <b>{file.profession || "General Worker"}</b>
-            </div>
-            <div className="hero-subitem">
-              <span>Company / Sponsor</span>
-              <b>{file.company || (isDubai ? "Dubai Employer LLC" : "Saudi Binladen Group")}</b>
-            </div>
-            <div className="hero-subitem">
-              <span>Agent / Partner</span>
-              <b>
+            <div className="hero-name-section">
+              <h1>
+                <span>{file.candidate.fullName}</span>
+                <CheckCircle2 size={20} className="text-emerald-600 shrink-0" />
+                <span
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border ${
+                    file.status === "ACTIVE"
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      : file.status === "HOLD"
+                      ? "bg-amber-50 text-amber-700 border-amber-200"
+                      : "bg-rose-50 text-rose-700 border-rose-200"
+                  }`}
+                >
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      file.status === "ACTIVE"
+                        ? "bg-emerald-500 animate-pulse"
+                        : file.status === "HOLD"
+                        ? "bg-amber-500"
+                        : "bg-rose-500"
+                    }`}
+                  />
+                  {file.status}
+                </span>
+              </h1>
+
+              <div className="hero-badges-row">
+                <button
+                  type="button"
+                  onClick={copyCandidateId}
+                  className="badge-file flex items-center gap-1.5 hover:bg-slate-800 transition-colors cursor-pointer"
+                  title="Click to copy Candidate ID"
+                >
+                  <span>{file.candidate.candidateNo}</span>
+                  <Copy size={11} className="opacity-70" />
+                </button>
+                <span className="badge-file bg-slate-100 text-slate-800 border border-slate-200 font-semibold">
+                  FILE: {file.fileNo}
+                </span>
+                <span className="badge-country">
+                  {isDubai ? "🇦🇪" : "🇸🇦"} {file.country}
+                </span>
+                <span className="badge-current-stage">
+                  <CircleDot size={12} className="animate-pulse" />
+                  Stage: <b>{file.currentStage}</b>
+                </span>
                 {file.agent && file.agent !== "Direct" && file.agent !== "Direct Office" ? (
                   <Link
                     href={file.agentRecord?.id ? `/agents/${file.agentRecord.id}` : `/module/agents/agent-list?q=${encodeURIComponent(file.agent)}`}
-                    style={{ color: "#7258e8", textDecoration: "none", fontWeight: 800, display: "inline-flex", alignItems: "center", gap: "4px" }}
-                    title="Click to open Agent Profile"
+                    className="badge-country"
+                    style={{ background: "#f5f3ff", color: "#6d28d9", borderColor: "#ddd6fe", textDecoration: "none", fontWeight: 700 }}
+                    title="Click to view Agent Partner Profile"
                   >
-                    🤝 {file.agentRecord?.name || file.agent} ➔
+                    🤝 {file.agentRecord?.name || file.agent}
                   </Link>
                 ) : (
-                  "🏢 Direct Office"
+                  <span className="badge-country">
+                    🏢 Direct Office
+                  </span>
                 )}
-              </b>
+              </div>
             </div>
-            <div className="hero-subitem">
-              <span>Assigned Officer</span>
-              <b>{file.assignedTo?.name || "Senior Desk Officer"}</b>
+          </div>
+
+          {/* Smart Quick Action Toolbar */}
+          <div className="hero-actions">
+            <a
+              href={`tel:${phoneClean}`}
+              className="profile-btn profile-btn-emerald-solid"
+              title="Call Candidate Phone"
+            >
+              <Phone size={14} /> Call Candidate
+            </a>
+
+            {phoneClean && (
+              <a
+                href={`https://wa.me/${phoneClean.startsWith("+") ? phoneClean.slice(1) : phoneClean}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="profile-btn profile-btn-emerald"
+                title="Open WhatsApp Chat"
+              >
+                <MessageCircle size={14} /> WhatsApp
+              </a>
+            )}
+
+            <button
+              type="button"
+              className="profile-btn profile-btn-blue"
+              onClick={() =>
+                setActiveReceipt({
+                  receiptNo: `MR-${file.fileNo.replace("FILE-", "")}`,
+                  date: new Date().toLocaleDateString("en-GB"),
+                  candidateName: file.candidate.fullName,
+                  candidateNo: file.candidate.candidateNo,
+                  fileNo: file.fileNo,
+                  passportNo: file.candidate.passportNo || file.passport?.passportNumber,
+                  phone: file.candidate.phone,
+                  country: file.country,
+                  profession: file.profession,
+                  paymentType: file.payments?.[0]?.type || "Candidate Payment Deposit",
+                  paymentMethod: file.payments?.[0]?.method || "Office Accounts",
+                  referenceNo: file.payments?.[0]?.reference || `REC-${file.fileNo}`,
+                  amount: totalPaid || 50000,
+                  totalPaid: totalPaid || 50000,
+                  totalPackage: totalPackageCost,
+                  officerName: file.assignedTo?.name || "Accounts Department",
+                })
+              }
+              title="Print Official Money Receipt"
+            >
+              <Printer size={14} /> Print Receipt
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowEditBioModal(true)}
+              className="profile-btn profile-btn-neutral"
+              title="Edit Candidate Registration Details & Profile Photo"
+            >
+              <User size={14} /> Edit Profile
+            </button>
+
+            {file.agent && file.agent !== "Direct" && file.agent !== "Direct Office" && (
+              <Link
+                href={file.agentRecord?.id ? `/agents/${file.agentRecord.id}` : `/module/agents/agent-list?q=${encodeURIComponent(file.agent)}`}
+                className="profile-btn profile-btn-purple"
+                title="Open Agent Partner Profile"
+              >
+                <Users size={14} /> Agent Profile ➔
+              </Link>
+            )}
+
+            {file.status === "HOLD" ? (
+              <button
+                type="button"
+                className="profile-btn profile-btn-emerald"
+                disabled={!canEditFile || (!allows("exceptions", "hold") && !allows("exceptions", "reprocess"))}
+                onClick={handleReleaseHold}
+                title="Release File From Hold"
+              >
+                <Play size={14} /> Release Hold
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="profile-btn profile-btn-amber"
+                disabled={!canEditFile || !allows("exceptions", "hold")}
+                onClick={() => setShowHoldModal(true)}
+                title="Put File On Hold"
+              >
+                <Clock size={14} /> Hold File
+              </button>
+            )}
+
+            <button
+              type="button"
+              className="profile-btn profile-btn-rose"
+              disabled={!canEditFile || !allows("exceptions", "return")}
+              onClick={() => setShowReturnModal(true)}
+              title="Process Candidate File Return & Refund"
+            >
+              <CreditCard size={14} /> Return &amp; Refund
+            </button>
+          </div>
+        </div>
+
+        {/* Upgraded Candidate Vital Info Cards Grid */}
+        <div className="vital-info-grid">
+          {/* Card 1: Passport */}
+          <div className="vital-card">
+            <div className="vital-icon-wrap indigo">
+              <FileText size={18} />
             </div>
-            <div className="hero-subitem">
-              <span>Branch Office</span>
-              <b>{typeof file.candidate.office === "object" ? file.candidate.office?.name : (file.office?.name || "Dhaka Head Office")}</b>
+            <div className="vital-body">
+              <span className="vital-label">Passport Number</span>
+              <div className="vital-passport-row">
+                <span className="vital-value font-mono">
+                  {file.candidate.passportNo || file.passport?.passportNumber || "Not recorded"}
+                </span>
+                {(attachedFiles["passport"] || file.passport?.passportNumber) && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setActiveDoc({
+                        candidateName: file.candidate.fullName,
+                        passportNo: file.candidate.passportNo || file.passport?.passportNumber,
+                        candidateNo: file.candidate.candidateNo,
+                        country: file.country,
+                        profession: file.profession,
+                        company: file.company,
+                        title: "Scanned Passport Copy",
+                        category: "passport",
+                        url: attachedFiles["passport"]?.url,
+                        fileNumber: file.fileNo,
+                        verifiedStatus: "Verified Valid",
+                      })
+                    }
+                    className="vital-quick-preview-btn"
+                    title="View Scanned Passport"
+                  >
+                    <Eye size={13} />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Profession / Trade */}
+          <div className="vital-card">
+            <div className="vital-icon-wrap blue">
+              <Briefcase size={18} />
+            </div>
+            <div className="vital-body">
+              <span className="vital-label">Profession / Trade</span>
+              <span className="vital-value">{file.profession || "General Worker"}</span>
+            </div>
+          </div>
+
+          {/* Card 3: Company / Sponsor */}
+          <div className="vital-card">
+            <div className="vital-icon-wrap emerald">
+              <Building2 size={18} />
+            </div>
+            <div className="vital-body">
+              <span className="vital-label">Company / Sponsor</span>
+              <span className="vital-value">
+                {file.company || (isDubai ? "Dubai Employer LLC" : "Saudi Binladen Group")}
+              </span>
+            </div>
+          </div>
+
+          {/* Card 4: Agent / Referral Partner */}
+          <div className="vital-card">
+            <div className="vital-icon-wrap purple">
+              <Users size={18} />
+            </div>
+            <div className="vital-body">
+              <span className="vital-label">Agent / Referral</span>
+              <span className="vital-value">
+                {file.agent && file.agent !== "Direct" && file.agent !== "Direct Office" ? (
+                  <Link
+                    href={file.agentRecord?.id ? `/agents/${file.agentRecord.id}` : `/module/agents/agent-list?q=${encodeURIComponent(file.agent)}`}
+                    className="text-purple-700 hover:underline"
+                  >
+                    {file.agentRecord?.name || file.agent}
+                  </Link>
+                ) : (
+                  "Direct Office"
+                )}
+              </span>
+            </div>
+          </div>
+
+          {/* Card 5: Assigned Officer */}
+          <div className="vital-card">
+            <div className="vital-icon-wrap amber">
+              <UserCheck size={18} />
+            </div>
+            <div className="vital-body">
+              <span className="vital-label">Desk Officer</span>
+              <span className="vital-value">{file.assignedTo?.name || "Senior Desk Officer"}</span>
+            </div>
+          </div>
+
+          {/* Card 6: Branch Office */}
+          <div className="vital-card">
+            <div className="vital-icon-wrap slate">
+              <MapPin size={18} />
+            </div>
+            <div className="vital-body">
+              <span className="vital-label">Branch Office</span>
+              <span className="vital-value">
+                {typeof file.candidate.office === "object" ? file.candidate.office?.name : (file.office?.name || "Dhaka Head Office")}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* 2. 360° WORKSPACE MAIN NAVIGATION TABS */}
-        <div className="workspace-view-tabs">
-          <button
-            type="button"
-            className={`view-tab-btn ${mainView === "dossier" ? "active" : ""}`}
-            onClick={() => setMainView("dossier")}
-          >
-            <Table size={16} /> 📑 360° All-Tables Complete Master Dossier ({completedCount}/{stages.length} Stages Ready)
-          </button>
-          <button
-            type="button"
-            className={`view-tab-btn ${mainView === "pipeline" ? "active" : ""}`}
-            onClick={() => setMainView("pipeline")}
-          >
-            <Layers size={16} /> ⚡ {stages.length}-Stage Processing Pipeline (Interactive Workflow)
-          </button>
-          <button
-            type="button"
-            className={`view-tab-btn ${mainView === "ledger" ? "active" : ""}`}
-            onClick={() => setMainView("ledger")}
-          >
-            <CreditCard size={16} /> 📊 Financial Ledger &amp; Invoices (৳ {totalPaid.toLocaleString()} Paid)
-          </button>
-          <button
-            type="button"
-            className={`view-tab-btn ${mainView === "timeline" ? "active" : ""}`}
-            onClick={() => setMainView("timeline")}
-          >
-            <History size={16} /> 💬 Notes, Calls &amp; Audit Trail
-          </button>
-        </div>
+        {/* Candidate Progress Bar Strip */}
+        <div className="candidate-progress-strip">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+            <Sparkles size={14} className="text-indigo-600" />
+            <span>
+              Stage {currentStageStep} of {stages.length}: <b className="text-indigo-700">{file.currentStage}</b>
+            </span>
+            <span className="text-slate-400">·</span>
+            <span className="text-emerald-700 font-semibold">
+              {completedCount} of {stages.length} Milestones Done ({progressPercent}%)
+            </span>
+          </div>
 
-        {/* 3. MAIN CONTENT BODY BASED ON SELECTED VIEW */}
-        {mainView === "pipeline" && (
-          <>
-            {/* 9-Stage Stepper Progression Header */}
-            <div className="stepper-card">
-              <div className="stepper-steps-grid">
-                {stages.map((st, index) => {
-                  const isCompleted = isStageCompleted(st.id);
-                  const isCurrent = st.id === file.currentStage;
-                  const isSelected = st.id === activeTab;
-                  const Icon = st.icon;
-
-                  return (
-                    <div
-                      key={st.id}
-                      className={`step-item ${isSelected ? "selected" : isCompleted ? "completed" : isCurrent ? "current" : "pending"}`}
-                      onClick={() => setActiveTab(st.id)}
-                    >
-                      <div className="step-circle">
-                        {isCompleted ? <Check size={16} /> : <Icon size={16} />}
-                      </div>
-                      <div className="step-text">
-                        <span className="step-num">Step {st.stepNo}</span>
-                        <strong className="step-label">{st.label}</strong>
-                        <small className="step-subtitle">
-                          {isCompleted ? "✓ Completed" : isCurrent && !isSelected ? "● In Progress" : st.subtitle}
-                        </small>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+          <div className="progress-track-wrap">
+            <div className="progress-track-bar">
+              <div
+                className="progress-track-fill"
+                style={{ width: `${progressPercent}%` }}
+              />
             </div>
+            <span className="text-xs font-bold font-mono text-slate-600">{progressPercent}%</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. 360° WORKSPACE MAIN NAVIGATION SEGMENTED TABS */}
+      <div className="workspace-view-tabs">
+        <button
+          type="button"
+          className={`view-tab-btn ${mainView === "pipeline" ? "active" : ""}`}
+          onClick={() => setMainView("pipeline")}
+        >
+          <Layers size={16} /> Workflow Pipeline
+          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${mainView === "pipeline" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"}`}>
+            Step {stages.findIndex((s) => s.id === activeTab) + 1}/{stages.length}
+          </span>
+        </button>
+        <button
+          type="button"
+          className={`view-tab-btn ${mainView === "dossier" ? "active" : ""}`}
+          onClick={() => setMainView("dossier")}
+        >
+          <Table size={16} /> 360° Master Dossier
+          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${mainView === "dossier" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"}`}>
+            16 Tables
+          </span>
+        </button>
+        <button
+          type="button"
+          className={`view-tab-btn ${mainView === "ledger" ? "active" : ""}`}
+          onClick={() => setMainView("ledger")}
+        >
+          <CreditCard size={16} /> Financial Ledger
+          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${mainView === "ledger" ? "bg-white/20 text-white" : "bg-emerald-50 text-emerald-700 border border-emerald-200"}`}>
+            ৳ {totalPaid.toLocaleString()} Paid
+          </span>
+        </button>
+        <button
+          type="button"
+          className={`view-tab-btn ${mainView === "timeline" ? "active" : ""}`}
+          onClick={() => setMainView("timeline")}
+        >
+          <History size={16} /> Activity &amp; Notes
+          {file.candidate.calls?.length ? (
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${mainView === "timeline" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"}`}>
+              {file.candidate.calls.length} Logs
+            </span>
+          ) : null}
+        </button>
+      </div>
+
+      {/* 3. MAIN CONTENT BODY BASED ON SELECTED VIEW */}
+      {mainView === "pipeline" && (
+        <>
+          {/* Streamlined Connected Progression Stepper */}
+          <div className="stepper-card-v2">
+            <div className="stepper-track-v2">
+              {stages.map((st, index) => {
+                const isCompleted = isStageCompleted(st.id);
+                const isCurrent = st.id === file.currentStage;
+                const isSelected = st.id === activeTab;
+                const Icon = st.icon;
+
+                return (
+                  <div
+                    key={st.id}
+                    className={`step-node-v2 ${isSelected ? "selected" : isCompleted ? "completed" : isCurrent ? "current" : "pending"}`}
+                    onClick={() => setActiveTab(st.id)}
+                  >
+                    <div className="step-node-circle">
+                      {isCompleted ? <Check size={14} /> : isSelected ? <Icon size={14} /> : st.stepNo}
+                    </div>
+                    <div className="step-node-content">
+                      <span className="step-node-num">Step {st.stepNo}</span>
+                      <strong className="step-node-title">{st.label}</strong>
+                      <small className="text-[10px] text-slate-400 font-medium">
+                        {isCompleted ? "✓ Completed" : isCurrent && !isSelected ? "● In Progress" : st.subtitle}
+                      </small>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
             {/* Two-Column Layout: Active Stage Form (Left) & Sticky Widgets (Right) */}
             <div className="file-main-grid">
@@ -1078,7 +1281,7 @@ export function FileProcessingWorkspace({
                           })
                         }
                       >
-                        <Eye size={14} /> 👁️ View Passport Scan {attachedFiles["passport"] && "✓"}
+                        <Eye size={14} /> View Passport Scan {attachedFiles["passport"] && "✓"}
                       </button>
                     </div>
                     <div className="stage-guidance-banner">
@@ -1193,7 +1396,7 @@ export function FileProcessingWorkspace({
                           })
                         }
                       >
-                        <Eye size={14} /> 👁️ View Medical Slip {attachedFiles["medical"] && "✓"}
+                        <Eye size={14} /> View Medical Slip {attachedFiles["medical"] && "✓"}
                       </button>
                     </div>
                     <div className="stage-guidance-banner">
@@ -1312,7 +1515,7 @@ export function FileProcessingWorkspace({
                           })
                         }
                       >
-                        <Eye size={14} /> 👁️ View PCC Cert {attachedFiles["police"] && "✓"}
+                        <Eye size={14} /> View PCC Cert {attachedFiles["police"] && "✓"}
                       </button>
                     </div>
                     <div className="stage-guidance-banner">
@@ -1552,7 +1755,7 @@ export function FileProcessingWorkspace({
                           })
                         }
                       >
-                        <Eye size={14} /> 👁️ View SVP Cert {attachedFiles["takamul"] && "✓"}
+                        <Eye size={14} /> View SVP Cert {attachedFiles["takamul"] && "✓"}
                       </button>
                     </div>
                     <div className="stage-guidance-banner">
@@ -1664,7 +1867,7 @@ export function FileProcessingWorkspace({
                           })
                         }
                       >
-                        <Eye size={14} /> 👁️ View E-Visa {attachedFiles["visa"] && "✓"}
+                        <Eye size={14} /> View E-Visa {attachedFiles["visa"] && "✓"}
                       </button>
                     </div>
                     <div className="stage-guidance-banner">
@@ -1784,7 +1987,7 @@ export function FileProcessingWorkspace({
                           })
                         }
                       >
-                        <Eye size={14} /> 👁️ View Offer Letter {attachedFiles["approval"] && "✓"}
+                        <Eye size={14} /> View Offer Letter {attachedFiles["approval"] && "✓"}
                       </button>
                     </div>
                     <div className="stage-guidance-banner">
@@ -1893,7 +2096,7 @@ export function FileProcessingWorkspace({
                           })
                         }
                       >
-                        <Eye size={14} /> 👁️ View E-Visa Permit {attachedFiles["evisa"] && "✓"}
+                        <Eye size={14} /> View E-Visa Permit {attachedFiles["evisa"] && "✓"}
                       </button>
                     </div>
                     <div className="stage-guidance-banner">
@@ -2007,7 +2210,7 @@ export function FileProcessingWorkspace({
                           })
                         }
                       >
-                        <Eye size={14} /> 👁️ View Smart Card {attachedFiles["manpower"] && "✓"}
+                        <Eye size={14} /> View Smart Card {attachedFiles["manpower"] && "✓"}
                       </button>
                     </div>
                     <div className="stage-guidance-banner">
@@ -2110,7 +2313,7 @@ export function FileProcessingWorkspace({
                           })
                         }
                       >
-                        <Eye size={14} /> 👁️ View E-Ticket {attachedFiles["flight"] && "✓"}
+                        <Eye size={14} /> View E-Ticket {attachedFiles["flight"] && "✓"}
                       </button>
                     </div>
                     <div className="stage-guidance-banner">
@@ -2482,48 +2685,103 @@ export function FileProcessingWorkspace({
                     </div>
                   );
                 })()}
+
+                {/* Stage Workflow Progression Navigation Bar */}
+                <div className="stage-nav-bar bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between mt-4">
+                  <div>
+                    {prevStage ? (
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab(prevStage.id)}
+                        className="stage-nav-btn prev"
+                        title={`Go back to ${prevStage.label}`}
+                      >
+                        <ChevronLeft size={16} /> Previous: {prevStage.label}
+                      </button>
+                    ) : (
+                      <span className="text-xs text-slate-400 font-semibold px-2">Initial Milestone</span>
+                    )}
+                  </div>
+
+                  <div className="hidden sm:flex items-center gap-2 text-xs font-semibold text-slate-500">
+                    <span>Active: <b className="text-slate-800">{stages[activeStageIndex]?.label || activeTab}</b></span>
+                    <span>·</span>
+                    <span>Step {activeStageIndex + 1} of {stages.length}</span>
+                  </div>
+
+                  <div>
+                    {nextStage ? (
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab(nextStage.id)}
+                        className="stage-nav-btn next"
+                        title={`Proceed to ${nextStage.label}`}
+                      >
+                        Next: {nextStage.label} <ChevronRight size={16} />
+                      </button>
+                    ) : (
+                      <span className="text-xs text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                        <Check size={13} /> Final Departure Milestone
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
 
-              {/* Right Column: Financial & Progress Widgets */}
+              {/* Right Column: Financial & Document Assistant Sidebar */}
               <div className="file-sidebar">
-                {/* Payment Ledger Card */}
+                {/* 1. Payment Ledger Card */}
                 <div className="sidebar-widget-card">
-                  <h3>
-                    <CreditCard size={17} className="text-indigo-600" /> Financial Ledger
-                  </h3>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="m-0 flex items-center gap-2 text-sm font-bold text-slate-800 uppercase tracking-wider">
+                      <CreditCard size={17} className="text-indigo-600" /> Financial Ledger
+                    </h3>
+                    {canEditFile && allows("payment-collection", "create") && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("Payment")}
+                        className="profile-btn profile-btn-sm profile-btn-purple"
+                        title="Record a new payment deposit"
+                      >
+                        + Deposit
+                      </button>
+                    )}
+                  </div>
+
                   <div className="ledger-total-box">
                     <div style={{ flex: 1 }}>
                       <span style={{ fontSize: "11px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700 }}>Total Amount Paid</span>
-                      <strong style={{ display: "block", fontSize: "18px", color: "#059669" }}>৳ {totalPaid.toLocaleString()} BDT</strong>
+                      <strong style={{ display: "block", fontSize: "19px", color: "#059669" }}>৳ {totalPaid.toLocaleString()} BDT</strong>
                       <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "3px" }}>
                         Contract Package: <b>৳ {totalPackageCost.toLocaleString()} BDT</b>
                       </div>
                       {advanceAmount > 0 ? (
-                        <div style={{ fontSize: "11px", color: "#7c3aed", fontWeight: 800, marginTop: "2px" }}>
+                        <div style={{ fontSize: "11px", color: "#7c3aed", fontWeight: 800, marginTop: "3px" }}>
                           🟣 Advance Extra: + ৳ {advanceAmount.toLocaleString()} BDT
                         </div>
                       ) : balanceRemaining > 0 ? (
-                        <div style={{ fontSize: "11px", color: "#e11d48", fontWeight: 800, marginTop: "2px" }}>
+                        <div style={{ fontSize: "11px", color: "#e11d48", fontWeight: 800, marginTop: "3px" }}>
                           🔴 Remaining Due: ৳ {balanceRemaining.toLocaleString()} BDT
                         </div>
                       ) : (
-                        <div style={{ fontSize: "11px", color: "#059669", fontWeight: 800, marginTop: "2px" }}>
+                        <div style={{ fontSize: "11px", color: "#059669", fontWeight: 800, marginTop: "3px" }}>
                           🟢 100% Fully Settled (Zero Due)
                         </div>
                       )}
                     </div>
                     <DollarSign size={28} className="text-emerald-600 opacity-80" />
                   </div>
+
                   <div className="payments-list">
                     {file.payments?.length ? (
-                      file.payments.map((p) => (
+                      file.payments.slice(0, 4).map((p) => (
                         <div key={p.id} className="payment-item">
                           <div className="payment-item-main">
                             <div className="payment-item-top">
                               <b>{p.type}</b>
                               <button
                                 type="button"
-                                className="payment-receipt-btn"
+                                className="profile-btn profile-btn-sm profile-btn-blue"
                                 onClick={() =>
                                   setActiveReceipt({
                                     receiptNo: `MR-${p.referenceNo || p.id.slice(-6).toUpperCase()}`,
@@ -2545,7 +2803,7 @@ export function FileProcessingWorkspace({
                                   })
                                 }
                               >
-                                <Printer size={11} /> Print Receipt
+                                <Printer size={12} /> Print
                               </button>
                             </div>
                             <small>
@@ -2558,33 +2816,247 @@ export function FileProcessingWorkspace({
                     ) : (
                       <p className="text-xs text-slate-400 text-center py-2">No payment transactions recorded</p>
                     )}
+
+                    {file.payments && file.payments.length > 4 && (
+                      <button
+                        type="button"
+                        onClick={() => setMainView("ledger")}
+                        className="ledger-view-all-btn"
+                        title="View complete financial transaction list"
+                      >
+                        View all {file.payments.length} ledger transactions ➔
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                {/* Pipeline Stage Checklist */}
+                {/* 2. Essential Document Vault Widget (Upgraded from Redundant Checklist) */}
                 <div className="sidebar-widget-card">
-                  <h3>
-                    <FileCheck size={17} className="text-indigo-600" /> Processing Checklist ({completedCount}/9)
-                  </h3>
-                  <div className="pipeline-checklist">
-                    {stages.map((st) => {
-                      const isDone = isStageCompleted(st.id);
-                      const isSelected = st.id === activeTab;
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="m-0 flex items-center gap-2 text-sm font-bold text-slate-800 uppercase tracking-wider">
+                      <FileText size={17} className="text-indigo-600" /> Document Vault
+                    </h3>
+                    <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                      {
+                        [
+                          Boolean(attachedFiles["passport"] || file.passport?.passportNumber),
+                          Boolean(attachedFiles["medical"] || file.medical?.[0]),
+                          Boolean(attachedFiles["pcc"] || file.police?.[0]),
+                          Boolean(attachedFiles["visa"] || attachedFiles["mofa"] || file.visas?.[0] || file.mofa?.[0]),
+                          Boolean(attachedFiles["manpower"] || file.manpower?.[0]),
+                          Boolean(attachedFiles["flight"] || file.flights?.[0]),
+                        ].filter(Boolean).length
+                      }/6 Ready
+                    </span>
+                  </div>
+
+                  <div className="doc-vault-list">
+                    {[
+                      {
+                        id: "passport",
+                        stageId: "Passport Entry",
+                        title: "Passport Scan",
+                        sub: file.passport?.passportNumber || "Original Passport",
+                        isReady: Boolean(attachedFiles["passport"] || file.passport?.passportNumber),
+                        icon: FileText,
+                      },
+                      {
+                        id: "medical",
+                        stageId: "Medical",
+                        title: "Medical Fitness Slip",
+                        sub: file.medical?.[0]?.result || "GAMCA / Fitness",
+                        isReady: Boolean(attachedFiles["medical"] || file.medical?.[0]),
+                        icon: ShieldCheck,
+                      },
+                      ...(!isDubai ? [{
+                        id: "pcc",
+                        stageId: "Police Clearance",
+                        title: "Police Clearance (PCC)",
+                        sub: file.police?.[0]?.result || "Police Verification",
+                        isReady: Boolean(attachedFiles["pcc"] || file.police?.[0]),
+                        icon: ShieldAlert,
+                      }] : []),
+                      {
+                        id: "visa",
+                        stageId: isDubai ? "E-Visa Stamping" : "Mofa",
+                        title: isDubai ? "Dubai E-Visa / Permit" : "MOFA & Visa Slip",
+                        sub: file.visas?.[0]?.visaNumber || file.mofa?.[0]?.mofaNumber || "Embassy Stamping",
+                        isReady: Boolean(attachedFiles["visa"] || attachedFiles["mofa"] || file.visas?.[0] || file.mofa?.[0]),
+                        icon: Globe,
+                      },
+                      {
+                        id: "manpower",
+                        stageId: "Manpower",
+                        title: "BMET Manpower Clearance",
+                        sub: file.manpower?.[0]?.reference || "Smart Card Clearance",
+                        isReady: Boolean(attachedFiles["manpower"] || file.manpower?.[0]),
+                        icon: FileCheck,
+                      },
+                      {
+                        id: "flight",
+                        stageId: "Flight",
+                        title: "Flight E-Ticket",
+                        sub: file.flights?.[0]?.ticketNo || file.flights?.[0]?.flight?.airline || "Departure Ticket",
+                        isReady: Boolean(attachedFiles["flight"] || file.flights?.[0]),
+                        icon: Plane,
+                      },
+                    ].map((doc) => {
+                      const IconDoc = doc.icon;
                       return (
-                        <div
-                          key={st.id}
-                          className={`checklist-item ${isDone ? "done" : ""} ${isSelected ? "active" : ""}`}
-                          onClick={() => setActiveTab(st.id)}
-                        >
-                          <div className="checklist-dot">{isDone ? "✓" : st.stepNo}</div>
-                          <span className="flex-1 font-semibold">{st.label}</span>
-                          <small className={isDone ? "text-emerald-600 font-bold text-[10px]" : "text-slate-400 text-[10px]"}>
-                            {isDone ? "Completed" : "Pending"}
-                          </small>
+                        <div key={doc.id} className="doc-vault-item">
+                          <div className="doc-vault-item-left">
+                            <div className="doc-vault-icon">
+                              <IconDoc size={16} className={doc.isReady ? "text-emerald-600" : "text-slate-400"} />
+                            </div>
+                            <div className="doc-vault-meta">
+                              <span className="doc-vault-title">{doc.title}</span>
+                              <span className="doc-vault-sub">{doc.sub}</span>
+                            </div>
+                          </div>
+                          <div className="doc-vault-actions">
+                            {doc.isReady ? (
+                              <button
+                                type="button"
+                                className="profile-btn profile-btn-sm profile-btn-emerald"
+                                onClick={() =>
+                                  setActiveDoc({
+                                    candidateName: file.candidate.fullName,
+                                    passportNo: file.candidate.passportNo || file.passport?.passportNumber,
+                                    candidateNo: file.candidate.candidateNo,
+                                    country: file.country,
+                                    profession: file.profession,
+                                    company: file.company,
+                                    title: doc.title,
+                                    category: doc.id,
+                                    url: attachedFiles[doc.id]?.url,
+                                    fileNumber: file.fileNo,
+                                    verifiedStatus: "Document Verified",
+                                  })
+                                }
+                                title="View Document Scan"
+                              >
+                                <Eye size={12} /> View
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                className="profile-btn profile-btn-sm profile-btn-neutral"
+                                onClick={() => setActiveTab(doc.stageId)}
+                                title="Go to stage to upload file"
+                              >
+                                + Attach
+                              </button>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
                   </div>
+                </div>
+
+                {/* 3. Candidate Quick Contact Card */}
+                <div className="sidebar-widget-card candidate-contacts-card">
+                  <div className="widget-card-header">
+                    <h3 className="widget-card-title">
+                      <PhoneCall size={16} /> Candidate Contacts
+                    </h3>
+                    <span className="contact-status-pill">
+                      ● Reachable
+                    </span>
+                  </div>
+
+                  <div className="candidate-contacts-body">
+                    {/* Primary Phone */}
+                    <div className="contact-row">
+                      <div className="contact-icon phone">
+                        <Phone size={15} />
+                      </div>
+                      <div className="contact-details">
+                        <span className="contact-label">Primary Mobile</span>
+                        <a href={`tel:${phoneClean}`} className="contact-value link" title="Click to call">
+                          {file.candidate.phone}
+                        </a>
+                      </div>
+                      <div className="contact-actions">
+                        <a href={`tel:${phoneClean}`} className="contact-quick-btn call" title="Direct Phone Call">
+                          <Phone size={12} /> Call
+                        </a>
+                        {phoneClean && (
+                          <a
+                            href={`https://wa.me/${phoneClean.startsWith("+") ? phoneClean.slice(1) : phoneClean}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="contact-quick-btn whatsapp"
+                            title="Chat on WhatsApp"
+                          >
+                            <MessageCircle size={12} /> WA
+                          </a>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* District & Location */}
+                    {(file.candidate.district || file.candidate.address) && (
+                      <div className="contact-row">
+                        <div className="contact-icon location">
+                          <MapPin size={15} />
+                        </div>
+                        <div className="contact-details">
+                          <span className="contact-label">Home District / Address</span>
+                          <span className="contact-value" title={file.candidate.address || file.candidate.district}>
+                            {file.candidate.district || ""}
+                            {file.candidate.address ? (file.candidate.district ? ` (${file.candidate.address})` : file.candidate.address) : ""}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Email Address */}
+                    {file.candidate.email && (
+                      <div className="contact-row">
+                        <div className="contact-icon email">
+                          <Mail size={15} />
+                        </div>
+                        <div className="contact-details">
+                          <span className="contact-label">Email Address</span>
+                          <a href={`mailto:${file.candidate.email}`} className="contact-value link" title="Send email">
+                            {file.candidate.email}
+                          </a>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Identification ID */}
+                    <div className="contact-row">
+                      <div className="contact-icon profile">
+                        <ShieldCheck size={15} />
+                      </div>
+                      <div className="contact-details">
+                        <span className="contact-label">Candidate Registration ID</span>
+                        <span className="contact-value font-mono">
+                          {file.candidate.candidateNo}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={copyCandidateId}
+                        className="contact-quick-btn copy"
+                        title="Copy Candidate ID"
+                      >
+                        <Copy size={11} /> Copy
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Activity and Call Logs Navigation Button */}
+                  <button
+                    type="button"
+                    onClick={() => setMainView("timeline")}
+                    className="contacts-activity-btn"
+                    title="View candidate activity history, notes, and call logs"
+                  >
+                    <History size={14} /> View Activity &amp; Call Logs ➔
+                  </button>
                 </div>
               </div>
             </div>
@@ -4221,13 +4693,51 @@ export function FileProcessingWorkspace({
                       preferredCountry: form.get("country"),
                       agent: form.get("agent"),
                     });
+
+                    if (bioPhotoFile) {
+                      const photoForm = new FormData();
+                      photoForm.set("file", bioPhotoFile);
+                      const photoRes = await fetch(`/api/candidates/${file.candidate.id}/photo`, {
+                        method: "POST",
+                        body: photoForm,
+                      });
+                      if (!photoRes.ok) {
+                        const errData = await photoRes.json();
+                        toast.error(errData.error?.message || "Failed to update profile photo");
+                      }
+                    } else if (removeBioPhoto) {
+                      await fetch(`/api/candidates/${file.candidate.id}/photo`, {
+                        method: "DELETE",
+                      });
+                    }
+
                     setShowEditBioModal(false);
+                    setBioPhotoFile(null);
+                    setRemoveBioPhoto(false);
+                    await queryClient.invalidateQueries({ queryKey: ["processing-file", fileId] });
+                    await query.refetch();
+                  } catch (err: any) {
+                    toast.error(err.message || "Failed to update candidate details");
                   } finally {
                     setSavingBio(false);
                   }
                 }}
                 style={{ display: "flex", flexDirection: "column", gap: "14px" }}
               >
+                <CandidateProfileImageField
+                  candidateName={file.candidate.fullName}
+                  imageUrl={file.candidate.photo ? `/api/candidates/${file.candidate.id}/photo?v=${file.candidate.updatedAt ? new Date(file.candidate.updatedAt).getTime() : Date.now()}` : null}
+                  selectedFile={bioPhotoFile}
+                  onFileChange={(f) => {
+                    setBioPhotoFile(f);
+                    if (f) setRemoveBioPhoto(false);
+                  }}
+                  removeRequested={removeBioPhoto}
+                  onRemoveExisting={() => setRemoveBioPhoto(true)}
+                  disabled={savingBio}
+                  compact
+                />
+
                 {/* Row 1: Candidate ID (readonly) & Full Name */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "12px" }}>
                   <div>

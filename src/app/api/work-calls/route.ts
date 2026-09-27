@@ -11,7 +11,7 @@ import { Prisma } from "@prisma/client";
 
 const optionalText = z.string().trim().max(500).optional().default("");
 const schema = z.object({
-  interviewOption: z.enum(["With Interview", "Without Interview"]),
+  interviewOption: z.string().trim().max(100).optional().default(""),
   interviewScheduleId: optionalText,
   interviewDate: optionalText,
   workCategory: optionalText,
@@ -151,7 +151,7 @@ async function GETHandler(request: Request) {
         bankLoan: String(personal.bankLoan ?? "Not Required"),
         xBidesh: String(personal.xBidesh ?? "Not Registered"),
         email: String(personal.email ?? ""),
-        interviewOption: String(interview.option ?? "Without Interview"),
+        interviewOption: String(interview.option ?? ""),
         interviewStatus: String(interview.status ?? "Not Scheduled"),
         interviewScheduleId: String(interview.scheduleId ?? ""),
         interviewSchedule: String(interview.scheduleTitle ?? "—"),
@@ -183,7 +183,7 @@ async function POSTHandler(request: Request) {
     if (!(await can(session, "call-center", "Add"))) throw new AppError("FORBIDDEN", "Add permission is required.", 403);
     const input = schema.parse(await request.json());
     const schedule = input.interviewScheduleId ? await prisma.interviewSchedule.findUnique({ where: { id: input.interviewScheduleId } }) : null;
-    if (input.interviewOption === "With Interview" && input.interviewScheduleId && !schedule) throw new AppError("SCHEDULE_NOT_FOUND", "Selected interview schedule was not found.", 404);
+    if (input.interviewScheduleId && !schedule) throw new AppError("SCHEDULE_NOT_FOUND", "Selected interview schedule was not found.", 404);
     const primaryFollowUp = validDate(input.followUpDate) ?? validDate(input.followUp1);
     const record = await prisma.$transaction(async (tx) => {
       let candidate = await tx.candidate.findFirst({ where: { phone: input.phone, fullName: input.fullName } });
@@ -295,7 +295,7 @@ async function POSTHandler(request: Request) {
       await tx.activityLog.create({ data: { userId: session.userId, module: "call-center", recordId: lead.id, action: "CREATE", summary: `Created work call ${lead.leadNo}` } });
       return lead;
     });
-    return Response.json({ data: { id: record.id, leadNo: record.leadNo } }, { status: 201 });
+    return Response.json({ data: { id: record.id, leadNo: record.leadNo, candidateId: record.candidateId } }, { status: 201 });
   } catch (error) { return errorResponse(error); }
 }
 
@@ -473,4 +473,3 @@ async function PATCHHandler(request: Request) {
     return errorResponse(error);
   }
 }
-

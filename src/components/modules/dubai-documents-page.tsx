@@ -161,8 +161,8 @@ export function DubaiDocumentsPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to upload document");
-      toast.success(`${category} scan attached & verified successfully!`);
+      if (!res.ok) throw new Error(data.error?.message || data.message || "Failed to upload document");
+      toast.success(`${category} uploaded successfully. Verification is pending.`);
       void result.refetch();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error uploading document");

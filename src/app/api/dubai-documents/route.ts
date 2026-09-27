@@ -1,10 +1,12 @@
 import { withApiAccess } from "@/lib/api-access";
 export const GET = withApiAccess("dubai-documents", GETHandler);
 export const POST = withApiAccess("dubai-documents", POSTHandler);
+import { uploadDocument } from "@/features/documents/service";
 import { can, officeScope } from "@/lib/authorization";
 import { AppError, errorResponse } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
+import { z } from "zod";
 
 const categories = [
   "Passport",
@@ -58,7 +60,16 @@ async function GETHandler(request: Request) {
           companyRecord: true,
           assignedTo: { select: { name: true } },
           office: { select: { name: true } },
-          documents: { orderBy: { updatedAt: "desc" } },
+          documents: {
+            orderBy: { updatedAt: "desc" },
+            include: {
+              versions: {
+                orderBy: { version: "desc" },
+                take: 1,
+                select: { id: true },
+              },
+            },
+          },
         },
       }),
       prisma.country.findMany({
@@ -141,15 +152,21 @@ async function GETHandler(request: Request) {
         "Flight Ticket": flightStatus,
       };
 
+      const attachmentUrl = (pattern: RegExp) => {
+        const document = docs.find((item) => pattern.test(item.type));
+        const versionId = document?.versions[0]?.id;
+        return document?.url ||
+          (versionId ? `/api/documents/versions/${versionId}/download?inline=1` : undefined);
+      };
       const docAttachments: Record<string, string | undefined> = {
-        Passport: docs.find((d) => /passport|pp/i.test(d.type))?.url || undefined,
-        Medical: docs.find((d) => /medical/i.test(d.type))?.url || undefined,
-        "Police Clearance": docs.find((d) => /police|pc document|pcc/i.test(d.type))?.url || undefined,
-        "Skill Certificate": docs.find((d) => /certificate|cert|diploma|skill|takamul/i.test(d.type))?.url || undefined,
-        "Driving Licence": docs.find((d) => /licen[cs]e/i.test(d.type))?.url || undefined,
-        "Visa Copy": docs.find((d) => /visa|evisa/i.test(d.type))?.url || undefined,
-        "BMET Smart Card": docs.find((d) => /manpower|smartcard/i.test(d.type))?.url || undefined,
-        "Flight Ticket": docs.find((d) => /flight|ticket/i.test(d.type))?.url || undefined,
+        Passport: attachmentUrl(/passport|pp/i),
+        Medical: attachmentUrl(/medical/i),
+        "Police Clearance": attachmentUrl(/police|pc document|pcc/i),
+        "Skill Certificate": attachmentUrl(/certificate|cert|diploma|skill|takamul/i),
+        "Driving Licence": attachmentUrl(/licen[cs]e/i),
+        "Visa Copy": attachmentUrl(/visa|evisa/i),
+        "BMET Smart Card": attachmentUrl(/manpower|smartcard/i),
+        "Flight Ticket": attachmentUrl(/flight|ticket/i),
       };
 
       const matchedDb = dbCountries.find(
@@ -244,65 +261,67 @@ async function GETHandler(request: Request) {
   }
 }
 
+const uploadSchema = z
+  .object({
+    fileId: z.string().min(1).optional(),
+    candidateId: z.string().min(1).optional(),
+    category: z.string().trim().min(1).max(150).default("General Document"),
+    fileData: z.string().min(1),
+    fileName: z.string().trim().min(1).max(255),
+  })
+  .refine((input) => input.fileId || input.candidateId, {
+    message: "A file or candidate identifier is required.",
+  });
+
+function decodeDataUrl(value: string, fileName: string) {
+  if (value.length > 14 * 1024 * 1024) {
+    throw new AppError("FILE_SIZE_INVALID", "File size must not exceed 10 MB.", 422);
+  }
+  const match = /^data:([^;,]+);base64,([A-Za-z0-9+/=\r\n]+)$/.exec(value);
+  if (!match) {
+    throw new AppError("FILE_CONTENT_INVALID", "The uploaded file content is invalid.", 422);
+  }
+  const mimeType = match[1] === "image/jpg" ? "image/jpeg" : match[1].toLowerCase();
+  const bytes = Buffer.from(match[2].replaceAll(/\s/g, ""), "base64");
+  if (!bytes.length) {
+    throw new AppError("FILE_CONTENT_INVALID", "The uploaded file is empty.", 422);
+  }
+  return new File([new Uint8Array(bytes)], fileName, { type: mimeType });
+}
+
 async function POSTHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);
-    if (!(await can(session, "documents", "Create")))
-      throw new AppError("FORBIDDEN", "Document upload permission is required.", 403);
-
-    const body = await request.json();
-    const { fileId, candidateId, category, fileData, fileName } = body;
-
-    let targetFileId = fileId;
-    let targetCandidateId = candidateId;
-
-    if (!targetFileId && targetCandidateId) {
-      const f = await prisma.processingFile.findFirst({
-        where: { candidateId: targetCandidateId },
-        orderBy: { createdAt: "desc" },
-      });
-      if (f) targetFileId = f.id;
-    }
-
-    if (!targetCandidateId && targetFileId) {
-      const f = await prisma.processingFile.findUnique({
-        where: { id: targetFileId },
-        select: { candidateId: true },
-      });
-      if (f) targetCandidateId = f.candidateId;
-    }
-
-    if (!targetCandidateId) {
-      throw new AppError("BAD_REQUEST", "Candidate identifier is required.", 400);
-    }
-
-    const docType = category || "General Document";
-
-    const newDoc = await prisma.document.create({
-      data: {
-        documentNo: `DOC-${Date.now().toString().slice(-8)}`,
-        candidateId: targetCandidateId,
-        fileId: targetFileId || undefined,
-        type: docType,
-        status: "VERIFIED",
-        fileName: fileName || `${docType}-Scan.pdf`,
-        url: fileData,
+    const input = uploadSchema.parse(await request.json());
+    const processingFile = await prisma.processingFile.findFirst({
+      where: {
+        ...(input.fileId ? { id: input.fileId } : { candidateId: input.candidateId }),
+        ...officeScope(session),
       },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
     });
-
-    if (targetFileId) {
-      await prisma.processingFile.update({
-        where: { id: targetFileId },
-        data: { updatedAt: new Date() },
-      });
+    if (!processingFile) {
+      throw new AppError("NOT_FOUND", "Processing file not found in your data scope.", 404);
     }
 
-    return Response.json({
-      success: true,
-      message: `${docType} uploaded and verified successfully!`,
-      data: newDoc,
-    });
+    const document = await uploadDocument(
+      {
+        fileId: processingFile.id,
+        type: input.category,
+        file: decodeDataUrl(input.fileData, input.fileName),
+      },
+      session,
+    );
+    return Response.json(
+      {
+        success: true,
+        message: `${input.category} uploaded successfully. Verification is pending.`,
+        data: document,
+      },
+      { status: 201 },
+    );
   } catch (error) {
     return errorResponse(error);
   }

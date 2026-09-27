@@ -1,5 +1,6 @@
 "use client";
 import { useAccess } from "@/hooks/use-access";
+import { AgentProfileImageField } from "@/components/modules/agent-profile-image-field";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -49,6 +50,7 @@ type AgentItem = {
   completedDossiers: number;
   hasPortalAccess?: boolean;
   portalLoginEmail?: string | null;
+  profileImageUrl?: string | null;
   createdAt: string;
 };
 
@@ -85,6 +87,7 @@ type AgentDetail = {
   hasPortalAccess?: boolean;
   portalLoginEmail?: string | null;
   portalLastLoginAt?: string | null;
+  profileImageUrl?: string | null;
   createdAt: string;
   updatedAt: string;
   metrics: {
@@ -106,12 +109,15 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
   const [creating, setCreating] = useState(false);
   const [createPortalLogin, setCreatePortalLogin] = useState(true);
   const [createPassword, setCreatePassword] = useState("Agent@2026");
+  const [createImageFile, setCreateImageFile] = useState<File | null>(null);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [activeProfileTab, setActiveProfileTab] = useState<"candidates" | "edit">("candidates");
   const [updatingAgent, setUpdatingAgent] = useState(false);
   const [editPortalLogin, setEditPortalLogin] = useState(true);
   const [editPortalEmail, setEditPortalEmail] = useState("");
   const [editPortalPassword, setEditPortalPassword] = useState("");
+  const [editImageFile, setEditImageFile] = useState<File | null>(null);
+  const [removeEditImage, setRemoveEditImage] = useState(false);
 
   const isDefaultQuery = !searchQuery && statusFilter === "All";
 
@@ -155,8 +161,21 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
       setEditPortalLogin(agentDetailQuery.data.hasPortalAccess ?? true);
       setEditPortalEmail(agentDetailQuery.data.portalLoginEmail || agentDetailQuery.data.email || "");
       setEditPortalPassword("");
+      setEditImageFile(null);
+      setRemoveEditImage(false);
     }
   }, [agentDetailQuery.data, selectedAgentId]);
+
+  const saveProfileImage = async (agentId: string, file: File) => {
+    const upload = new FormData();
+    upload.set("file", file);
+    const response = await fetch(`/api/agents/${agentId}/profile-image`, {
+      method: "POST",
+      body: upload,
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error?.message || "Failed to upload profile image");
+  };
 
   // Handle Create Agent Form Submit
   const handleCreateAgent = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -180,16 +199,29 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
         portalPassword: isSuperAdmin && createPortalLogin ? createPassword.trim() || "Agent@2026" : undefined,
       };
 
-      const res = await fetch("/api/agents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const createRequest: RequestInit = createImageFile
+        ? (() => {
+            const multipart = new FormData();
+            multipart.set("payload", JSON.stringify(payload));
+            multipart.set("profileImage", createImageFile);
+            return { method: "POST", body: multipart };
+          })()
+        : {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          };
+      const res = await fetch("/api/agents", createRequest);
 
       const json = await res.json();
       if (!res.ok) throw new Error(json.error?.message || json.message || "Failed to create agent");
 
-      toast.success(`Agent "${payload.name}" added successfully!`);
+      if (json.profileImageWarning) {
+        toast.warning(`Agent created, but ${String(json.profileImageWarning).toLowerCase()} You can add it from Edit.`);
+      } else {
+        toast.success(`Agent "${payload.name}" added successfully!`);
+      }
+      setCreateImageFile(null);
       setShowCreateModal(false);
       await queryClient.invalidateQueries({ queryKey: ["agents-list"] });
       await queryClient.invalidateQueries({ queryKey: ["nav-counts"] });
@@ -231,7 +263,17 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error?.message || json.message || "Failed to update agent");
 
+      if (editImageFile) {
+        await saveProfileImage(selectedAgentId, editImageFile);
+      } else if (removeEditImage && agentDetailQuery.data?.profileImageUrl) {
+        const imageResponse = await fetch(`/api/agents/${selectedAgentId}/profile-image`, { method: "DELETE" });
+        const imageResult = await imageResponse.json();
+        if (!imageResponse.ok) throw new Error(imageResult.error?.message || "Failed to remove profile image");
+      }
+
       toast.success("Agent profile updated successfully!");
+      setEditImageFile(null);
+      setRemoveEditImage(false);
       await queryClient.invalidateQueries({ queryKey: ["agent-profile", selectedAgentId] });
       await queryClient.invalidateQueries({ queryKey: ["agents-list"] });
     } catch (err: any) {
@@ -347,7 +389,10 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
             type="button"
             disabled={!allows("agents", "create")}
             title={!allows("agents", "create") ? "Create permission is required" : undefined}
-            onClick={() => setShowCreateModal(true)}
+            onClick={() => {
+              setCreateImageFile(null);
+              setShowCreateModal(true);
+            }}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -684,7 +729,12 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
                               flexShrink: 0,
                             }}
                           >
-                            {agent.name.slice(0, 2).toUpperCase()}
+                            {agent.profileImageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={agent.profileImageUrl} alt={`${agent.name} profile`} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "10px" }} />
+                            ) : (
+                              agent.name.slice(0, 2).toUpperCase()
+                            )}
                           </div>
                           <div>
                             <Link
@@ -864,16 +914,22 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
             placeItems: "center",
             padding: "20px",
           }}
-          onClick={() => !creating && setShowCreateModal(false)}
+          onClick={() => {
+            if (!creating) {
+              setCreateImageFile(null);
+              setShowCreateModal(false);
+            }
+          }}
         >
           <div
             style={{
               background: "#fff",
               borderRadius: "16px",
               width: "min(560px, 100%)",
+              maxHeight: "92vh",
               boxShadow: "0 20px 40px rgba(0,0,0,0.25)",
               border: "1px solid var(--line)",
-              overflow: "hidden",
+              overflowY: "auto",
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -912,7 +968,10 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
               </div>
               <button
                 type="button"
-                onClick={() => setShowCreateModal(false)}
+                onClick={() => {
+                  setCreateImageFile(null);
+                  setShowCreateModal(false);
+                }}
                 style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", padding: "4px" }}
               >
                 <X size={18} />
@@ -921,6 +980,13 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
 
             <form onSubmit={handleCreateAgent} style={{ padding: "22px" }}>
               <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                <AgentProfileImageField
+                  agentName="New Agent"
+                  selectedFile={createImageFile}
+                  onFileChange={setCreateImageFile}
+                  disabled={creating}
+                  compact
+                />
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "12px" }}>
                   <div>
                     <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "var(--ink)", marginBottom: "5px" }}>
@@ -1233,7 +1299,10 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
                 <button
                   type="button"
                   disabled={creating}
-                  onClick={() => setShowCreateModal(false)}
+                  onClick={() => {
+                    setCreateImageFile(null);
+                    setShowCreateModal(false);
+                  }}
                   style={{
                     padding: "9px 18px",
                     borderRadius: "8px",
@@ -1340,7 +1409,12 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
                         boxShadow: "0 4px 12px rgba(114,88,232,0.35)",
                       }}
                     >
-                      {agentDetailQuery.data.name.slice(0, 2).toUpperCase()}
+                      {agentDetailQuery.data.profileImageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={agentDetailQuery.data.profileImageUrl} alt={`${agentDetailQuery.data.name} profile`} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "14px" }} />
+                      ) : (
+                        agentDetailQuery.data.name.slice(0, 2).toUpperCase()
+                      )}
                     </div>
                     <div>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
@@ -1459,7 +1533,11 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setActiveProfileTab("edit")}
+                    onClick={() => {
+                      setEditImageFile(null);
+                      setRemoveEditImage(false);
+                      setActiveProfileTab("edit");
+                    }}
                     style={{
                       padding: "8px 16px",
                       borderBottom: activeProfileTab === "edit" ? "2px solid #7258e8" : "2px solid transparent",
@@ -1555,6 +1633,21 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
                     </div>
                   ) : (
                     <form onSubmit={handleUpdateAgent}>
+                      <div style={{ marginBottom: "16px" }}>
+                        <AgentProfileImageField
+                          agentName={agentDetailQuery.data.name}
+                          imageUrl={agentDetailQuery.data.profileImageUrl}
+                          selectedFile={editImageFile}
+                          onFileChange={(file) => {
+                            setEditImageFile(file);
+                            if (file) setRemoveEditImage(false);
+                          }}
+                          removeRequested={removeEditImage}
+                          onRemoveExisting={() => setRemoveEditImage(Boolean(agentDetailQuery.data?.profileImageUrl))}
+                          disabled={updatingAgent}
+                          compact
+                        />
+                      </div>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
                         <div>
                           <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "var(--ink)", marginBottom: "5px" }}>

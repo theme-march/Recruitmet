@@ -677,6 +677,7 @@ model StoredObject {
   createdBy    String
   createdAt    DateTime          @default(now())
   versions     DocumentVersion[]
+  agentProfiles Agent[] @relation("AgentProfileImage")
 }
 
 model DocumentVersion {
@@ -817,6 +818,8 @@ model Agent {
   commissionRule Json?
   agreementKey   String?
   status         String   @default("Active")
+  profileImageObjectId String?       @unique
+  profileImage         StoredObject? @relation("AgentProfileImage", fields: [profileImageObjectId], references: [id], onDelete: SetNull)
   users          User[]
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

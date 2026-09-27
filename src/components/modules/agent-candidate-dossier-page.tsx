@@ -283,7 +283,106 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
         </div>
       </div>
 
-      {/* 2. FINANCIAL LEDGER STRIP CARDS */}
+      {/* 2. STAGE PROCESSING PIPELINE (INTERACTIVE PROGRESS WORKFLOW) */}
+      <div
+        style={{
+          background: "#ffffff",
+          borderRadius: "16px",
+          padding: "18px 20px",
+          border: "1px solid var(--line)",
+          boxShadow: "var(--shadow)",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", flexWrap: "wrap", gap: "8px" }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 800, color: "#1e1b4b", display: "flex", alignItems: "center", gap: "6px" }}>
+              ⚡ Stage Processing Pipeline (Progress Workflow)
+            </h3>
+            <span style={{ fontSize: "12px", color: "var(--muted)" }}>
+              Recruitment milestone progress for {fileData.country || "Overseas Deployment"}
+            </span>
+          </div>
+          <span
+            style={{
+              fontSize: "12px",
+              fontWeight: 800,
+              background: "#ecfdf5",
+              color: "#047857",
+              padding: "4px 12px",
+              borderRadius: "9999px",
+              border: "1px solid #a7f3d0",
+            }}
+          >
+            Current Active Milestone: <b>{fileData.currentStage || "Active"}</b>
+          </span>
+        </div>
+
+        <div style={{ display: "flex", gap: "8px", overflowX: "auto", paddingBottom: "6px" }}>
+          {[
+            { id: "Passport Entry", label: "Passport", step: 1 },
+            { id: "Medical", label: "Medical", step: 2 },
+            { id: "Police Clearance", label: "Police PCC", step: 3 },
+            { id: "First Payment", label: "Deposit", step: 4 },
+            ...(/saudi|ksa/i.test(fileData.country || "")
+              ? [
+                  { id: "Takamul", label: "Takamul", step: 5 },
+                  { id: "MOFA", label: "Visa / MOFA", step: 6 },
+                  { id: "Visa Stamping", label: "Visa Stamping", step: 7 },
+                  { id: "Manpower", label: "Manpower", step: 8 },
+                  { id: "Flight", label: "Flight Departure", step: 9 },
+                ]
+              : [
+                  { id: "Visa Stamping", label: "Visa Stamping", step: 5 },
+                  { id: "Second Payment", label: "Final Payment", step: 6 },
+                  { id: "Manpower", label: "Manpower", step: 7 },
+                  { id: "Flight", label: "Flight Departure", step: 8 },
+                ]),
+          ].map((st, idx, arr) => {
+            const currentStageNorm = (fileData.currentStage || "").toLowerCase();
+            const thisStageNorm = st.id.toLowerCase();
+            const currentIdx = arr.findIndex((x) => x.id.toLowerCase() === currentStageNorm || x.label.toLowerCase() === currentStageNorm);
+            const isDone = currentIdx !== -1 ? idx < currentIdx || fileData.status === "COMPLETED" : false;
+            const isCurrent = (thisStageNorm === currentStageNorm || st.label.toLowerCase() === currentStageNorm) && fileData.status !== "COMPLETED";
+
+            return (
+              <div
+                key={st.id}
+                style={{
+                  flex: "1 0 110px",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  padding: "10px 8px",
+                  borderRadius: "12px",
+                  background: isCurrent ? "#1e1b4b" : isDone ? "#f0fdf4" : "#f8fafc",
+                  border: isCurrent ? "1.5px solid #1e1b4b" : isDone ? "1px solid #bbf7d0" : "1px solid #e2e8f0",
+                  color: isCurrent ? "#ffffff" : isDone ? "#166534" : "#64748b",
+                  textAlign: "center",
+                  position: "relative",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "4px" }}>
+                  <span style={{ fontSize: "10px", fontWeight: 800, opacity: isCurrent ? 0.8 : 0.6 }}>Step {idx + 1}</span>
+                  {isDone ? (
+                    <CheckCircle2 size={13} color="#16a34a" />
+                  ) : isCurrent ? (
+                    <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#a5b4fc", display: "inline-block" }} />
+                  ) : (
+                    <Clock size={11} color="#94a3b8" />
+                  )}
+                </div>
+                <strong style={{ fontSize: "11.5px", fontWeight: 800, whiteSpace: "nowrap" }}>{st.label}</strong>
+                <small style={{ fontSize: "10px", opacity: isCurrent ? 0.85 : 0.7, marginTop: "2px" }}>
+                  {isDone ? "✓ Completed" : isCurrent ? "● Active Stage" : "Pending"}
+                </small>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 3. FINANCIAL LEDGER STRIP CARDS */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "14px" }}>
         <div style={{ background: "#fff", borderRadius: "14px", padding: "18px 20px", border: "1px solid var(--line)", boxShadow: "var(--shadow)" }}>
           <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase" }}>Agreed Package Cost</span>

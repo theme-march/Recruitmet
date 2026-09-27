@@ -11,6 +11,7 @@ import { AppError, errorResponse } from "@/lib/errors";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import { privateStorage } from "@/server/storage";
 
 const updateAgentSchema = z.object({
   action: z.string().optional(),
@@ -710,6 +711,9 @@ async function GETHandler(_: Request, { params }: { params: Promise<{ id: string
         district: agent.country || "Dhaka",
         status: agent.status,
         agreementKey: agent.agreementKey || `AGR-${agent.code}`,
+        profileImageUrl: agent.profileImageObjectId
+          ? `/api/agents/${agent.id}/profile-image?v=${agent.updatedAt.getTime()}`
+          : null,
         hasPortalAccess: !!portalUser && portalUser.status === "ACTIVE",
         portalLoginEmail: portalUser?.email || agent.email || null,
         portalLastLoginAt: portalUser?.lastLoginAt ? new Date(portalUser.lastLoginAt).toISOString() : null,
@@ -785,7 +789,10 @@ async function PATCHHandler(request: Request, { params }: { params: Promise<{ id
     const body = await request.json();
     const input = updateAgentSchema.parse(body);
 
-    const agent = await prisma.agent.findUnique({ where: { id } });
+    let agent = await prisma.agent.findUnique({ where: { id } });
+    if (!agent) {
+      agent = await prisma.agent.findFirst({ where: { code: id } });
+    }
     if (!agent) throw new AppError("NOT_FOUND", "Agent not found.", 404);
 
     const currentRule = (agent.commissionRule as Record<string, unknown>) || {};
@@ -1174,7 +1181,7 @@ async function PATCHHandler(request: Request, { params }: { params: Promise<{ id
     if (input.agreementKey !== undefined) updateData.agreementKey = input.agreementKey;
 
     const updated = await prisma.agent.update({
-      where: { id },
+      where: { id: agent.id },
       data: updateData,
     });
 
@@ -1216,6 +1223,7 @@ async function PATCHHandler(request: Request, { params }: { params: Promise<{ id
           email: loginEmail,
           status: (input.status === "Inactive" || input.status === "Blocked") ? "INACTIVE" : "ACTIVE",
           roleId: agentRole.id,
+          agentId: agent.id,
         };
 
         if (input.portalPassword?.trim()) {
@@ -1267,10 +1275,18 @@ async function DELETEHandler(_: Request, { params }: { params: Promise<{ id: str
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);
 
     const { id } = await params;
-    const existing = await prisma.agent.findUnique({ where: { id } });
+    let existing = await prisma.agent.findUnique({ where: { id }, include: { profileImage: true } });
+    if (!existing) {
+      existing = await prisma.agent.findFirst({ where: { code: id }, include: { profileImage: true } });
+    }
     if (!existing) throw new AppError("NOT_FOUND", "Agent not found.", 404);
 
-    await prisma.agent.delete({ where: { id } });
+    await prisma.agent.delete({ where: { id: existing.id } });
+
+    if (existing.profileImage) {
+      await privateStorage().remove(existing.profileImage.objectKey).catch(() => {});
+      await prisma.storedObject.delete({ where: { id: existing.profileImage.id } }).catch(() => {});
+    }
 
     return NextResponse.json({
       ok: true,

@@ -9,6 +9,8 @@ import { AppError, errorResponse } from "@/lib/errors";
 import { getAgentsData } from "@/server/data/agents";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import { requireSuperAdmin } from "@/lib/authorization";
+import { uploadAgentProfileImage } from "@/features/agents/profile-image";
 
 const createAgentSchema = z.object({
   name: z.string().min(2, "Agent name is required"),
@@ -49,8 +51,25 @@ async function POSTHandler(request: Request) {
     const session = await getSession();
     if (!session) throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);
 
-    const body = await request.json();
+    const contentType = request.headers.get("content-type") || "";
+    let body: unknown;
+    let profileImage: File | null = null;
+    if (contentType.includes("multipart/form-data")) {
+      const form = await request.formData();
+      const rawPayload = form.get("payload");
+      if (typeof rawPayload !== "string") throw new AppError("INVALID_BODY", "Agent details are required.", 422);
+      try {
+        body = JSON.parse(rawPayload);
+      } catch {
+        throw new AppError("INVALID_JSON", "Invalid agent details.", 422);
+      }
+      const selectedImage = form.get("profileImage");
+      profileImage = selectedImage instanceof File ? selectedImage : null;
+    } else {
+      body = await request.json();
+    }
     const input = createAgentSchema.parse(body);
+    if (input.enablePortalLogin) requireSuperAdmin(session);
 
     // Generate next agent code if not provided
     let agentCode = input.code?.trim();
@@ -134,6 +153,17 @@ async function POSTHandler(request: Request) {
       portalUserCreated = true;
     }
 
+    let profileImageWarning: string | null = null;
+    if (profileImage) {
+      try {
+        await uploadAgentProfileImage(agent.id, profileImage, session, "create");
+      } catch (imageError) {
+        profileImageWarning = imageError instanceof AppError
+          ? imageError.message
+          : "Profile image could not be saved.";
+      }
+    }
+
     // Log audit
     await prisma.auditLog.create({
       data: {
@@ -156,6 +186,7 @@ async function POSTHandler(request: Request) {
         message: `Agent "${agent.name}" (${agent.code}) created successfully!${portalUserCreated ? ` Login Email: ${portalLoginEmail}` : ""}`,
         data: agent,
         portalLoginEmail: portalUserCreated ? portalLoginEmail : null,
+        profileImageWarning,
       },
       { status: 201 }
     );

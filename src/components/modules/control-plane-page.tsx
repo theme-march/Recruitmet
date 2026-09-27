@@ -1,10 +1,9 @@
 "use client";
 
-import { Activity, Building2, Check, Database, Save, Search, ShieldCheck, UserPlus, Users } from "lucide-react";
+import { Activity, Building2, Database, Save, Search, ShieldCheck, UserPlus, Users } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { operationalModuleIds } from "@/lib/roles";
 
 type Tab = "users" | "offices" | "permissions" | "settings" | "audit";
 type User = { id: string; name: string; email: string; username: string; status: string; roleId: string; officeId: string | null; role: string; office: string };
@@ -15,7 +14,6 @@ type Audit = { id: string; action: string; module: string; recordId: string; act
 type Props = { superAdmin: boolean; currentOfficeId: string | null; initialTab: string; users: User[]; offices: Office[]; roles: Role[]; settings: Setting[]; audit: Audit[] };
 
 export function ControlPlanePage({ superAdmin, currentOfficeId, initialTab, users: initialUsers, offices: initialOffices, roles, settings: initialSettings, audit }: Props) {
-  const router = useRouter();
   const [tab, setTab] = useState<Tab>(initialTab as Tab);
   const [users, setUsers] = useState(initialUsers);
   const [offices, setOffices] = useState(initialOffices);
@@ -24,8 +22,6 @@ export function ControlPlanePage({ superAdmin, currentOfficeId, initialTab, user
   const [userQuery, setUserQuery] = useState("");
   const configurableRoles = useMemo(() => roles.filter((role) => role.name !== "Super Administrator"), [roles]);
   const allowedRoles = useMemo(() => superAdmin ? configurableRoles : roles.filter((role) => role.name === "Call Center"), [configurableRoles, roles, superAdmin]);
-  const [selectedRoleId, setSelectedRoleId] = useState(configurableRoles[0]?.id ?? "");
-  const [roleModules, setRoleModules] = useState<Record<string, string[]>>(() => Object.fromEntries(roles.map((role) => [role.id, role.modules])));
   const filteredUsers = useMemo(() => {
     const query = userQuery.trim().toLowerCase();
     return query ? users.filter((user) => [user.name, user.email, user.username, user.role, user.office].some((value) => value.toLowerCase().includes(query))) : users;
@@ -80,15 +76,6 @@ export function ControlPlanePage({ superAdmin, currentOfficeId, initialTab, user
     } catch {}
   }
 
-  async function savePermissions(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    try {
-      const modules = roleModules[selectedRoleId] ?? [];
-      await send("/api/admin/control-plane", "POST", { action: "UPDATE_PERMISSIONS", roleId: selectedRoleId, modules });
-      router.refresh();
-    } catch {}
-  }
-
   async function saveSetting(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formElement = event.currentTarget;
@@ -100,13 +87,6 @@ export function ControlPlanePage({ superAdmin, currentOfficeId, initialTab, user
     } catch {}
   }
 
-  function toggleModule(module: string) {
-    setRoleModules((current) => {
-      const selected = current[selectedRoleId] ?? [];
-      return { ...current, [selectedRoleId]: selected.includes(module) ? selected.filter((item) => item !== module) : [...selected, module] };
-    });
-  }
-
   const tabs = [{ id: "users", label: "Users", icon: Users }, ...(superAdmin ? [{ id: "permissions", label: "Roles & permissions", icon: ShieldCheck }, { id: "offices", label: "Offices", icon: Building2 }, { id: "settings", label: "Settings", icon: Database }, { id: "audit", label: "Audit activity", icon: Activity }] : [])] as const;
 
   return <div className="control-plane">
@@ -115,7 +95,7 @@ export function ControlPlanePage({ superAdmin, currentOfficeId, initialTab, user
 
     {tab === "users" && <div className="control-grid"><section className="admin-panel"><div className="admin-panel-head"><div><h2><UserPlus size={18} /> Create user</h2><p>{superAdmin ? "Create Administrator or Call Center accounts and assign an office." : "Create Call Center users for your office."}</p></div></div><form className="control-form" onSubmit={createUser}><label>Full name<input name="name" required minLength={2} /></label><label>Email<input name="email" type="email" required /></label><label>Username<input name="username" required minLength={3} /></label><label>Employee ID<input name="employeeId" /></label><label>Phone<input name="phone" /></label><label>Temporary password<input name="password" type="password" required minLength={10} /></label><label>Role<select name="roleId" required>{allowedRoles.map((role) => <option value={role.id} key={role.id}>{role.name}</option>)}</select></label><label>Office<select name="officeId" defaultValue={currentOfficeId ?? ""} disabled={!superAdmin}>{offices.map((office) => <option value={office.id} key={office.id}>{office.name}</option>)}</select></label><button disabled={saving}><UserPlus size={16} />Create database user</button></form></section><section className="admin-panel control-list"><div className="admin-panel-head"><div><h2>Current users</h2><p>{filteredUsers.length} of {users.length} account(s) in scope.</p></div></div><label className="control-search"><Search size={16} /><input value={userQuery} onChange={(event) => setUserQuery(event.target.value)} placeholder="Search user, role or office" /></label><div className="admin-table-wrap"><table><thead><tr><th>User</th><th>Role / Office</th><th>Access</th></tr></thead><tbody>{filteredUsers.map((user) => <tr key={user.id}><td><b>{user.name}</b><small>{user.email}</small></td><td><b>{user.role}</b><small>{user.office}</small></td><td><select aria-label={`Access status for ${user.name}`} value={user.status} disabled={saving} onChange={(event) => void updateStatus(user.id, event.target.value)}><option>ACTIVE</option><option>INACTIVE</option><option>LOCKED</option><option>ON_LEAVE</option></select></td></tr>)}</tbody></table></div></section></div>}
 
-    {tab === "permissions" && <section className="admin-panel"><div className="admin-panel-head"><div><h2>Fixed roles & permission matrix</h2><p>Exactly three roles are supported. Super Administrator stays protected with full access.</p></div></div><div className="role-summary">{roles.map((role) => <article key={role.id}><b>{role.name}</b><span>{role.users} user(s)</span><small>{role.name === "Super Administrator" ? "Full protected access" : `${role.modules.length} modules enabled`}</small></article>)}</div><form className="permission-form" onSubmit={savePermissions}><label>Configure role<select value={selectedRoleId} onChange={(event) => setSelectedRoleId(event.target.value)} required>{configurableRoles.map((role) => <option value={role.id} key={role.id}>{role.name} ({role.users} users)</option>)}</select></label><fieldset>{operationalModuleIds.map((module) => <label key={module} className={(roleModules[selectedRoleId] ?? []).includes(module) ? "selected" : ""}><input type="checkbox" checked={(roleModules[selectedRoleId] ?? []).includes(module)} onChange={() => toggleModule(module)} /><Check size={14} />{module.replaceAll("-", " ")}</label>)}</fieldset><button disabled={saving || !selectedRoleId}><Save size={16} />Save permission matrix</button></form></section>}
+    {tab === "permissions" && <section className="admin-panel"><div className="admin-panel-head"><div><h2>Fixed roles & permission matrix</h2><p>Exactly three roles are supported. Super Administrator stays protected with full access.</p></div></div><div className="role-summary">{roles.map((role) => <article key={role.id}><b>{role.name}</b><span>{role.users} user(s)</span><small>{role.name === "Super Administrator" ? "Full protected access" : `${role.modules.length} modules enabled`}</small></article>)}</div><div className="permission-form"><p>Permission changes are managed in the versioned System Permissions workspace, with conflict checks and a complete audit history.</p><Link href="/permissions" style={{ display: "inline-flex", width: "fit-content", alignItems: "center", gap: 7, borderRadius: 8, background: "var(--admin)", color: "white", padding: "12px 16px", fontWeight: 700 }}><ShieldCheck size={16} />Open System Permissions</Link></div></section>}
 
     {tab === "offices" && <div className="control-grid"><section className="admin-panel"><div className="admin-panel-head"><div><h2>Create office</h2><p>Add a branch for user and operational-data assignment.</p></div></div><form className="control-form" onSubmit={createOffice}><label>Office code<input name="code" required /></label><label>Office name<input name="name" required /></label><label>City<input name="city" /></label><label>Country<input name="country" /></label><label>Phone<input name="phone" /></label><label>Email<input name="email" type="email" /></label><button disabled={saving}><Building2 size={16} />Add office to database</button></form></section><section className="admin-panel control-list"><div className="admin-panel-head"><div><h2>Office directory</h2><p>{offices.length} configured office(s).</p></div></div>{offices.map((office) => <div className="control-row" key={office.id}><Building2 size={18} /><span><b>{office.name}</b><small>{office.code} · {office.city ?? "No city"} · {office.country ?? "No country"}</small></span><i>{office.status}</i></div>)}</section></div>}
 

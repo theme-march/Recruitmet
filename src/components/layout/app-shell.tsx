@@ -5,6 +5,7 @@ import {
   Building2,
   ChevronDown,
   Command,
+  Database,
   Globe,
   Headphones,
   LogOut,
@@ -590,66 +591,92 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           })}
 
           {profile?.roleKey === "SUPER_ADMIN" && (
-            <div
-              className="nav-group"
-              style={{ "--nav-accent": "#8368ef" } as React.CSSProperties}
-            >
-              <Link
-                prefetch={true}
-                onClick={() => setOpen(false)}
-                href="/permissions"
-                className={`nav-main ${path === "/permissions" ? "active active-module" : ""}`}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: "6px",
-                }}
+            <>
+              <div
+                className="nav-group"
+                style={{ "--nav-accent": "#8368ef" } as React.CSSProperties}
               >
-                <span
-                  className="nav-main-content"
+                <Link
+                  prefetch={true}
+                  onClick={() => setOpen(false)}
+                  href="/candidate-options"
+                  className={`nav-main ${
+                    path === "/candidate-options"
+                      ? "active active-module"
+                      : ""
+                  }`}
+                >
+                  <span className="nav-main-content">
+                    <span className="nav-icon">
+                      <Database size={19} />
+                    </span>
+                    <span>Candidate Form Options</span>
+                  </span>
+                  <NavigationPending />
+                </Link>
+              </div>
+
+              <div
+                className="nav-group"
+                style={{ "--nav-accent": "#8368ef" } as React.CSSProperties}
+              >
+                <Link
+                  prefetch={true}
+                  onClick={() => setOpen(false)}
+                  href="/permissions"
+                  className={`nav-main ${path === "/permissions" ? "active active-module" : ""}`}
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: "8px",
-                    flex: 1,
-                    minWidth: 0,
+                    justifyContent: "space-between",
+                    gap: "6px",
                   }}
                 >
-                  <span className="nav-icon">
-                    <ShieldCheck size={19} />
+                  <span
+                    className="nav-main-content"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      flex: 1,
+                      minWidth: 0,
+                    }}
+                  >
+                    <span className="nav-icon">
+                      <ShieldCheck size={19} />
+                    </span>
+                    <span
+                      style={{
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      Permissions
+                    </span>
                   </span>
                   <span
                     style={{
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
+                      fontSize: "10px",
+                      fontWeight: 800,
+                      background: "#f0edff",
+                      color: "#7258e8",
+                      padding: "2px 6px",
+                      borderRadius: "6px",
+                      maxWidth: "50px",
+                      width: "auto",
+                      textAlign: "center",
+                      display: "inline-block",
+                      flexShrink: 0,
                       whiteSpace: "nowrap",
                     }}
                   >
-                    Permissions
+                    Admin
                   </span>
-                </span>
-                <span
-                  style={{
-                    fontSize: "10px",
-                    fontWeight: 800,
-                    background: "#f0edff",
-                    color: "#7258e8",
-                    padding: "2px 6px",
-                    borderRadius: "6px",
-                    maxWidth: "50px",
-                    width: "auto",
-                    textAlign: "center",
-                    display: "inline-block",
-                    flexShrink: 0,
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  Admin
-                </span>
-                <NavigationPending />
-              </Link>
-            </div>
+                  <NavigationPending />
+                </Link>
+              </div>
+            </>
           )}
         </nav>
         <div className="sidebar-foot">

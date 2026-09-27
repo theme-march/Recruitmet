@@ -19,12 +19,78 @@ const candidates = [
   { candidateNo: "CAN-260006", registrationNo: "REG-260006", fullName: "Kamal Uddin", phone: "01831622085", passportNo: "B01346820", nationalId: "1995054706321", profession: "Cleaner", preferredCountry: "Dubai", source: "Agent Referral" },
 ];
 
+const candidateOptionCategories = [
+  ["TECHNICIAN", "Technician", 10], ["DRIVER", "Driver", 20],
+  ["CONSTRUCTION", "Construction", 30], ["INDOOR_WORKER", "Indoor Worker", 40],
+  ["HOSPITALITY", "Hospitality", 50], ["MANUFACTURING", "Manufacturing", 60],
+  ["CLEANING", "Cleaning", 70],
+] as const;
+const candidateOptionProfessions = [
+  ["DRIVER", "Driver", "DRIVER"], ["BIKE_RIDER", "Bike Rider", "DRIVER"],
+  ["ELECTRICIAN_PLUMBER", "Electrician / Plumber", "TECHNICIAN"],
+  ["ELECTRICIAN", "Electrician", "TECHNICIAN"], ["PLUMBER", "Plumber", "TECHNICIAN"],
+  ["PIPE_FITTER", "Pipe Fitter", "TECHNICIAN"], ["WELDER", "Welder", "TECHNICIAN"],
+  ["TECHNICIAN", "Technician", "TECHNICIAN"],
+  ["GENERAL_CONSTRUCTION_WORKER", "General Construction Worker", "CONSTRUCTION"],
+  ["STEEL_FIXER", "Steel Fixer", "CONSTRUCTION"], ["MASON", "Mason", "CONSTRUCTION"],
+  ["INDOOR_WORKER", "Indoor Worker", "INDOOR_WORKER"],
+  ["PACKAGING_WORKER", "Packaging Worker", "INDOOR_WORKER"],
+  ["ASSISTANT_CASHIER", "Asst. Cashier", "INDOOR_WORKER"],
+  ["HOSPITALITY_WORKER", "Hospitality Worker", "HOSPITALITY"],
+  ["MANUFACTURING_WORKER", "Manufacturing Worker", "MANUFACTURING"],
+  ["CLEANER", "Cleaner", "CLEANING"],
+] as const;
+const candidateOptionStatuses = [
+  ["NEW", "New", 10], ["INTERESTED", "Interested", 20],
+  ["PRE_CONFIRMED", "Pre-Confirmed", 30], ["ACTIVE", "Active", 40],
+  ["HOLD", "Hold", 50], ["CLOSED", "Closed", 60],
+] as const;
+const candidateOptionCompanies = [
+  ["DIRECT_ALMARAI", "Almarai"], ["DIRECT_SBG", "Saudi Binladen Group"],
+  ["DIRECT_NESMA", "Nesma & Partners"], ["DIRECT_KEETA", "Keeta Saudi Arabia"],
+  ["DIRECT_AL_BAIK", "Al Baik"], ["DIRECT_NESTO", "Nesto Supermarket"],
+  ["DIRECT_AL_MABANI", "Al Mabani"], ["DIRECT_LULU", "Lulu Hypermarket"],
+] as const;
+
 async function main() {
   const office = await db.office.upsert({
     where: { code: "DHK-HO" },
     update: {},
     create: { code: "DHK-HO", name: "Dhaka Head Office", address: "Banani, Dhaka", city: "Dhaka", country: "Bangladesh", phone: "02-55001234", email: "dhaka@orbit.com" },
   });
+
+  const categoryIds = new Map<string, string>();
+  for (const [code, name, sortOrder] of candidateOptionCategories) {
+    const category = await db.professionCategory.upsert({
+      where: { code },
+      update: {},
+      create: { code, name, sortOrder, active: true },
+    });
+    categoryIds.set(code, category.id);
+  }
+  for (const [code, name, categoryCode] of candidateOptionProfessions) {
+    const categoryId = categoryIds.get(categoryCode);
+    if (!categoryId) continue;
+    await db.profession.upsert({
+      where: { code },
+      update: {},
+      create: { code, name, categoryId, active: true },
+    });
+  }
+  for (const [code, name, sortOrder] of candidateOptionStatuses) {
+    await db.masterData.upsert({
+      where: { type_code: { type: "DIRECT_FILE_STATUS", code } },
+      update: {},
+      create: { type: "DIRECT_FILE_STATUS", code, name, sortOrder, active: true },
+    });
+  }
+  for (const [code, name] of candidateOptionCompanies) {
+    await db.company.upsert({
+      where: { code },
+      update: {},
+      create: { code, name, country: "Saudi Arabia", status: "Active" },
+    });
+  }
 
   // Create single role: Call Center
   // Create exactly 2 roles: Super Administrator and Call Center

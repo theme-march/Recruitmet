@@ -1,5 +1,5 @@
 // Database bootstrapping is an explicit seed operation, never a login side effect.
-import { countryModule } from "@/lib/permission-policy";
+import { countryModule } from "./permission-policy.ts";
 export function workflowCountry(request: Request) {
   return new URL(request.url).searchParams.get("country")?.trim() || "Saudi";
 }

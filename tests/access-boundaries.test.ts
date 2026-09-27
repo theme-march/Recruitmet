@@ -35,3 +35,37 @@ test("role writes are versioned, atomic and audited; admin reset never logs a pa
   assert.match(staff, /passwordReset: Boolean/);
   assert.match(staff, /session\.deleteMany/);
 });
+
+test("lead conversion routes share one candidate-and-file workflow", () => {
+  const service = read("src/features/leads/service.ts");
+  for (const path of [
+    "src/app/api/work-calls/convert/route.ts",
+    "src/app/api/leads/[id]/convert/route.ts",
+  ]) {
+    const route = read(path);
+    assert.match(route, /convertLeadToFile/);
+    assert.doesNotMatch(route, /prisma\.(candidate|processingFile)\.(create|update)/);
+  }
+  assert.match(service, /export async function convertLeadToFile/);
+  assert.match(service, /tx\.candidate\.create/);
+  assert.match(service, /tx\.processingFile\.create/);
+  assert.match(service, /tx\.workCall\.update/);
+  assert.match(service, /CONVERT_LEAD_TO_FILE/);
+});
+
+test("Dubai document uploads use private storage and pending verification", () => {
+  const route = read("src/app/api/dubai-documents/route.ts");
+  const post = route.slice(route.indexOf("async function POSTHandler"));
+  assert.match(post, /uploadDocument/);
+  assert.doesNotMatch(post, /prisma\.document\.create/);
+  assert.doesNotMatch(post, /status:\s*["']VERIFIED["']/);
+  assert.match(post, /Verification is pending/);
+});
+
+test("control plane links to the canonical versioned permissions workspace", () => {
+  const control = read("src/components/modules/control-plane-page.tsx");
+  const shell = read("src/components/layout/admin-shell.tsx");
+  assert.doesNotMatch(control, /UPDATE_PERMISSIONS/);
+  assert.match(control, /href="\/permissions"/);
+  assert.match(shell, /System Permissions["'], href: ["']\/permissions/);
+});

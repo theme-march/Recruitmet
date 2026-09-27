@@ -201,7 +201,7 @@ export function WorkCallListPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            interviewOption: "Without Interview",
+            interviewOption: "With Interview",
             interviewScheduleId: "",
             interviewDate: "",
             workCategory: "",
@@ -933,7 +933,7 @@ function LeadDetailsModal({ lead, schedules, onUpdate, onClose }: { lead: WorkCa
           <div className="lead-section">
             <h3>🗓️ Interview Details</h3>
             <div className="lead-info-grid">
-              <div><span>Interview Option:</span><b>{lead.interviewOption || "Without Interview"}</b></div>
+              <div><span>Interview Option:</span><b>{lead.interviewOption || "With Interview"}</b></div>
               <div><span>Schedule Title:</span><b>{lead.interviewSchedule || "—"}</b></div>
               <div><span>Interview Date:</span><b>{dateFormatted(lead.interviewDate)}</b></div>
               <div><span>Work Category:</span><b>{lead.workCategory || "—"}</b></div>

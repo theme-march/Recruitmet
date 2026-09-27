@@ -53,8 +53,10 @@ export async function authorizeApi(route: string, request: Request) {
   }
   if (superAdmin) return;
   if (toAppRole(session.user.role.name) === "AGENT") {
-    const id = decodeURIComponent(url.pathname.split("/").at(-1) ?? "");
-    if (route === "agents/[id]" && reading && session.user.agentId === id) return;
+    const pathSegments = url.pathname.split("/");
+    const id = decodeURIComponent(pathSegments.at(-1) ?? "");
+    const agentId = decodeURIComponent(pathSegments[3] ?? "");
+    if ((route === "agents/[id]" || route === "agents/[id]/profile-image") && reading && session.user.agentId === agentId) return;
     if (route === "files/[id]" && reading && session.user.agentId) {
       const agent = await prisma.agent.findUnique({ where: { id: session.user.agentId }, select: { name: true, code: true } });
       if (agent && await prisma.processingFile.findFirst({ where: { AND: [{ OR: [{ id }, { fileNo: id }] }, { OR: [{ agent: agent.name }, { agent: agent.code }, { candidate: { source: agent.name } }, { candidate: { source: agent.code } }] }] }, select: { id: true } })) return;
@@ -66,7 +68,7 @@ export async function authorizeApi(route: string, request: Request) {
   const root = route.split("/")[0];
   const fixed: Record<string, string> = {
     agents: "agents", demands: "office-vendor", "countries": "country-setup",
-    "all-candidates": "call-center", candidates: "call-center", "work-calls": "call-center", leads: "call-center", search: "call-center", "officer-dashboard": "call-center",
+    "all-candidates": "call-center", candidates: "call-center", "candidate-options": "call-center", "work-calls": "call-center", leads: "call-center", search: "call-center", "officer-dashboard": "call-center",
     interviews: "registration", "interview-schedules": "registration",
     "payment-collection": "payment-collection", payments: "payment-collection",
     "dubai-documents": "document", documents: "document", tutorials: "tutorials",
@@ -99,7 +101,11 @@ export async function authorizeApi(route: string, request: Request) {
   const intent = String(body.action ?? "");
   if (intent.startsWith("delete-")) action = "delete";
   if (intent.startsWith("create-") || intent.startsWith("add-") || intent.startsWith("upload-")) action = "create";
+  if (root === "candidates" && route === "candidates/[id]/photo") {
+    action = reading ? "read" : "edit";
+  }
   if (root === "agents") {
+    if (route === "agents/[id]/profile-image") action = "edit";
     if (body.enablePortalLogin === true || body.portalPassword || body.portalEmail) requireSuperAdmin(session);
     if (intent === "record-candidate-payment" || body.payoutAmount) await requirePermission(session, "payment-collection", "create");
     if (intent === "update-interview") await requirePermission(session, "registration", "edit");

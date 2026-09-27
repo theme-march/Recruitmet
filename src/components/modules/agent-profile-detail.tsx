@@ -46,6 +46,7 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import { toast } from "sonner";
 import { MoneyReceiptModal, type ReceiptData } from "@/components/modals/money-receipt-modal";
 import { DocumentViewerModal, type DocumentViewerData } from "@/components/modals/document-viewer-modal";
+import { AgentProfileImageField } from "@/components/modules/agent-profile-image-field";
 
 export type MissingDocItem = {
   id: string;
@@ -222,6 +223,7 @@ type AgentProfileData = {
   hasPortalAccess?: boolean;
   portalLoginEmail?: string | null;
   portalLastLoginAt?: string | null;
+  profileImageUrl?: string | null;
   metrics?: {
     totalCandidates: number;
     completedCount: number;
@@ -321,6 +323,8 @@ export function AgentProfileDetail({
   const [editPortalLogin, setEditPortalLogin] = useState(true);
   const [editPortalEmail, setEditPortalEmail] = useState("");
   const [editPortalPassword, setEditPortalPassword] = useState("");
+  const [editImageFile, setEditImageFile] = useState<File | null>(null);
+  const [removeEditImage, setRemoveEditImage] = useState(false);
   const [noteCandidate, setNoteCandidate] = useState<CandidateItem | null>(null);
   const [savingNote, setSavingNote] = useState(false);
   const [noteFileObj, setNoteFileObj] = useState<{ name: string; size: string; dataUrl: string } | null>(null);
@@ -357,6 +361,8 @@ export function AgentProfileDetail({
       setEditPortalLogin(agentData.hasPortalAccess ?? true);
       setEditPortalEmail(agentData.portalLoginEmail || agentData.email || "");
       setEditPortalPassword("");
+      setEditImageFile(null);
+      setRemoveEditImage(false);
     }
   }, [agentData, showEditModal]);
 
@@ -844,6 +850,7 @@ export function AgentProfileDetail({
     const form = new FormData(e.currentTarget);
 
     try {
+      const targetId = agentData?.id || agentId;
       const payload = {
         name: String(form.get("name") || "").trim(),
         contactPerson: String(form.get("contactPerson") || "").trim() || null,
@@ -858,7 +865,7 @@ export function AgentProfileDetail({
         portalPassword: editPortalPassword.trim() || undefined,
       };
 
-      const res = await fetch(`/api/agents/${agentId}`, {
+      const res = await fetch(`/api/agents/${targetId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -867,9 +874,30 @@ export function AgentProfileDetail({
       const json = await res.json();
       if (!res.ok) throw new Error(json.error?.message || "Failed to update agent");
 
+      if (editImageFile) {
+        const upload = new FormData();
+        upload.set("file", editImageFile);
+        const imageResponse = await fetch(`/api/agents/${targetId}/profile-image`, {
+          method: "POST",
+          body: upload,
+        });
+        const imageResult = await imageResponse.json();
+        if (!imageResponse.ok) throw new Error(imageResult.error?.message || "Failed to upload profile image");
+      } else if (removeEditImage) {
+        const imageResponse = await fetch(`/api/agents/${targetId}/profile-image`, { method: "DELETE" });
+        const imageResult = await imageResponse.json();
+        if (!imageResponse.ok) throw new Error(imageResult.error?.message || "Failed to remove profile image");
+      }
+
       toast.success("Agent profile updated successfully!");
+      setEditImageFile(null);
+      setRemoveEditImage(false);
       setShowEditModal(false);
       await queryClient.invalidateQueries({ queryKey: ["agent-full-details", agentId] });
+      if (targetId !== agentId) {
+        await queryClient.invalidateQueries({ queryKey: ["agent-full-details", targetId] });
+      }
+      await refetch();
     } catch (err: any) {
       toast.error(err.message || "Failed to update agent");
     } finally {
@@ -1409,7 +1437,12 @@ export function AgentProfileDetail({
               flexShrink: 0,
             }}
           >
-            {agentData.name.slice(0, 2).toUpperCase()}
+            {agentData.profileImageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={agentData.profileImageUrl} alt={`${agentData.name} profile`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : (
+              agentData.name.slice(0, 2).toUpperCase()
+            )}
           </div>
 
           <div>
@@ -4149,7 +4182,7 @@ export function AgentProfileDetail({
       {/* 8. EDIT AGENT PROFILE MODAL */}
       {showEditModal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", backdropFilter: "blur(4px)", display: "grid", placeItems: "center", zIndex: 9999, padding: "20px" }}>
-          <div style={{ background: "#fff", borderRadius: "16px", maxWidth: "580px", width: "100%", padding: "24px", boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}>
+          <div style={{ background: "#fff", borderRadius: "16px", maxWidth: "580px", maxHeight: "92vh", overflowY: "auto", width: "100%", padding: "24px", boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <div>
                 <h3 style={{ fontSize: "16px", fontWeight: 800, margin: 0, color: "var(--ink)" }}>
@@ -4165,6 +4198,19 @@ export function AgentProfileDetail({
             </div>
 
             <form onSubmit={handleUpdateAgent} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <AgentProfileImageField
+                agentName={agentData.name}
+                imageUrl={agentData.profileImageUrl}
+                selectedFile={editImageFile}
+                onFileChange={(file) => {
+                  setEditImageFile(file);
+                  if (file) setRemoveEditImage(false);
+                }}
+                removeRequested={removeEditImage}
+                onRemoveExisting={() => setRemoveEditImage(Boolean(agentData.profileImageUrl))}
+                disabled={submitting}
+                compact
+              />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "10px" }}>
                 <div>
                   <label style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", display: "block", marginBottom: "4px" }}>

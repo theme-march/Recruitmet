@@ -5,6 +5,12 @@ import type { getSession } from "@/lib/session";
 type SessionData = NonNullable<Awaited<ReturnType<typeof getSession>>>;
 import { officeScope } from "@/lib/authorization";
 
+function objectValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
 export type CandidateQueryOptions = {
   q?: string;
   country?: string;
@@ -74,6 +80,9 @@ export async function getCandidatesData(session: SessionData, options: Candidate
     const activeFile = c.files[0];
     const latestCall = c.calls[0];
     const latestInterview = c.interviews[0];
+    const callNotes = objectValue(latestCall?.notes);
+    const interviewOptions = objectValue(callNotes.interview);
+    const workOptions = objectValue(callNotes.work);
 
     const totalPaid = c.files.reduce((sum, f) => {
       const filePaid = f.payments
@@ -105,6 +114,8 @@ export async function getCandidatesData(session: SessionData, options: Candidate
       fullName: c.fullName,
       phone: c.phone,
       additionalPhones,
+      photo: c.photo || null,
+      profileImageUrl: c.photo ? (/^https?:\/\//.test(c.photo) ? c.photo : `/api/candidates/${c.id}/photo?v=${c.updatedAt.getTime()}`) : null,
       email: c.email || "—",
       district: c.district || "—",
       address: c.address || "—",
@@ -153,8 +164,32 @@ export async function getCandidatesData(session: SessionData, options: Candidate
             scheduledAt: latestInterview.scheduledAt.toISOString(),
             title: latestInterview.schedule?.title || latestInterview.title || "Walk-in Interview",
             company: latestInterview.schedule?.company || latestInterview.company || "—",
-          }
+        }
         : null,
+      interviewOptions: {
+        interviewScheduleId: String(
+          interviewOptions.scheduleId ?? latestInterview?.scheduleId ?? "",
+        ),
+        interviewSchedule: String(
+          interviewOptions.scheduleTitle ?? latestInterview?.schedule?.title ?? "",
+        ),
+        interviewDate: String(
+          interviewOptions.date ?? latestInterview?.scheduledAt?.toISOString() ?? "",
+        ),
+        workCategory: String(workOptions.category ?? latestCall?.workCategory ?? ""),
+        workSubCategory: String(workOptions.subCategory ?? latestInterview?.profession ?? ""),
+        company: String(
+          workOptions.company ??
+            latestCall?.company ??
+            latestInterview?.schedule?.company ??
+            latestInterview?.company ??
+            "",
+        ),
+        interviewStatus: String(
+          interviewOptions.status ?? latestInterview?.result ?? "",
+        ),
+        fileStatus: String(workOptions.fileStatus ?? ""),
+      },
     };
   });
 

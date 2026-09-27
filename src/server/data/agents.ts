@@ -124,6 +124,9 @@ export async function getAgentsData(options: AgentQueryOptions = {}) {
       address: agent.address || "—",
       status: agent.status,
       agreementKey: agent.agreementKey || "—",
+      profileImageUrl: agent.profileImageObjectId
+        ? `/api/agents/${agent.id}/profile-image?v=${agent.updatedAt.getTime()}`
+        : null,
       totalCandidates: agentFiles.length,
       activeDossiers,
       completedDossiers,
@@ -132,6 +135,7 @@ export async function getAgentsData(options: AgentQueryOptions = {}) {
       portalUserStatus: portalUser?.status || null,
       portalLastLoginAt: portalUser?.lastLoginAt ? portalUser.lastLoginAt.toISOString() : null,
       createdAt: agent.createdAt.toISOString(),
+      updatedAt: agent.updatedAt.toISOString(),
     };
   });
 

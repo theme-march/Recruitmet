@@ -1,12 +1,13 @@
 "use client";
 
-import { Check, List, Plus, Send, Sparkles, UserPlus, Users, X } from "lucide-react";
+import { Calendar, Check, ChevronDown, ChevronUp, List, Plus, Send, Sparkles, UserPlus, Users, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { moduleItemPath } from "@/lib/modules";
 import { getCountryFlagEmoji } from "@/components/modules/country-management-page";
+import { CandidateProfileImageField } from "@/components/modules/candidate-profile-image-field";
 
 type Schedule = {
   id: string;
@@ -25,18 +26,30 @@ type AgentOption = {
   district: string;
 };
 
+type CandidateCategoryOption = {
+  id: string;
+  code: string;
+  name: string;
+  professions: Array<{ id: string; code: string; name: string; categoryId: string }>;
+};
+
+type CandidateCompanyOption = { id: string; code: string; name: string; country: string };
+type CandidateStatusOption = { id: string; code: string; name: string; sortOrder: number };
+
 export function CreateWorkCallPage({ officerName }: { officerName: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [saving, setSaving] = useState(false);
-  const [interviewOption, setInterviewOption] = useState("With Interview");
   const [schedules, setSchedules] = useState<Schedule[]>([]);
-  const [companies, setCompanies] = useState<Array<{ id: string; name: string }>>([]);
-  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
+  const [companies, setCompanies] = useState<CandidateCompanyOption[]>([]);
+  const [categories, setCategories] = useState<CandidateCategoryOption[]>([]);
+  const [fileStatuses, setFileStatuses] = useState<CandidateStatusOption[]>([]);
+  const [optionsLoading, setOptionsLoading] = useState(true);
   const [agents, setAgents] = useState<AgentOption[]>([]);
   const [selectedAgent, setSelectedAgent] = useState("");
   const [showAgentModal, setShowAgentModal] = useState(false);
   const [creatingAgent, setCreatingAgent] = useState(false);
+  const [interviewSectionOpen, setInterviewSectionOpen] = useState(true);
 
   // Controlled Interview Option Auto-fill States
   const [selectedScheduleId, setSelectedScheduleId] = useState("");
@@ -44,9 +57,11 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
   const [selectedCompany, setSelectedCompany] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedSubCategory, setSelectedSubCategory] = useState("");
-  const [interviewStatus, setInterviewStatus] = useState("Waiting For Interview");
-  const [fileStatus, setFileStatus] = useState("Interested");
+  const [interviewStatus, setInterviewStatus] = useState("");
+  const [fileStatus, setFileStatus] = useState("");
 
+  const [candidatePhotoFile, setCandidatePhotoFile] = useState<File | null>(null);
+  const [candidateFullName, setCandidateFullName] = useState("");
   const [selectedCountry, setSelectedCountry] = useState("Saudi Arabia");
   const [customCountry, setCustomCountry] = useState("");
   const [phones, setPhones] = useState([""]);
@@ -90,7 +105,11 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
       // 3. Auto-fill Work Category & Sub-Category
       if (sch.profession) {
         setSelectedSubCategory(sch.profession);
-        if (/driver|rider/i.test(sch.profession)) setSelectedCategory("Driver");
+        const configuredCategory = categories.find((category) =>
+          category.professions.some((profession) => profession.name === sch.profession),
+        );
+        if (configuredCategory) setSelectedCategory(configuredCategory.name);
+        else if (/driver|rider/i.test(sch.profession)) setSelectedCategory("Driver");
         else if (/electrician|plumber|technician|fitter|welder/i.test(sch.profession)) setSelectedCategory("Technician");
         else if (/construction|steel|mason|carpenter/i.test(sch.profession)) setSelectedCategory("Construction");
         else if (/clean|packaging|helper|indoor/i.test(sch.profession)) setSelectedCategory("Indoor Worker");
@@ -125,18 +144,6 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
         }
       });
 
-    void fetch("/api/admin/master-data")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((body) => {
-        if (body?.data) {
-          setCompanies(body.data.companies ?? []);
-          setCategories(body.data.categories ?? []);
-          if (body.data.interviewSchedules?.length) {
-            setSchedules(body.data.interviewSchedules);
-          }
-        }
-      });
-
     void fetch("/api/agents?pageSize=100")
       .then((res) => (res.ok ? res.json() : { data: [] }))
       .then((body) => {
@@ -160,6 +167,55 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
         }
       });
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setOptionsLoading(true);
+    void fetch(`/api/candidate-options?country=${encodeURIComponent(selectedCountry)}`)
+      .then(async (response) => {
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error?.message || "Could not load candidate options");
+        return body.data;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        const nextCategories = (data?.categories ?? []) as CandidateCategoryOption[];
+        const nextCompanies = (data?.companies ?? []) as CandidateCompanyOption[];
+        const nextStatuses = (data?.fileStatuses ?? []) as CandidateStatusOption[];
+        setCategories(nextCategories);
+        setCompanies(nextCompanies);
+        setFileStatuses(nextStatuses);
+        setSelectedCategory((current) =>
+          nextCategories.some((category) => category.name === current) ? current : "",
+        );
+        setSelectedSubCategory((current) =>
+          nextCategories.some((category) =>
+            category.professions.some((profession) => profession.name === current),
+          )
+            ? current
+            : "",
+        );
+        setSelectedCompany((current) =>
+          nextCompanies.some((company) => company.name === current) ? current : "",
+        );
+        setFileStatus((current) =>
+          nextStatuses.some((status) => status.name === current) ? current : "",
+        );
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setCategories([]);
+        setCompanies([]);
+        setFileStatuses([]);
+        toast.error(error instanceof Error ? error.message : "Could not load candidate options");
+      })
+      .finally(() => {
+        if (!cancelled) setOptionsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCountry]);
 
   const handleQuickCreateAgent = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -207,7 +263,17 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
     const form = new FormData(event.currentTarget);
     const payload = Object.fromEntries(form.entries()) as Record<string, unknown>;
     payload.country = selectedCountry;
-    payload.interviewOption = interviewOption;
+    payload.interviewOption = [
+      selectedScheduleId,
+      interviewDate,
+      selectedCompany,
+      selectedCategory,
+      selectedSubCategory,
+      interviewStatus,
+      fileStatus,
+    ].some(Boolean)
+      ? "With Interview"
+      : "";
     payload.agent = selectedAgent || String(form.get("agent") || "") || "Direct";
     payload.callSource = selectedAgent ? "Agent Partner" : "Direct";
     payload.priority = 3;
@@ -227,55 +293,51 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
       body: JSON.stringify(payload),
     });
     const body = await response.json();
-    setSaving(false);
     if (!response.ok) {
+      setSaving(false);
       toast.error(body.error?.message ?? body.error ?? "Could not create candidate");
       return;
     }
+
+    if (candidatePhotoFile && body.data?.candidateId) {
+      try {
+        const photoForm = new FormData();
+        photoForm.set("file", candidatePhotoFile);
+        const photoRes = await fetch(`/api/candidates/${body.data.candidateId}/photo`, {
+          method: "POST",
+          body: photoForm,
+        });
+        if (!photoRes.ok) {
+          const photoJson = await photoRes.json();
+          console.error("Photo upload warning:", photoJson.error?.message);
+        }
+      } catch (photoErr) {
+        console.error("Photo upload network error:", photoErr);
+      }
+    }
+
+    setSaving(false);
     toast.success(`Candidate ${body.data?.leadNo ? `(${body.data.leadNo})` : ""} registered successfully!`);
     router.push(moduleItemPath("call-center", "Registration & interviews"));
   }
 
-  // Dynamic Options with smart fallbacks
-  const categoryOptions =
-    categories.length > 0
-      ? categories.map((c) => c.name)
-      : ["Technician", "Driver", "Construction", "Indoor Worker", "Hospitality", "Manufacturing", "Cleaning"];
-
-  const companyList = [
+  const categoryOptions = categories.map((category) => category.name);
+  const selectedCategoryOption = categories.find(
+    (category) => category.name === selectedCategory,
+  );
+  const interviewProfessionList = [
     ...new Set([
-      ...companies.map((c) => c.name),
-      ...schedules.map((s) => s.company).filter(Boolean),
-      "Almarai",
-      "Saudi Binladen Group",
-      "Nesma & Partners",
-      "Keeta Saudi Arabia",
-      "Al Baik",
-      "Nesto Supermarket",
-      "Al Mabani",
-      "Lulu Hypermarket",
+      ...(selectedCategoryOption?.professions.map((row) => row.name) ??
+        categories.flatMap((category) => category.professions.map((row) => row.name))),
+      ...schedules.map((schedule) => schedule.profession).filter((value): value is string => Boolean(value)),
     ]),
-  ] as string[];
-
-  const subCategoryList = [
+  ];
+  const interviewCompanyList = [
     ...new Set([
-      ...schedules.map((s) => s.profession).filter(Boolean),
-      "Driver",
-      "Electrician / Plumber",
-      "Electrician",
-      "Plumber",
-      "Pipe Fitter",
-      "Welder",
-      "General Construction Worker",
-      "Steel Fixer",
-      "Mason",
-      "Bike Rider",
-      "Indoor Worker",
-      "Packaging Worker",
-      "Asst. Cashier",
-      "Technician",
+      ...companies.map((company) => company.name),
+      ...schedules.map((schedule) => schedule.company).filter((value): value is string => Boolean(value)),
     ]),
-  ] as string[];
+  ];
 
   return (
     <div className="work-call-page" style={{ maxWidth: "1200px", margin: "0 auto" }}>
@@ -309,314 +371,396 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
       </div>
 
       <form className="work-call-form" onSubmit={submit} style={{ display: "grid", gap: "18px" }}>
-        {/* INTERVIEW OPTION WITH INSTANT AUTO-FILL */}
-        <section className="work-form-section" style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "16px", padding: "22px 26px", boxShadow: "var(--shadow)" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px", borderBottom: "1px solid var(--line)", paddingBottom: "10px" }}>
-            <h2 style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink)", margin: 0 }}>
-              1. Interview &amp; Drive Options
-            </h2>
-            {selectedScheduleId && (
-              <span style={{ fontSize: "11px", fontWeight: 700, color: "#7258e8", background: "#f0edff", border: "1px solid #dcd5fb", padding: "4px 10px", borderRadius: "8px", display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                <Sparkles size={13} /> Auto-filled from Schedule
-              </span>
-            )}
-          </div>
-          <div className="interview-choice" style={{ display: "flex", gap: "20px", marginBottom: "18px" }}>
-            <label style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 700, fontSize: "13px", cursor: "pointer", color: "var(--ink)" }}>
-              <input
-                type="radio"
-                checked={interviewOption === "With Interview"}
-                onChange={() => {
-                  setInterviewOption("With Interview");
+        {/* 1. INTERVIEW & DRIVE OPTIONS */}
+        <section
+          className="work-form-section"
+          style={{
+            background: "#fff",
+            border: "1px solid #e8e5f1",
+            borderRadius: "16px",
+            padding: "24px 26px",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.03)",
+          }}
+        >
+          {/* Header */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: interviewSectionOpen ? "18px" : 0,
+              borderBottom: interviewSectionOpen ? "1px solid #f1edf8" : "none",
+              paddingBottom: interviewSectionOpen ? "14px" : 0,
+              flexWrap: "wrap",
+              gap: "12px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <div
+                style={{
+                  width: "40px",
+                  height: "40px",
+                  borderRadius: "12px",
+                  background: "linear-gradient(135deg, #f5f3ff 0%, #ede8ff 100%)",
+                  border: "1px solid #e0d7fe",
+                  color: "#7258e8",
+                  display: "grid",
+                  placeItems: "center",
+                  flexShrink: 0,
                 }}
-                style={{ width: "18px", height: "18px", accentColor: "#7258e8", cursor: "pointer" }}
-              />
-              With Interview Drive
-            </label>
-            <label style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 700, fontSize: "13px", cursor: "pointer", color: "var(--ink)" }}>
-              <input
-                type="radio"
-                checked={interviewOption === "Without Interview"}
-                onChange={() => {
-                  setInterviewOption("Without Interview");
-                  setSelectedScheduleId("");
-                  setInterviewDate("");
-                  setInterviewStatus("Selected");
+              >
+                <Calendar size={20} />
+              </div>
+              <div>
+                <h2 style={{ fontSize: "16px", fontWeight: 800, color: "var(--ink)", margin: 0, letterSpacing: "-0.2px", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                  1. Interview &amp; Drive Options <span style={{ background: "#f3f0ff", color: "#7258e8", border: "1px solid #ddd6fe", padding: "2px 9px", borderRadius: "12px", fontSize: "11px", fontWeight: 700 }}>(Optional)</span>
+                </h2>
+                <p style={{ margin: "3px 0 0", color: "#64748b", fontSize: "12.5px" }}>
+                  Skip this section now if not applicable. These details can also be added or updated later from the candidate profile.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              {selectedScheduleId && (
+                <span
+                  style={{
+                    fontSize: "11.5px",
+                    fontWeight: 700,
+                    color: "#059669",
+                    background: "#ecfdf5",
+                    border: "1px solid #a7f3d0",
+                    padding: "4px 11px",
+                    borderRadius: "20px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "5px",
+                  }}
+                >
+                  <Sparkles size={13} /> Auto-filled from Schedule
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => setInterviewSectionOpen((open) => !open)}
+                aria-expanded={interviewSectionOpen}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "5px",
+                  padding: "7px 13px",
+                  borderRadius: "9px",
+                  border: "1px solid #dcd5fb",
+                  background: interviewSectionOpen ? "#fff" : "#f8f7ff",
+                  color: "#7258e8",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
                 }}
-                style={{ width: "18px", height: "18px", accentColor: "#7258e8", cursor: "pointer" }}
-              />
-              Without Interview (Direct Candidate)
-            </label>
+              >
+                {interviewSectionOpen ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                {interviewSectionOpen ? "Hide Fields" : "Show Fields"}
+              </button>
+            </div>
           </div>
 
-          {interviewOption === "With Interview" ? (
-            <div className="work-form-grid">
-              <label>
-                <span>Interview Schedule</span>
+          {interviewSectionOpen && (
+            <div style={{ display: "grid", gap: "18px" }}>
+              {/* Interview Schedule - Prominent Feature Field */}
+              <div
+                style={{
+                  background: "#fbfaff",
+                  border: "1px solid #ede8f8",
+                  borderRadius: "12px",
+                  padding: "14px 16px",
+                  display: "grid",
+                  gap: "8px",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "6px" }}>
+                  <label
+                    htmlFor="interviewScheduleId"
+                    style={{
+                      fontSize: "12.5px",
+                      fontWeight: 700,
+                      color: "var(--ink)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Calendar size={15} color="#7258e8" /> Interview Schedule
+                  </label>
+                  <span style={{ fontSize: "11px", color: "#64748b" }}>
+                    Selecting a schedule automatically fills trade, company &amp; date
+                  </span>
+                </div>
                 <select
+                  id="interviewScheduleId"
                   name="interviewScheduleId"
                   value={selectedScheduleId}
                   onChange={(e) => handleScheduleChange(e.target.value)}
+                  style={{
+                    width: "100%",
+                    height: "44px",
+                    borderRadius: "9px",
+                    border: "1px solid #dcd5fb",
+                    padding: "0 13px",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    outline: "none",
+                    background: "#fff",
+                    color: "var(--ink)",
+                  }}
                 >
-                  <option value="">Select Interview Schedule</option>
+                  <option value="">None / Open Candidate (Select Interview Schedule)</option>
                   {schedules.map((schedule) => (
                     <option key={schedule.id} value={schedule.id}>
                       {schedule.title} · {new Date(schedule.scheduledAt).toLocaleString()}
                     </option>
                   ))}
                 </select>
-              </label>
-
-              <label>
-                <span>Interview Date</span>
-                <input
-                  name="interviewDate"
-                  type="datetime-local"
-                  value={interviewDate}
-                  onChange={(e) => setInterviewDate(e.target.value)}
-                />
-              </label>
-
-              <label>
-                <span>Interested Work Category</span>
-                <select
-                  name="workCategory"
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                >
-                  <option value="">Select Interested Work Category</option>
-                  {categoryOptions.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                <span>Interested Work Sub Category</span>
-                <select
-                  name="workSubCategory"
-                  value={selectedSubCategory}
-                  onChange={(e) => setSelectedSubCategory(e.target.value)}
-                >
-                  <option value="">Select Interested Work Sub Category</option>
-                  {subCategoryList.map((sub) => (
-                    <option key={sub} value={sub}>
-                      {sub}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                <span>Interested Company</span>
-                <select
-                  name="company"
-                  value={selectedCompany}
-                  onChange={(e) => setSelectedCompany(e.target.value)}
-                >
-                  <option value="">Select Interested Company</option>
-                  {companyList.map((comp) => (
-                    <option key={comp} value={comp}>
-                      {comp}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                <span>Interview Status</span>
-                <select
-                  name="interviewStatus"
-                  value={interviewStatus}
-                  onChange={(e) => setInterviewStatus(e.target.value)}
-                >
-                  <option value="Waiting For Interview">Waiting For Interview</option>
-                  <option value="Scheduled">Scheduled</option>
-                  <option value="Selected">Selected</option>
-                  <option value="Rejected">Rejected</option>
-                  <option value="Absent">Absent</option>
-                </select>
-              </label>
-
-              <label>
-                <span>File Status</span>
-                <select
-                  name="fileStatus"
-                  value={fileStatus}
-                  onChange={(e) => setFileStatus(e.target.value)}
-                >
-                  <option value="New">New</option>
-                  <option value="Interested">Interested</option>
-                  <option value="Pre-Confirmed">Pre-Confirmed</option>
-                  <option value="Active">Active</option>
-                  <option value="Hold">Hold</option>
-                  <option value="Closed">Closed</option>
-                </select>
-              </label>
-            </div>
-          ) : (
-            <div className="work-form-grid">
-              <input type="hidden" name="interviewScheduleId" value="" />
-              <input type="hidden" name="interviewDate" value="" />
-              <input type="hidden" name="interviewStatus" value="Direct Candidate" />
-
-              <label>
-                <span>Direct Work Category</span>
-                <select
-                  name="workCategory"
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                >
-                  <option value="">Select Work Category</option>
-                  {categoryOptions.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                <span>Profession / Sub Category / Trade</span>
-                <select
-                  name="workSubCategory"
-                  value={selectedSubCategory}
-                  onChange={(e) => setSelectedSubCategory(e.target.value)}
-                >
-                  <option value="">Select Trade / Profession</option>
-                  {subCategoryList.map((sub) => (
-                    <option key={sub} value={sub}>
-                      {sub}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                <span>Target Company (Optional)</span>
-                <select
-                  name="company"
-                  value={selectedCompany}
-                  onChange={(e) => setSelectedCompany(e.target.value)}
-                >
-                  <option value="">Select Target Company</option>
-                  {companyList.map((comp) => (
-                    <option key={comp} value={comp}>
-                      {comp}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                <span>File Processing Status</span>
-                <select
-                  name="fileStatus"
-                  value={fileStatus}
-                  onChange={(e) => setFileStatus(e.target.value)}
-                >
-                  <option value="New">New Lead</option>
-                  <option value="Interested">Interested</option>
-                  <option value="Pre-Confirmed">Pre-Confirmed</option>
-                  <option value="Active">Active Processing</option>
-                  <option value="Hold">Hold</option>
-                  <option value="Closed">Closed</option>
-                </select>
-              </label>
-            </div>
-          )}
-
-            {/* ASSIGN / LINK AGENT SELECTOR */}
-            <div
-              style={{
-                gridColumn: "1 / -1",
-                background: "#f8fafc",
-                padding: "16px 20px",
-                borderRadius: "14px",
-                border: "1px solid var(--line)",
-                marginTop: "4px",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: "8px",
-                  flexWrap: "wrap",
-                  gap: "8px",
-                }}
-              >
-                <span style={{ fontSize: "13px", fontWeight: 800, color: "var(--ink)", display: "flex", alignItems: "center", gap: "7px" }}>
-                  <Users size={16} color="#7258e8" /> + Link / Assign Agent Partner (Optional)
-                </span>
-                <Link
-                  href="/module/agents"
-                  prefetch={true}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "5px",
-                    padding: "5px 12px",
-                    borderRadius: "8px",
-                    background: "#f0edff",
-                    color: "#7258e8",
-                    border: "1px solid #dcd5fb",
-                    fontSize: "11px",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    textDecoration: "none",
-                  }}
-                >
-                  <UserPlus size={13} /> + Create New Agent
-                </Link>
               </div>
 
-              <select
-                name="agent"
-                value={selectedAgent}
-                onChange={(e) => setSelectedAgent(e.target.value)}
+              {/* 6 Core Candidate Preference Fields */}
+              <div className="work-form-grid" style={{ gap: "16px 20px" }}>
+                <label>
+                  <span>Interested Work Category</span>
+                  <select
+                    name="workCategory"
+                    value={selectedCategory}
+                    onChange={(e) => {
+                      setSelectedCategory(e.target.value);
+                      setSelectedSubCategory("");
+                    }}
+                    disabled={optionsLoading}
+                  >
+                    <option value="">Select Interested Work Category</option>
+                    {categoryOptions.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  <span>Interested Work Sub Category / Trade</span>
+                  <select
+                    name="workSubCategory"
+                    value={selectedSubCategory}
+                    onChange={(e) => setSelectedSubCategory(e.target.value)}
+                  >
+                    <option value="">Select Interested Work Sub Category</option>
+                    {interviewProfessionList.map((sub) => (
+                      <option key={sub} value={sub}>
+                        {sub}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  <span>Interested Company</span>
+                  <select
+                    name="company"
+                    value={selectedCompany}
+                    onChange={(e) => setSelectedCompany(e.target.value)}
+                  >
+                    <option value="">Select Interested Company</option>
+                    {interviewCompanyList.map((comp) => (
+                      <option key={comp} value={comp}>
+                        {comp}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  <span>Interview Date</span>
+                  <input
+                    name="interviewDate"
+                    type="datetime-local"
+                    value={interviewDate}
+                    onChange={(e) => setInterviewDate(e.target.value)}
+                  />
+                </label>
+
+                <label>
+                  <span>Interview Status</span>
+                  <select
+                    name="interviewStatus"
+                    value={interviewStatus}
+                    onChange={(e) => setInterviewStatus(e.target.value)}
+                  >
+                    <option value="">Select Interview Status</option>
+                    <option value="Waiting For Interview">Waiting For Interview</option>
+                    <option value="Scheduled">Scheduled</option>
+                    <option value="Selected">Selected</option>
+                    <option value="Rejected">Rejected</option>
+                    <option value="Absent">Absent</option>
+                  </select>
+                </label>
+
+                <label>
+                  <span>File Processing Status</span>
+                  <select
+                    name="fileStatus"
+                    value={fileStatus}
+                    onChange={(e) => setFileStatus(e.target.value)}
+                  >
+                    <option value="">Select File Status</option>
+                    {fileStatuses.map((status) => (
+                      <option key={status.id} value={status.name}>
+                        {status.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+            </div>
+          )}
+        </section>
+
+        {/* 2. AGENT PARTNER ASSIGNMENT */}
+        <section
+          className="work-form-section"
+          style={{
+            background: "linear-gradient(135deg, #ffffff 0%, #faf9ff 100%)",
+            border: "1px solid #e2dcfb",
+            borderRadius: "16px",
+            padding: "22px 26px",
+            boxShadow: "0 4px 20px rgba(91, 71, 180, 0.05)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: "14px",
+              paddingBottom: "14px",
+              marginBottom: "16px",
+              borderBottom: "1px solid #eeeafd",
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <div
                 style={{
-                  width: "100%",
-                  height: "42px",
-                  borderRadius: "8px",
-                  border: "1px solid #cbd5e1",
-                  padding: "0 12px",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  outline: "none",
-                  background: "#fff",
+                  width: "40px",
+                  height: "40px",
+                  borderRadius: "12px",
+                  background: "linear-gradient(135deg, #f0edff 0%, #e7e0ff 100%)",
+                  border: "1px solid #dcd5fb",
+                  color: "#7258e8",
+                  display: "grid",
+                  placeItems: "center",
+                  flexShrink: 0,
                 }}
               >
-                <option value="">Direct Office Candidate (No Agent)</option>
-                <optgroup label="── Registered Agency Partners & Brokers ──">
-                  {agents.map((ag) => (
-                    <option key={ag.id} value={ag.name}>
-                      [{ag.code}] {ag.name} · 📞 {ag.phone} ({ag.district})
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
-
-              {selectedAgent && selectedAgent !== "Direct Office Candidate (No Agent)" && (
-                <div style={{ marginTop: "8px", fontSize: "11px", color: "#059669", fontWeight: 700, display: "flex", alignItems: "center", gap: "5px" }}>
-                  <Check size={13} /> This lead and resulting files will be automatically attributed to "{selectedAgent}".
-                </div>
-              )}
+                <Users size={20} />
+              </div>
+              <div>
+                <h2 style={{ fontSize: "16px", fontWeight: 800, color: "var(--ink)", margin: 0, letterSpacing: "-0.2px", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                  2. Link / Assign Agent Partner
+                  <span style={{ background: "#f3f0ff", color: "#7258e8", border: "1px solid #ddd6fe", padding: "2px 9px", borderRadius: "12px", fontSize: "11px", fontWeight: 700 }}>(Optional)</span>
+                </h2>
+                <p style={{ margin: "3px 0 0", color: "#64748b", fontSize: "12.5px" }}>
+                  Link this candidate to a registered agency partner or keep them as a direct office candidate.
+                </p>
+              </div>
             </div>
+
+            <Link
+              href="/module/agents"
+              prefetch={true}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "8px 14px",
+                borderRadius: "9px",
+                background: "#f0edff",
+                color: "#7258e8",
+                border: "1px solid #dcd5fb",
+                fontSize: "12px",
+                fontWeight: 800,
+                textDecoration: "none",
+                transition: "all 0.15s ease",
+              }}
+            >
+              <UserPlus size={14} /> Create New Agent
+            </Link>
+          </div>
+
+          <label style={{ display: "grid", gap: "7px" }}>
+            <span style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--ink)" }}>
+              Select Agent Partner
+            </span>
+            <select
+              name="agent"
+              value={selectedAgent}
+              onChange={(e) => setSelectedAgent(e.target.value)}
+              style={{
+                width: "100%",
+                height: "46px",
+                borderRadius: "10px",
+                border: "1px solid #cfc7ee",
+                padding: "0 14px",
+                fontSize: "13px",
+                fontWeight: 600,
+                outline: "none",
+                background: "#fff",
+                color: "var(--ink)",
+              }}
+            >
+              <option value="">Direct Office Candidate (No Agent)</option>
+              <optgroup label="── Registered Agency Partners & Brokers ──">
+                {agents.map((ag) => (
+                  <option key={ag.id} value={ag.name}>
+                    [{ag.code}] {ag.name} · 📞 {ag.phone} ({ag.district})
+                  </option>
+                ))}
+              </optgroup>
+            </select>
+          </label>
+
+          {selectedAgent && selectedAgent !== "Direct Office Candidate (No Agent)" && (
+            <div style={{ marginTop: "10px", padding: "9px 12px", borderRadius: "9px", background: "#ecfdf5", border: "1px solid #a7f3d0", fontSize: "11.5px", color: "#047857", fontWeight: 700, display: "flex", alignItems: "center", gap: "6px" }}>
+              <Check size={14} /> This lead and resulting files will be automatically attributed to "{selectedAgent}".
+            </div>
+          )}
         </section>
 
         {/* BASIC QUESTION */}
         <section className="work-form-section" style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "16px", padding: "22px 26px", boxShadow: "var(--shadow)" }}>
           <h2 style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink)", margin: "0 0 16px", borderBottom: "1px solid var(--line)", paddingBottom: "10px" }}>
-            2. Basic Candidate Information
+            3. Basic Candidate Information
           </h2>
+
+          <div style={{ marginBottom: "18px" }}>
+            <CandidateProfileImageField
+              candidateName={candidateFullName || "New Candidate"}
+              selectedFile={candidatePhotoFile}
+              onFileChange={setCandidatePhotoFile}
+              disabled={saving}
+            />
+          </div>
+
           <div className="work-form-grid">
             <label>
               <span>Full Name <sup style={{ color: "#e11d48", fontSize: "14px" }}>*</sup></span>
-              <input name="fullName" placeholder="Enter candidate full name" required />
+              <input
+                name="fullName"
+                placeholder="Enter candidate full name"
+                required
+                value={candidateFullName}
+                onChange={(e) => setCandidateFullName(e.target.value)}
+              />
             </label>
             <label>
               <span>Phone <sup style={{ color: "#e11d48", fontSize: "14px" }}>*</sup></span>
@@ -688,7 +832,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
         {/* PREFER COUNTRY & DESTINATION */}
         <section className="work-form-section" style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "16px", padding: "22px 26px", boxShadow: "var(--shadow)" }}>
           <h2 style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink)", margin: "0 0 16px", borderBottom: "1px solid var(--line)", paddingBottom: "10px" }}>
-            3. Prefer Country &amp; Target Destination
+            4. Prefer Country &amp; Target Destination
           </h2>
 
           <div className="work-form-grid">
@@ -731,7 +875,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
         {/* PERSONAL INFORMATION */}
         <section className="work-form-section" style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "16px", padding: "22px 26px", boxShadow: "var(--shadow)" }}>
           <h2 style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink)", margin: "0 0 16px", borderBottom: "1px solid var(--line)", paddingBottom: "10px" }}>
-            4. Personal Information
+            5. Personal Information
           </h2>
           <div className="work-form-grid">
             <label>
@@ -805,7 +949,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
         {/* COMMENTS & NOTES */}
         <section className="work-form-section" style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "16px", padding: "22px 26px", boxShadow: "var(--shadow)" }}>
           <h2 style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink)", margin: "0 0 16px", borderBottom: "1px solid var(--line)", paddingBottom: "10px" }}>
-            5. Comments, Notes &amp; Activity Log
+            6. Comments, Notes &amp; Activity Log
           </h2>
           <div className="comment-grid">
             <div className="comment-group">

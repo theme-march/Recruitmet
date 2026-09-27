@@ -1,10 +1,11 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Briefcase,
   Building2,
   Calendar,
+  Camera,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -23,6 +24,7 @@ import {
   MapPin,
   Phone,
   Plane,
+  Save,
   Plus,
   RefreshCcw,
   Search,
@@ -34,7 +36,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Fragment, useState, useMemo } from "react";
+import { toast } from "sonner";
 import { moduleItemPath } from "@/lib/modules";
+import { CandidateProfileImageField } from "@/components/modules/candidate-profile-image-field";
 
 type CandidateItem = {
   id: string;
@@ -43,6 +47,8 @@ type CandidateItem = {
   fullName: string;
   phone: string;
   additionalPhones: string[];
+  photo?: string | null;
+  profileImageUrl?: string | null;
   email: string;
   district: string;
   address: string;
@@ -87,7 +93,55 @@ type CandidateItem = {
     title: string;
     company: string;
   } | null;
+  interviewOptions: InterviewOptions;
 };
+
+type InterviewOptions = {
+  interviewScheduleId: string;
+  interviewSchedule: string;
+  interviewDate: string;
+  workCategory: string;
+  workSubCategory: string;
+  company: string;
+  interviewStatus: string;
+  fileStatus: string;
+};
+
+type ScheduleOption = {
+  id: string;
+  title: string;
+  company?: string | null;
+  profession?: string | null;
+  scheduledAt: string;
+};
+
+type CandidateCategoryOption = {
+  id: string;
+  name: string;
+  professions: Array<{ id: string; name: string }>;
+};
+
+type CandidateCompanyOption = { id: string; name: string };
+type CandidateFileStatusOption = { id: string; name: string };
+
+const emptyInterviewOptions: InterviewOptions = {
+  interviewScheduleId: "",
+  interviewSchedule: "",
+  interviewDate: "",
+  workCategory: "",
+  workSubCategory: "",
+  company: "",
+  interviewStatus: "",
+  fileStatus: "",
+};
+
+function toDateTimeLocal(value: string): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value.slice(0, 16);
+  const pad = (number: number) => String(number).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
 
 type ApiResponse = {
   data: CandidateItem[];
@@ -235,7 +289,76 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const queryClient = useQueryClient();
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateItem | null>(null);
+  const [detailsPhotoFile, setDetailsPhotoFile] = useState<File | null>(null);
+  const [updatingPhoto, setUpdatingPhoto] = useState(false);
+  const [editingInterviewOptions, setEditingInterviewOptions] = useState(false);
+  const [savingInterviewOptions, setSavingInterviewOptions] = useState(false);
+  const [interviewDraft, setInterviewDraft] = useState<InterviewOptions>(emptyInterviewOptions);
+
+  const openCandidateProfile = (candidate: CandidateItem) => {
+    const normalizedOptions = {
+      ...emptyInterviewOptions,
+      ...candidate.interviewOptions,
+    };
+    setSelectedCandidate({ ...candidate, interviewOptions: normalizedOptions });
+    setInterviewDraft({
+      ...normalizedOptions,
+      interviewDate: toDateTimeLocal(normalizedOptions.interviewDate),
+    });
+    setEditingInterviewOptions(false);
+  };
+
+  const handleDetailsPhotoUpload = async (file: File | null) => {
+    if (!selectedCandidate || !file) return;
+    setUpdatingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.set("file", file);
+      const res = await fetch(`/api/candidates/${selectedCandidate.id}/photo`, {
+        method: "POST",
+        body: formData,
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error?.message || "Failed to upload photo");
+      toast.success("Profile photo updated successfully!");
+      setDetailsPhotoFile(null);
+      const newUrl = `/api/candidates/${selectedCandidate.id}/photo?v=${Date.now()}`;
+      setSelectedCandidate({
+        ...selectedCandidate,
+        profileImageUrl: newUrl,
+        photo: json.data?.objectKey || newUrl,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["all-candidates-list"] });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update profile photo");
+    } finally {
+      setUpdatingPhoto(false);
+    }
+  };
+
+  const handleDetailsPhotoRemove = async () => {
+    if (!selectedCandidate) return;
+    setUpdatingPhoto(true);
+    try {
+      const res = await fetch(`/api/candidates/${selectedCandidate.id}/photo`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to remove photo");
+      toast.success("Profile photo removed.");
+      setSelectedCandidate({
+        ...selectedCandidate,
+        profileImageUrl: null,
+        photo: null,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["all-candidates-list"] });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to remove photo");
+    } finally {
+      setUpdatingPhoto(false);
+    }
+  };
 
   const isDefaultQuery = !appliedSearch && !country && !stage && !status && page === 1;
 
@@ -270,6 +393,132 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
     },
     staleTime: 60_000,
   });
+
+  const schedulesQuery = useQuery({
+    queryKey: ["candidate-profile-interview-schedules"],
+    queryFn: async () => {
+      const res = await fetch("/api/interviews?pageSize=100");
+      if (!res.ok) throw new Error("Could not load interview schedules");
+      const json = await res.json();
+      return (json.data || []) as ScheduleOption[];
+    },
+    staleTime: 60_000,
+  });
+
+  const candidateOptionsQuery = useQuery({
+    queryKey: ["candidate-profile-drive-options", selectedCandidate?.preferredCountry || ""],
+    enabled: Boolean(selectedCandidate),
+    queryFn: async () => {
+      const countryName = selectedCandidate?.preferredCountry || "";
+      const res = await fetch(`/api/candidate-options?country=${encodeURIComponent(countryName)}`);
+      if (!res.ok) throw new Error("Could not load candidate options");
+      const json = await res.json();
+      return {
+        categories: (json.data?.categories || []) as CandidateCategoryOption[],
+        companies: (json.data?.companies || []) as CandidateCompanyOption[],
+        fileStatuses: (json.data?.fileStatuses || []) as CandidateFileStatusOption[],
+      };
+    },
+    staleTime: 60_000,
+  });
+
+  const profileSchedules = schedulesQuery.data ?? [];
+  const profileCategories = candidateOptionsQuery.data?.categories ?? [];
+  const profileCompanies = candidateOptionsQuery.data?.companies ?? [];
+  const profileFileStatuses = candidateOptionsQuery.data?.fileStatuses ?? [];
+  const profileCategory = profileCategories.find(
+    (category) => category.name === interviewDraft.workCategory,
+  );
+  const profileProfessions = [
+    ...new Set([
+      ...(profileCategory?.professions.map((profession) => profession.name) ??
+        profileCategories.flatMap((category) =>
+          category.professions.map((profession) => profession.name),
+        )),
+      ...profileSchedules
+        .map((schedule) => schedule.profession)
+        .filter((value): value is string => Boolean(value)),
+      ...(interviewDraft.workSubCategory ? [interviewDraft.workSubCategory] : []),
+    ]),
+  ];
+  const profileCompanyNames = [
+    ...new Set([
+      ...profileCompanies.map((company) => company.name),
+      ...profileSchedules
+        .map((schedule) => schedule.company)
+        .filter((value): value is string => Boolean(value)),
+      ...(interviewDraft.company ? [interviewDraft.company] : []),
+    ]),
+  ];
+
+  const handleProfileScheduleChange = (scheduleId: string) => {
+    const schedule = profileSchedules.find((item) => item.id === scheduleId);
+    if (!schedule) {
+      setInterviewDraft((current) => ({
+        ...current,
+        interviewScheduleId: "",
+        interviewSchedule: "",
+      }));
+      return;
+    }
+    const configuredCategory = profileCategories.find((category) =>
+      category.professions.some((profession) => profession.name === schedule.profession),
+    );
+    setInterviewDraft((current) => ({
+      ...current,
+      interviewScheduleId: schedule.id,
+      interviewSchedule: schedule.title,
+      interviewDate: toDateTimeLocal(schedule.scheduledAt),
+      company: schedule.company || current.company,
+      workCategory: configuredCategory?.name || current.workCategory,
+      workSubCategory: schedule.profession || current.workSubCategory,
+      interviewStatus: current.interviewStatus || "Waiting For Interview",
+    }));
+  };
+
+  const saveInterviewOptions = async () => {
+    if (!selectedCandidate) return;
+    setSavingInterviewOptions(true);
+    try {
+      const res = await fetch(`/api/candidates/${selectedCandidate.id}/interview-options`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(interviewDraft),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error?.message || "Could not update interview options");
+
+      const savedOptions = json.data?.interviewOptions as InterviewOptions;
+      setSelectedCandidate((current) =>
+        current
+          ? {
+              ...current,
+              interviewOptions: savedOptions,
+              latestInterview: json.data?.latestInterview ?? current.latestInterview,
+              profession:
+                savedOptions.workSubCategory || savedOptions.workCategory || current.profession,
+              activeFile: current.activeFile
+                ? {
+                    ...current.activeFile,
+                    company: savedOptions.company || current.activeFile.company,
+                  }
+                : null,
+            }
+          : current,
+      );
+      setInterviewDraft({
+        ...savedOptions,
+        interviewDate: toDateTimeLocal(savedOptions.interviewDate),
+      });
+      setEditingInterviewOptions(false);
+      await queryClient.invalidateQueries({ queryKey: ["all-candidates-list"] });
+      toast.success("Interview & drive options updated from candidate profile.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update interview options");
+    } finally {
+      setSavingInterviewOptions(false);
+    }
+  };
 
   const data = query.data?.data ?? [];
   const summary = query.data?.summary ?? {
@@ -675,7 +924,7 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
                     <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
                       <button
                         type="button"
-                        onClick={() => setSelectedCandidate(row)}
+                        onClick={() => openCandidateProfile(row)}
                         style={{
                           display: "inline-flex",
                           alignItems: "center",
@@ -695,7 +944,8 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
 
                       {row.activeFile && (
                         <Link
-                          href={`/file/${row.activeFile.id}`}
+                          href={`/file/${row.activeFile.id}?view=pipeline`}
+                          title="Open Interactive Stage Processing Pipeline"
                           style={{
                             display: "inline-flex",
                             alignItems: "center",
@@ -705,12 +955,12 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
                             background: "#7258e8",
                             color: "#fff",
                             fontSize: "11px",
-                            fontWeight: 700,
+                            fontWeight: 800,
                             textDecoration: "none",
-                            boxShadow: "0 2px 4px rgba(114,88,232,0.2)",
+                            boxShadow: "0 2px 4px rgba(114,88,232,0.25)",
                           }}
                         >
-                          <Sparkles size={11} /> 360°
+                          <Layers size={11} /> ⚡ Pipeline
                         </Link>
                       )}
                     </div>
@@ -730,9 +980,19 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
                           display: "grid",
                           placeItems: "center",
                           flexShrink: 0,
+                          overflow: "hidden",
+                          border: "1px solid rgba(0,0,0,0.06)",
                         }}
                       >
-                        {row.fullName.slice(0, 2).toUpperCase()}
+                        {row.profileImageUrl ? (
+                          <img
+                            src={row.profileImageUrl}
+                            alt={row.fullName}
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          />
+                        ) : (
+                          row.fullName.slice(0, 2).toUpperCase()
+                        )}
                       </div>
                       <div>
                         <b style={{ color: "var(--ink)", fontSize: "13px", display: "block" }}>{row.fullName}</b>
@@ -990,24 +1250,53 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--line)", background: "#fafafd", display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexShrink: 0 }}>
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
-                  <span style={{ fontSize: "11px", fontWeight: 800, background: "#f0edff", color: "#7258e8", padding: "3px 8px", borderRadius: "6px" }}>
-                    {selectedCandidate.candidateNo}
-                  </span>
-                  {selectedCandidate.activeFile && (
-                    <span style={{ fontSize: "11px", fontWeight: 800, background: "#ecfdf5", color: "#059669", padding: "3px 8px", borderRadius: "6px" }}>
-                      {selectedCandidate.activeFile.fileNo}
-                    </span>
+            <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--line)", background: "#fafafd", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                <div
+                  style={{
+                    width: "48px",
+                    height: "48px",
+                    borderRadius: "50%",
+                    background: "#e0e7ff",
+                    color: "#4338ca",
+                    fontSize: "16px",
+                    fontWeight: 800,
+                    display: "grid",
+                    placeItems: "center",
+                    flexShrink: 0,
+                    overflow: "hidden",
+                    border: "2px solid #fff",
+                    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
+                  }}
+                >
+                  {selectedCandidate.profileImageUrl ? (
+                    <img
+                      src={selectedCandidate.profileImageUrl}
+                      alt={selectedCandidate.fullName}
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
+                  ) : (
+                    selectedCandidate.fullName.slice(0, 2).toUpperCase()
                   )}
                 </div>
-                <h2 style={{ fontSize: "18px", fontWeight: 800, color: "var(--ink)", margin: 0 }}>
-                  {selectedCandidate.fullName}
-                </h2>
-                <p style={{ fontSize: "12px", color: "var(--muted)", margin: "4px 0 0" }}>
-                  Registered on {formatDate(selectedCandidate.createdAt)} · Source: <b>{selectedCandidate.source}</b>
-                </p>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                    <span style={{ fontSize: "11px", fontWeight: 800, background: "#f0edff", color: "#7258e8", padding: "3px 8px", borderRadius: "6px" }}>
+                      {selectedCandidate.candidateNo}
+                    </span>
+                    {selectedCandidate.activeFile && (
+                      <span style={{ fontSize: "11px", fontWeight: 800, background: "#ecfdf5", color: "#059669", padding: "3px 8px", borderRadius: "6px" }}>
+                        {selectedCandidate.activeFile.fileNo}
+                      </span>
+                    )}
+                  </div>
+                  <h2 style={{ fontSize: "18px", fontWeight: 800, color: "var(--ink)", margin: 0 }}>
+                    {selectedCandidate.fullName}
+                  </h2>
+                  <p style={{ fontSize: "12px", color: "var(--muted)", margin: "4px 0 0" }}>
+                    Registered on {formatDate(selectedCandidate.createdAt)} · Source: <b>{selectedCandidate.source}</b>
+                  </p>
+                </div>
               </div>
 
               <button
@@ -1026,6 +1315,23 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
 
             {/* Modal Body */}
             <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "20px", overflowY: "auto", flex: 1 }}>
+              {/* Profile Photo Editor */}
+              <div style={{ background: "#f8fafc", padding: "16px", borderRadius: "12px", border: "1px solid var(--line)" }}>
+                <CandidateProfileImageField
+                  candidateName={selectedCandidate.fullName}
+                  imageUrl={selectedCandidate.profileImageUrl}
+                  selectedFile={detailsPhotoFile}
+                  onFileChange={(file) => {
+                    setDetailsPhotoFile(file);
+                    if (file) handleDetailsPhotoUpload(file);
+                  }}
+                  onRemoveExisting={() => handleDetailsPhotoRemove()}
+                  disabled={updatingPhoto}
+                  compact
+                  label="Candidate Profile Photo (View / Change / Delete)"
+                />
+              </div>
+
               {/* Quick Call & Actions */}
               <div style={{ display: "flex", gap: "10px" }}>
                 <a
@@ -1049,25 +1355,48 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
                 </a>
 
                 {selectedCandidate.activeFile ? (
-                  <Link
-                    href={`/file/${selectedCandidate.activeFile.id}`}
-                    style={{
-                      flex: 1,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "6px",
-                      padding: "10px",
-                      borderRadius: "10px",
-                      background: "#7258e8",
-                      color: "#fff",
-                      fontWeight: 800,
-                      fontSize: "12.5px",
-                      textDecoration: "none",
-                    }}
-                  >
-                    <Sparkles size={15} /> Open 360° Dossier
-                  </Link>
+                  <div style={{ display: "flex", gap: "10px", flex: 1 }}>
+                    <Link
+                      href={`/file/${selectedCandidate.activeFile.id}?view=pipeline`}
+                      style={{
+                        flex: 1.3,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "6px",
+                        padding: "10px 14px",
+                        borderRadius: "10px",
+                        background: "#7258e8",
+                        color: "#fff",
+                        fontWeight: 800,
+                        fontSize: "12.5px",
+                        textDecoration: "none",
+                        boxShadow: "0 2px 8px rgba(114, 88, 232, 0.3)",
+                      }}
+                    >
+                      <Layers size={15} /> ⚡ Open Stage Processing Pipeline
+                    </Link>
+                    <Link
+                      href={`/file/${selectedCandidate.activeFile.id}?view=dossier`}
+                      style={{
+                        flex: 0.7,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "6px",
+                        padding: "10px 14px",
+                        borderRadius: "10px",
+                        background: "#f0edff",
+                        color: "#7258e8",
+                        border: "1px solid #dcd5fb",
+                        fontWeight: 700,
+                        fontSize: "12px",
+                        textDecoration: "none",
+                      }}
+                    >
+                      <Sparkles size={14} /> Master Dossier
+                    </Link>
+                  </div>
                 ) : (
                   <Link
                     href={moduleItemPath("call-center", "Create Candidate")}
@@ -1122,9 +1451,89 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
               {/* Processing File & Recruitment Stage Status */}
               {selectedCandidate.activeFile ? (
                 <div style={{ background: "#f5f3ff", padding: "16px", borderRadius: "12px", border: "1px solid #ddd6fe" }}>
-                  <h3 style={{ fontSize: "12px", fontWeight: 800, color: "#5b21b6", textTransform: "uppercase", letterSpacing: "0.5px", margin: "0 0 12px", display: "flex", alignItems: "center", gap: "6px" }}>
-                    <Layers size={14} /> Recruitment Stage &amp; File Condition
-                  </h3>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "8px" }}>
+                    <h3 style={{ fontSize: "12px", fontWeight: 800, color: "#5b21b6", textTransform: "uppercase", letterSpacing: "0.5px", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
+                      <Layers size={14} /> Stage Processing Pipeline (Interactive Workflow)
+                    </h3>
+                    <Link
+                      href={`/file/${selectedCandidate.activeFile.id}?view=pipeline`}
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: 800,
+                        color: "#7258e8",
+                        textDecoration: "none",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        background: "#fff",
+                        padding: "3px 8px",
+                        borderRadius: "6px",
+                        border: "1px solid #dcd5fb",
+                      }}
+                    >
+                      ⚡ Open Full Pipeline ➔
+                    </Link>
+                  </div>
+
+                  {/* Visual Stage Pipeline Progression Bar */}
+                  <div style={{ background: "#fff", padding: "12px", borderRadius: "10px", border: "1px solid #e9d5ff", marginBottom: "14px" }}>
+                    <div style={{ fontSize: "11px", fontWeight: 700, color: "#6b21a8", marginBottom: "8px", display: "flex", justifyContent: "space-between" }}>
+                      <span>Progress Stages ({selectedCandidate.preferredCountry})</span>
+                      <span style={{ color: "#059669", fontWeight: 800 }}>
+                        Current: {selectedCandidate.activeFile.currentStage}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "4px" }}>
+                      {getCountryStages(selectedCandidate.preferredCountry)
+                        .filter((st) => !["Hold File", "No File", "Visa Hold"].includes(st))
+                        .map((st, idx, arr) => {
+                          const currentStageNorm = (selectedCandidate.activeFile?.currentStage || "").toLowerCase();
+                          const thisStageNorm = st.toLowerCase();
+                          const currentIdx = arr.findIndex((x) => x.toLowerCase() === currentStageNorm);
+                          const isDone = currentIdx !== -1 ? idx < currentIdx || selectedCandidate.activeFile?.status === "COMPLETED" : false;
+                          const isCurrent = thisStageNorm === currentStageNorm && selectedCandidate.activeFile?.status !== "COMPLETED";
+
+                          return (
+                            <Link
+                              key={st}
+                              href={`/file/${selectedCandidate.activeFile?.id}?stage=${encodeURIComponent(st)}`}
+                              title={`Click to open ${st} stage workflow`}
+                              style={{
+                                flexShrink: 0,
+                                display: "inline-flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                gap: "4px",
+                                padding: "6px 10px",
+                                borderRadius: "8px",
+                                background: isCurrent ? "#1e1b4b" : isDone ? "#ecfdf5" : "#f8fafc",
+                                border: isCurrent ? "1.5px solid #1e1b4b" : isDone ? "1px solid #a7f3d0" : "1px solid #e2e8f0",
+                                color: isCurrent ? "#fff" : isDone ? "#065f46" : "#64748b",
+                                textDecoration: "none",
+                                fontSize: "11px",
+                                fontWeight: 700,
+                                minWidth: "80px",
+                                textAlign: "center",
+                                transition: "all 0.15s ease",
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                <span style={{ fontSize: "10px", opacity: isCurrent ? 0.8 : 0.6 }}>#{idx + 1}</span>
+                                {isDone ? (
+                                  <CheckCircle2 size={12} color="#059669" />
+                                ) : isCurrent ? (
+                                  <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#a5b4fc", display: "inline-block" }} />
+                                ) : (
+                                  <Clock size={10} color="#94a3b8" />
+                                )}
+                              </div>
+                              <span style={{ whiteSpace: "nowrap" }}>{st}</span>
+                            </Link>
+                          );
+                        })}
+                    </div>
+                  </div>
+
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "12.5px" }}>
                     <div><span style={{ color: "#6b21a8", display: "block", fontSize: "11px" }}>File Number:</span><b>{selectedCandidate.activeFile.fileNo}</b></div>
                     <div>
@@ -1169,20 +1578,156 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
                 </div>
               )}
 
-              {/* Interview Record */}
-              {selectedCandidate.latestInterview && (
-                <div style={{ background: "#fdf4ff", padding: "16px", borderRadius: "12px", border: "1px solid #f5d0fe" }}>
-                  <h3 style={{ fontSize: "12px", fontWeight: 800, color: "#86198f", textTransform: "uppercase", letterSpacing: "0.5px", margin: "0 0 12px", display: "flex", alignItems: "center", gap: "6px" }}>
-                    <Calendar size={14} /> Interview Drive History
-                  </h3>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "12.5px" }}>
-                    <div><span style={{ color: "#701a75", display: "block", fontSize: "11px" }}>Schedule Title:</span><b>{selectedCandidate.latestInterview.title}</b></div>
-                    <div><span style={{ color: "#701a75", display: "block", fontSize: "11px" }}>Interview Status:</span><b>{selectedCandidate.latestInterview.status}</b></div>
-                    <div><span style={{ color: "#701a75", display: "block", fontSize: "11px" }}>Scheduled Date:</span><b>{formatDate(selectedCandidate.latestInterview.scheduledAt)}</b></div>
-                    <div><span style={{ color: "#701a75", display: "block", fontSize: "11px" }}>Interview Company:</span><b>{selectedCandidate.latestInterview.company}</b></div>
+              {/* Interview & Drive Options — optional at registration, editable here later */}
+              <div style={{ background: "#fdf4ff", padding: "16px", borderRadius: "12px", border: "1px solid #f5d0fe" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", marginBottom: "12px" }}>
+                  <div>
+                    <h3 style={{ fontSize: "12px", fontWeight: 800, color: "#86198f", textTransform: "uppercase", letterSpacing: "0.5px", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
+                      <Calendar size={14} /> Interview &amp; Drive Options
+                    </h3>
+                    <p style={{ margin: "4px 0 0", color: "#a21caf", fontSize: "11px" }}>
+                      Optional — add or update these details whenever they become available.
+                    </p>
                   </div>
+                  {!editingInterviewOptions && (
+                    <button
+                      type="button"
+                      onClick={() => setEditingInterviewOptions(true)}
+                      style={{ padding: "6px 11px", borderRadius: "7px", border: "1px solid #e9d5ff", background: "#fff", color: "#86198f", fontSize: "11px", fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}
+                    >
+                      Edit options
+                    </button>
+                  )}
                 </div>
-              )}
+
+                {editingInterviewOptions ? (
+                  <div className="work-form-grid" style={{ gap: "12px" }}>
+                    <label>
+                      <span>Interview Schedule</span>
+                      <select
+                        value={interviewDraft.interviewScheduleId}
+                        onChange={(event) => handleProfileScheduleChange(event.target.value)}
+                      >
+                        <option value="">No schedule selected</option>
+                        {profileSchedules.map((schedule) => (
+                          <option key={schedule.id} value={schedule.id}>
+                            {schedule.title} · {new Date(schedule.scheduledAt).toLocaleString()}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <span>Interview Date</span>
+                      <input
+                        type="datetime-local"
+                        value={interviewDraft.interviewDate}
+                        onChange={(event) => setInterviewDraft((current) => ({ ...current, interviewDate: event.target.value }))}
+                      />
+                    </label>
+                    <label>
+                      <span>Interested Work Category</span>
+                      <select
+                        value={interviewDraft.workCategory}
+                        onChange={(event) => setInterviewDraft((current) => ({ ...current, workCategory: event.target.value, workSubCategory: "" }))}
+                      >
+                        <option value="">No category selected</option>
+                        {profileCategories.map((category) => (
+                          <option key={category.id} value={category.name}>{category.name}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <span>Interested Work Sub Category</span>
+                      <select
+                        value={interviewDraft.workSubCategory}
+                        onChange={(event) => setInterviewDraft((current) => ({ ...current, workSubCategory: event.target.value }))}
+                      >
+                        <option value="">No sub category selected</option>
+                        {profileProfessions.map((profession) => (
+                          <option key={profession} value={profession}>{profession}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <span>Interested Company</span>
+                      <select
+                        value={interviewDraft.company}
+                        onChange={(event) => setInterviewDraft((current) => ({ ...current, company: event.target.value }))}
+                      >
+                        <option value="">No company selected</option>
+                        {profileCompanyNames.map((company) => (
+                          <option key={company} value={company}>{company}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <span>Interview Status</span>
+                      <select
+                        value={interviewDraft.interviewStatus}
+                        onChange={(event) => setInterviewDraft((current) => ({ ...current, interviewStatus: event.target.value }))}
+                      >
+                        <option value="">No status selected</option>
+                        <option value="Waiting For Interview">Waiting For Interview</option>
+                        <option value="Scheduled">Scheduled</option>
+                        <option value="Selected">Selected</option>
+                        <option value="Rejected">Rejected</option>
+                        <option value="Absent">Absent</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>File Status</span>
+                      <select
+                        value={interviewDraft.fileStatus}
+                        onChange={(event) => setInterviewDraft((current) => ({ ...current, fileStatus: event.target.value }))}
+                      >
+                        <option value="">No file status selected</option>
+                        {profileFileStatuses.map((fileStatus) => (
+                          <option key={fileStatus.id} value={fileStatus.name}>{fileStatus.name}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "2px" }}>
+                      <button
+                        type="button"
+                        disabled={savingInterviewOptions}
+                        onClick={() => {
+                          setInterviewDraft({
+                            ...emptyInterviewOptions,
+                            ...selectedCandidate.interviewOptions,
+                            interviewDate: toDateTimeLocal(selectedCandidate.interviewOptions?.interviewDate || ""),
+                          });
+                          setEditingInterviewOptions(false);
+                        }}
+                        style={{ padding: "7px 13px", borderRadius: "8px", border: "1px solid #e2e8f0", background: "#fff", color: "#64748b", fontSize: "11.5px", fontWeight: 700, cursor: "pointer" }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        disabled={savingInterviewOptions}
+                        onClick={saveInterviewOptions}
+                        style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "7px 14px", borderRadius: "8px", border: "none", background: "#86198f", color: "#fff", fontSize: "11.5px", fontWeight: 800, cursor: savingInterviewOptions ? "not-allowed" : "pointer", opacity: savingInterviewOptions ? 0.65 : 1 }}
+                      >
+                        <Save size={13} /> {savingInterviewOptions ? "Saving..." : "Save options"}
+                      </button>
+                    </div>
+                  </div>
+                ) : selectedCandidate.latestInterview || Object.values(selectedCandidate.interviewOptions).some(Boolean) ? (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "12.5px" }}>
+                    <div><span style={{ color: "#701a75", display: "block", fontSize: "11px" }}>Schedule:</span><b>{selectedCandidate.interviewOptions.interviewSchedule || selectedCandidate.latestInterview?.title || "—"}</b></div>
+                    <div><span style={{ color: "#701a75", display: "block", fontSize: "11px" }}>Interview Status:</span><b>{selectedCandidate.interviewOptions.interviewStatus || selectedCandidate.latestInterview?.status || "—"}</b></div>
+                    <div><span style={{ color: "#701a75", display: "block", fontSize: "11px" }}>Interview Date:</span><b>{formatDate(selectedCandidate.interviewOptions.interviewDate || selectedCandidate.latestInterview?.scheduledAt)}</b></div>
+                    <div><span style={{ color: "#701a75", display: "block", fontSize: "11px" }}>Interested Company:</span><b>{selectedCandidate.interviewOptions.company || selectedCandidate.latestInterview?.company || "—"}</b></div>
+                    <div><span style={{ color: "#701a75", display: "block", fontSize: "11px" }}>Work Category:</span><b>{selectedCandidate.interviewOptions.workCategory || "—"}</b></div>
+                    <div><span style={{ color: "#701a75", display: "block", fontSize: "11px" }}>Work Sub Category:</span><b>{selectedCandidate.interviewOptions.workSubCategory || "—"}</b></div>
+                    <div><span style={{ color: "#701a75", display: "block", fontSize: "11px" }}>File Status:</span><b>{selectedCandidate.interviewOptions.fileStatus || "—"}</b></div>
+                  </div>
+                ) : (
+                  <div style={{ padding: "12px", borderRadius: "9px", border: "1px dashed #e9d5ff", background: "rgba(255,255,255,0.65)", color: "#a21caf", fontSize: "12px", fontWeight: 600, textAlign: "center" }}>
+                    No interview or drive details added yet.
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

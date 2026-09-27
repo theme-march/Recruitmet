@@ -163,6 +163,7 @@ type AgentProfileData = {
   agreementKey: string | null;
   hasPortalAccess?: boolean;
   portalLoginEmail?: string | null;
+  profileImageUrl?: string | null;
   totalCandidateCount: number;
   completedCandidateCount: number;
   incompleteCandidateCount: number;
@@ -530,7 +531,12 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
               border: "1px solid rgba(255,255,255,0.25)",
             }}
           >
-            {agentData.name.slice(0, 2).toUpperCase()}
+            {agentData.profileImageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={agentData.profileImageUrl} alt={`${agentData.name} profile`} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "14px" }} />
+            ) : (
+              agentData.name.slice(0, 2).toUpperCase()
+            )}
           </div>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", marginBottom: "4px" }}>

@@ -23,8 +23,9 @@ export function AdminShell({ children, profile, variant }: Props) {
         { label: "Officer Staff", href: "/super-admin/control?tab=users", tab: "users", icon: Users },
         { label: "Lead Control & Oversight", href: "/super-admin/work-calls", icon: Headphones },
         { label: "Master Demands & Vacancies", href: "/super-admin/master-data", icon: Building2 },
+        { label: "Candidate Form Options", href: "/super-admin/candidate-options", icon: Database },
         { label: "Interview Drives", href: "/super-admin/interviews", icon: ShieldCheck },
-        { label: "System Permissions", href: "/super-admin/control?tab=permissions", tab: "permissions", icon: ShieldCheck },
+        { label: "System Permissions", href: "/permissions", icon: ShieldCheck },
         { label: "Audit & Activity Logs", href: "/super-admin/control?tab=audit", tab: "audit", icon: Activity },
       ]
     : [
@@ -107,4 +108,3 @@ export function AdminShell({ children, profile, variant }: Props) {
     </div>
   );
 }
-
