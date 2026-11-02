@@ -1,0 +1,99 @@
+<h2>Orbit Overseas – Recruitment Management System</h2>
+
+<p><strong>Manage candidate recruitment and overseas employment processing from one connected workspace.</strong> Orbit Overseas is a full-stack recruitment and office operations application for manpower agencies, overseas employment consultants, and recruitment teams. It brings candidate intake, lead follow-up, interview coordination, destination-country processing, document tracking, payment collection, agent management, and employer demands into one role-based system.</p>
+
+<p>Orbit Overseas is provided as an installable application with its source code, server-side functionality, database schema, and starter data. Built with <strong>Next.js 16, React 19, TypeScript, MySQL, and Prisma ORM</strong>, it gives developers a working foundation they can configure and extend for their own recruitment operations.</p>
+
+<h3>Live Demo</h3>
+<p>
+  <strong>Application:</strong> <a href="https://demo.hi24.co.uk" rel="nofollow">Open the Orbit Overseas demo</a><br>
+  <strong>Sign-in:</strong> <a href="https://demo.hi24.co.uk/login" rel="nofollow">Open the sign-in page</a><br>
+  <strong>Agent Portal:</strong> <a href="https://demo.hi24.co.uk/portal/agent" rel="nofollow">Open the Agent Portal</a>
+</p>
+
+<h3>Demo Accounts</h3>
+<p>Sign in at the demo login page with one of the seeded accounts below. The available workspace depends on the account role.</p>
+<ul>
+  <li><strong>Super Administrator</strong><br>Username: <code>admin</code><br>Password: <code>Admin@123</code></li>
+  <li><strong>Office Operations</strong><br>Username: <code>callcenter</code><br>Password: <code>Admin@123</code></li>
+  <li><strong>Office Operations Staff</strong><br>Username: <code>sadia</code><br>Password: <code>Orbit@2026Demo</code></li>
+</ul>
+<p><strong>Agent Portal login:</strong> The Agent Portal route is included. Create or assign an agent account from the administration workspace to access it; the included seed script does not create a default agent account.</p>
+
+<h3>Recruitment &amp; Operations Modules</h3>
+<ul>
+  <li><strong>Dashboard:</strong> See recruitment activity and operational summaries in a central workspace.</li>
+  <li><strong>Candidate Management:</strong> Create candidate records and maintain contact details, passport information, profession, destination preferences, and related processing files.</li>
+  <li><strong>Lead Follow-Up:</strong> Record calls and follow-up activity to help office teams keep track of prospective candidates.</li>
+  <li><strong>Country Processing:</strong> Organize candidate files by destination and move them through country-specific stages. Saudi Arabia, Dubai/UAE, and other-country workflows are supported, with country and stage configuration available in the application.</li>
+  <li><strong>Registration &amp; Interviews:</strong> Manage interview schedules, candidate rosters, attendance, and assessment information.</li>
+  <li><strong>Documents:</strong> Attach files to candidate processing records and track document verification and status.</li>
+  <li><strong>Payments:</strong> Record candidate payment transactions and installments, follow payment status, and prepare printable money receipts.</li>
+  <li><strong>Works &amp; Demands:</strong> Maintain employer and recruitment demand information for operational tracking.</li>
+  <li><strong>Agent Management:</strong> Maintain agent profiles and associate agents with candidate referrals and processing workflows.</li>
+  <li><strong>Reports &amp; Data:</strong> Review supported operational reports and use available CSV import and export tools.</li>
+  <li><strong>Tutorials:</strong> Organize internal tutorial and training resources.</li>
+</ul>
+
+<h3>Role-Based Workspaces</h3>
+<p>Orbit Overseas includes separate access experiences for administration, office operations, and agent partners. Role and module permissions control which parts of the application a user can access. Administrators can manage user access and configure operational permissions for their organization.</p>
+
+<h3>Security &amp; File Storage</h3>
+<ul>
+  <li>Password hashing and signed user sessions.</li>
+  <li>Role- and permission-aware access to application features.</li>
+  <li>Private file storage using the local storage driver, with an S3-compatible storage option.</li>
+  <li>Activity and audit records for operational oversight.</li>
+  <li>Optional Cloudflare Turnstile configuration for the login flow.</li>
+</ul>
+
+<h3>Technology Stack</h3>
+<ul>
+  <li><strong>Framework:</strong> Next.js 16 App Router</li>
+  <li><strong>Frontend:</strong> React 19 and TypeScript</li>
+  <li><strong>Database:</strong> MySQL 8+ or MariaDB 10.5+</li>
+  <li><strong>ORM:</strong> Prisma</li>
+  <li><strong>Validation:</strong> Zod</li>
+  <li><strong>Authentication:</strong> Signed sessions and bcrypt password hashing</li>
+  <li><strong>Storage:</strong> Private local storage or S3-compatible storage</li>
+  <li><strong>Utilities:</strong> CSV workflows and PDF generation</li>
+</ul>
+
+<h3>Files Included</h3>
+<ul>
+  <li>Complete Orbit Overseas application source code.</li>
+  <li>Next.js server-side functionality and API routes.</li>
+  <li>Prisma schema for the MySQL database.</li>
+  <li>Seed script for initial roles, demo users, and starter data.</li>
+  <li>Docker Compose configuration for running a local MySQL service.</li>
+  <li>README with setup instructions, environment variables, and demo account details.</li>
+</ul>
+
+<h3>System Requirements</h3>
+<ul>
+  <li>Node.js 20.x or 22.x</li>
+  <li>MySQL 8.0+ or MariaDB 10.5+</li>
+  <li>npm, pnpm, or yarn</li>
+  <li>Docker is optional for local database setup</li>
+</ul>
+
+<h3>Installation Overview</h3>
+<ol>
+  <li>Install the project dependencies.</li>
+  <li>Configure the database connection and authentication secret in the environment file.</li>
+  <li>Generate the Prisma client and initialize the database schema.</li>
+  <li>Run the seed script to create starter records and demo accounts.</li>
+  <li>Start the application and sign in with one of the seeded accounts.</li>
+</ol>
+<p>The included <code>README.md</code> contains the complete installation commands and environment configuration details.</p>
+
+<h3>Important Information</h3>
+<ul>
+  <li>This is a self-hosted full-stack application and requires a configured MySQL or MariaDB database.</li>
+  <li>The live demo is provided for product evaluation. The delivered package includes source code; it is not a hosted SaaS subscription.</li>
+  <li>Third-party integrations, hosting, and external services must be configured with your own accounts and credentials where applicable.</li>
+  <li>Before production deployment, set a unique authentication secret, configure private file storage, create your own users, and replace or disable demo credentials.</li>
+</ul>
+
+<h3>Support</h3>
+<p>For help with installation and the features included in the package, contact the author through the item support channel. Custom development and third-party integrations are outside the included package and can be arranged separately.</p>

@@ -1,16 +1,27 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { APP_ROLES, moduleIdsForRole, roleHome, toAppRole } from "../src/lib/roles.ts";
+import { APP_ROLES, moduleIdsForRole, roleHome, roleLabel, toAppRole } from "../src/lib/roles.ts";
 import { hasPermission, permissionCatalog, canonicalModule } from "../src/lib/permission-policy.ts";
 
 test("only exact reserved roles receive built-in privileges", () => {
   assert.equal(toAppRole(APP_ROLES.SUPER_ADMIN), "SUPER_ADMIN");
   assert.equal(toAppRole("Call Center"), "CALL_CENTER");
   assert.equal(toAppRole("Call Center Officer"), "CALL_CENTER");
+  assert.equal(toAppRole("Office Operations"), "CALL_CENTER");
+  assert.equal(toAppRole("Office Operations Manager"), "CUSTOM");
   assert.equal(toAppRole("Branch Admin"), "CUSTOM");
   assert.equal(toAppRole("Super Sales"), "CUSTOM");
   assert.equal(toAppRole("Agent Manager"), "CUSTOM");
   assert.equal(toAppRole(undefined), "CUSTOM");
+});
+test("the office display rename preserves legacy account access and custom role names", () => {
+  for (const name of ["CALL_CENTER", "Call Center", "Call Center Officer", "Office Operations"]) {
+    assert.equal(roleLabel(name), "Office Operations");
+    assert.equal(roleHome(name), "/dashboard");
+    assert.deepEqual(moduleIdsForRole(name), []);
+  }
+  assert.equal(roleLabel("Branch Operations"), "Branch Operations");
+  assert.equal(roleLabel("Office Operations Manager"), "Office Operations Manager");
 });
 test("staff navigation is deny-by-default; portal remains separate", () => {
   assert.equal(roleHome("SUPER_ADMIN"), "/dashboard");

@@ -1,0 +1,157 @@
+/* Shared dialog presentation. Receipt/document print layouts keep their own styles. */
+@media screen {
+  .master-modal-overlay {
+    --ink: #1d1d1f;
+    --muted: #8e8e93;
+    --line: #e5e5ea;
+    --border: #e5e5ea;
+    --purple: #007aff;
+    --purple-soft: #eaf2ff;
+    --surface: #fff;
+    --text: #1d1d1f;
+    background: rgba(29, 29, 31, .4) !important;
+    backdrop-filter: blur(3px) !important;
+    padding: 20px !important;
+    font-family: var(--font-inter), Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+  }
+  .master-modal-overlay.operations-modal { background: transparent !important; }
+  .master-modal-overlay > .operations-modal-backdrop { background: rgba(29, 29, 31, .4) !important; backdrop-filter: blur(3px) !important; }
+  .master-modal-overlay .master-modal-card {
+    box-sizing: border-box;
+    min-width: 0;
+    max-height: calc(100dvh - 40px) !important;
+    border: 1px solid #e5e5ea !important;
+    border-radius: 18px !important;
+    background: white !important;
+    color: #1d1d1f;
+    box-shadow: 0 20px 60px rgba(29, 29, 31, .18) !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    font-family: inherit;
+  }
+  .master-modal-overlay .master-modal-inline-card[style*="padding:"] { padding: 24px !important; }
+  .master-modal-overlay .master-modal-header {
+    align-items: flex-start !important;
+    flex-wrap: wrap;
+    gap: 12px !important;
+    border-bottom-color: #e5e5ea !important;
+    background: white !important;
+    box-shadow: none !important;
+  }
+  .master-modal-header > div:first-child { min-width: 0; flex: 1; }
+  .master-modal-header > div:first-child > div { min-width: 0; }
+  .master-modal-overlay .master-modal-header :is(h1, h2, h3) {
+    margin: 0 !important;
+    color: #1d1d1f !important;
+    font-family: inherit !important;
+    font-size: 20px !important;
+    line-height: 26px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0 !important;
+    overflow-wrap: anywhere;
+  }
+  .master-modal-overlay .master-modal-header p { color: #6b6b73 !important; font-size: 12px !important; line-height: 18px !important; font-weight: 400 !important; margin-top: 6px !important; }
+  .master-modal-overlay .master-modal-card :is(label, .modal-form-group > label) { color: #6b6b73 !important; font-family: inherit !important; font-size: 12px !important; font-weight: 500 !important; line-height: 18px !important; }
+  .master-modal-overlay .master-modal-card :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]), select, textarea) {
+    box-sizing: border-box;
+    min-width: 0;
+    max-width: 100%;
+    min-height: 40px !important;
+    border: 1px solid #e5e5ea !important;
+    border-radius: 10px !important;
+    background: white !important;
+    color: #1d1d1f !important;
+    padding: 10px 12px !important;
+    font-family: inherit !important;
+    font-size: 12px !important;
+    font-weight: 400 !important;
+    line-height: 18px !important;
+    box-shadow: none !important;
+    outline: none;
+  }
+  .master-modal-overlay .master-modal-card textarea { min-height: 88px !important; resize: vertical; }
+  .master-modal-overlay .master-modal-card :is(input, select, textarea):disabled,
+  .master-modal-overlay .master-modal-card input[readonly] { background: #f5f5f7 !important; color: #8e8e93 !important; }
+  .master-modal-overlay .master-modal-card :is(input, textarea)::placeholder { color: #8e8e93 !important; opacity: 1; }
+  .master-modal-overlay .master-modal-card :is(input[type="checkbox"], input[type="radio"]) { accent-color: #007aff !important; }
+  .master-modal-overlay .master-modal-card button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px !important;
+    min-height: 34px;
+    padding: 7px 14px !important;
+    border: 0 !important;
+    border-radius: 17px !important;
+    background: #ebebed !important;
+    color: #1d1d1f !important;
+    font-family: inherit !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    line-height: 18px !important;
+    box-shadow: none !important;
+    text-decoration: none;
+  }
+  .master-modal-overlay .master-modal-card :is(button, a, input, select, textarea):focus-visible { outline: 2px solid #007aff !important; outline-offset: 2px; }
+  .master-modal-overlay .master-modal-card button:disabled { opacity: .55 !important; cursor: not-allowed; }
+  .master-modal-overlay .master-modal-card .master-modal-primary { background: #007aff !important; color: white !important; }
+  .master-modal-overlay .master-modal-card button[aria-pressed="true"] { background: #007aff !important; color: white !important; }
+  .master-modal-overlay .master-modal-card .master-modal-secondary { background: #eaf2ff !important; color: #007aff !important; }
+  .master-modal-overlay .master-modal-card .master-modal-danger { background: #fff2f0 !important; color: #ff3b30 !important; }
+  .master-modal-overlay .master-modal-card .master-modal-warning { background: #fff4e6 !important; color: #ff9500 !important; }
+  .master-modal-overlay .master-modal-card .master-modal-close { width: 32px !important; min-width: 32px !important; height: 32px !important; min-height: 32px !important; padding: 0 !important; border-radius: 50% !important; background: #f2f2f7 !important; color: #8e8e93 !important; flex-shrink: 0; }
+  .master-modal-overlay .master-modal-panel { background: #fafafb !important; border-color: #e5e5ea !important; border-radius: 12px !important; box-shadow: none !important; min-width: 0; }
+  .master-modal-overlay .master-modal-card.master-modal-panel { background: white !important; border-radius: 18px !important; box-shadow: 0 20px 60px rgba(29, 29, 31, .18) !important; }
+  .master-modal-overlay .master-modal-accent { color: #007aff !important; }
+  .master-modal-overlay .master-modal-accent[style*="background"] { background: #eaf2ff !important; border-color: #e5e5ea !important; }
+  .master-modal-overlay .master-modal-card button svg { color: inherit !important; stroke: currentColor; }
+  .master-modal-overlay .master-modal-icon { background: #eaf2ff !important; color: #007aff !important; border-color: #e5e5ea !important; box-shadow: none !important; }
+  .master-modal-overlay .profile-image-field { background: #fafafb !important; border-color: #e5e5ea !important; border-radius: 12px !important; }
+  .master-modal-overlay .profile-image-avatar { background: #eaf2ff !important; color: #007aff !important; border-radius: 14px !important; box-shadow: none !important; font-weight: 600 !important; }
+  .master-modal-overlay .profile-image-field button:has(.lucide-trash-2) { background: #fff2f0 !important; color: #ff3b30 !important; }
+  .master-modal-overlay .master-modal-footer { background: #f2f2f7 !important; border-color: #e5e5ea !important; gap: 8px !important; box-shadow: none !important; }
+  .master-modal-overlay :is(.modal-head, .lead-modal-header, .modal-header-box, .operations-modal > form > header) { padding: 20px !important; }
+  .master-modal-overlay :is(.modal-grid, .lead-modal-body, .modal-body-box, .operations-form) { padding: 20px !important; }
+  .master-modal-overlay :is(.modal-actions, .lead-modal-footer, .modal-footer-box, .operations-modal > form > footer) { padding: 14px 20px !important; }
+  .master-modal-overlay .modal-grid label { min-width: 0; }
+  .master-modal-overlay .modal-grid .checkbox-field { background: #fafafb !important; border-color: #e5e5ea !important; }
+  .master-modal-overlay .payment-modal-card { padding: 24px !important; gap: 18px !important; }
+  .master-modal-overlay .payment-modal-guidance { background: #eaf2ff !important; border: 0 !important; color: #007aff !important; border-radius: 10px !important; padding: 12px 14px !important; font-size: 12px !important; line-height: 18px !important; }
+  .master-modal-overlay .payment-modal-target { background: #fafafb !important; border-color: #e5e5ea !important; }
+  .master-modal-overlay .payment-modal-target > div { gap: 10px; flex-wrap: wrap; }
+  .master-modal-overlay .payment-modal-ledger { border-color: #e5e5ea !important; background: white !important; padding: 16px !important; border-radius: 18px !important; min-width: 0; }
+  .master-modal-overlay .payment-modal-balance { display: grid !important; grid-template-columns: minmax(0, 1fr) 42px; border: 1px solid #e5e5ea !important; background: white !important; padding: 16px !important; gap: 12px; }
+  .master-modal-overlay .payment-modal-balance > div:first-child { min-width: 0; }
+  .master-modal-overlay .payment-modal-balance > div:first-child > span { color: #8e8e93 !important; font-size: 10px !important; font-weight: 600 !important; }
+  .master-modal-overlay .payment-modal-balance > div:first-child > b { color: #1d1d1f !important; font-size: 26px !important; line-height: 32px !important; font-weight: 700 !important; }
+  .master-modal-overlay .payment-modal-balance > div:first-child > div > span { border: 0 !important; }
+  .master-modal-overlay .payment-receipt-row { display: grid !important; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center !important; padding: 12px !important; border: 1px solid #e5e5ea !important; background: #fafafb !important; border-radius: 10px !important; }
+  .master-modal-overlay .payment-receipt-row > div { min-width: 0; }
+  .master-modal-overlay .payment-receipt-row > div > div { flex-wrap: wrap; gap: 6px !important; }
+  .master-modal-overlay .payment-receipt-row > div > div > b { overflow-wrap: anywhere; color: #1d1d1f !important; font-size: 12px !important; font-weight: 600 !important; }
+  .master-modal-overlay .payment-receipt-row > b { color: #1d1d1f !important; font-size: 12px !important; font-weight: 600 !important; white-space: nowrap; }
+  .master-modal-overlay .payment-receipt-row button { min-height: 26px !important; height: auto !important; padding: 4px 8px !important; border-radius: 8px !important; font-size: 10px !important; white-space: nowrap; }
+  .master-modal-overlay .doc-viewer-header .doc-type-icon { background: #eaf2ff !important; color: #007aff !important; }
+}
+@media screen and (max-width: 768px) {
+  .master-modal-overlay.master-modal-overlay { padding: 8px !important; overflow: hidden !important; }
+  .master-modal-overlay.master-modal-overlay .master-modal-card { width: calc(100vw - 16px) !important; max-width: calc(100vw - 16px) !important; max-height: calc(100dvh - 16px) !important; border-radius: 18px !important; }
+  .master-modal-overlay .master-modal-inline-card[style*="padding:"],
+  .master-modal-overlay.master-modal-overlay .payment-modal-card { padding: 16px !important; }
+  .master-modal-overlay .master-modal-header :is(h1, h2, h3) { font-size: 17px !important; line-height: 23px !important; }
+  .master-modal-overlay .master-modal-header > div:first-child { flex-basis: calc(100% - 48px); }
+  .master-modal-overlay .master-modal-card :is(.modal-grid, .country-modal-grid, .modal-2col-grid, [style*="grid-template-columns"]) { grid-template-columns: minmax(0, 1fr) !important; min-width: 0; }
+  .master-modal-overlay .master-modal-card :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]), select, textarea) { min-height: 44px !important; width: 100%; }
+  .master-modal-overlay .master-modal-card input[type="file"] { max-width: 100%; }
+  .master-modal-overlay :is(.modal-head, .lead-modal-header, .modal-header-box, .modal-grid, .lead-modal-body, .modal-body-box, .operations-form, .master-modal-footer) { padding: 16px !important; }
+  .master-modal-overlay .master-modal-footer { flex-wrap: wrap; }
+  .master-modal-overlay .master-modal-card button { min-height: 36px; height: auto !important; }
+  .master-modal-overlay .payment-receipt-row { grid-template-columns: minmax(0, 1fr) !important; gap: 8px !important; }
+  .master-modal-overlay .payment-receipt-row > b { white-space: normal; }
+  .master-modal-overlay .payment-modal-header-actions { width: 100%; }
+  .master-modal-overlay .payment-modal-header-actions > button:first-child { flex: 1; }
+  .master-modal-overlay .payment-modal-header-actions > .master-modal-close { flex: 0 0 32px; }
+  .master-modal-overlay .payment-receipt-list { max-height: none !important; overflow: visible !important; }
+}

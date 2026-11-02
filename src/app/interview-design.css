@@ -1,0 +1,57 @@
+/* Registration & Interviews shares the Saudi candidates workspace design. */
+.interview-design-page { --purple: #007aff; padding-bottom: 40px; }
+.interview-design-page .interview-design-metrics { grid-template-columns: repeat(4,minmax(0,1fr)); }
+.interview-icon-purple { color: #007aff; }
+.interview-icon-green { color: #34c759; }
+.interview-icon-blue { color: #007aff; }
+.interview-icon-orange { color: #ff9500; }
+.interview-design-page .interview-design-actions .interview-design-create { background: #007aff; color: white; font-weight: 600; }
+.interview-design-actions a { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: 17px; background: #ebebed; color: #1d1d1f; font-size: 13px; font-weight: 500; text-decoration: none; white-space: nowrap; }
+.interview-design-actions { flex-wrap: wrap; }
+.interview-design-country-tabs { justify-content: flex-start; gap: 8px; flex-wrap: wrap; }
+.interview-design-country-tabs button { display: inline-flex; align-items: center; gap: 6px; }
+.interview-design-tab-count { padding: 1px 5px; border-radius: 6px; background: #f2f2f7; color: #8e8e93; font-size: 10px; font-weight: 600; }
+.interview-design-country-tabs .selected .interview-design-tab-count { background: rgba(255,255,255,.2); color: white; }
+.interview-design-filters { margin: 0; }
+.interview-design-search { width: 310px; color: #8e8e93; }
+.interview-design-select-arrow { position: absolute; right: 10px; top: 50%; transform: translateY(-60%); font-size: 16px; color: #8e8e93; pointer-events: none; }
+.interview-design-filter-button { height: 32px; padding: 0 14px; border: 0; border-radius: 10px; background: #ebebed; color: #1d1d1f; font-size: 12px; font-weight: 500; cursor: pointer; }
+.interview-design-table table { min-width: 1450px; }
+.interview-design-table td { padding-top: 12px; padding-bottom: 12px; }
+.interview-design-table .country-design-cell { overflow-wrap: anywhere; }
+.interview-design-table .country-design-cell > b { color: #6b6b73; }
+.interview-design-table .country-design-cell.client > b { color: #1d1d1f; }
+.interview-design-row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.interview-design-row-actions button { display: inline-flex; align-items: center; gap: 4px; border: 0; cursor: pointer; }
+.interview-design-edit { background: #ebebed; color: #1d1d1f; }
+.interview-design-country { color: #6b6b73; font-size: 12px; line-height: 16px; }
+.interview-design-period { display: inline-flex; padding: 4px 8px; border-radius: 8px; font-size: 10px; line-height: 12px; font-weight: 600; }
+.interview-design-period.upcoming { background: #eaf2ff; color: #007aff; }
+.interview-design-period.past { background: #f2f2f7; color: #8e8e93; }
+.interview-design-mobile-stream { display: none; }
+.interview-design-page .lead-modal { font-family: inherit; }
+@media (max-width:768px) {
+  .interview-design-page .interview-design-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .main main .interview-design-page .interview-design-actions :is(a,button) { min-height: 34px !important; height: 34px !important; padding: 0 12px !important; border: 0 !important; border-radius: 17px !important; background: #ebebed !important; color: #1d1d1f !important; box-shadow: none !important; font-size: 12px !important; flex: 0 1 auto; }
+  .main main .interview-design-page .interview-design-actions .interview-design-create { background: #007aff !important; color: white !important; }
+  .main main .interview-design-page .interview-design-country-tabs { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; }
+  .main main .interview-design-page .interview-design-country-tabs button { flex-shrink: 0; width: auto !important; min-height: 32px !important; height: 32px !important; padding: 0 12px !important; border: 0 !important; border-radius: 16px !important; background: #ebebed !important; color: #1d1d1f !important; font-size: 12px !important; box-shadow: none !important; }
+  .main main .interview-design-page .interview-design-country-tabs button.selected { background: #007aff !important; color: white !important; }
+  .interview-design-search { width: 100%; }
+  .main main .interview-design-page .interview-design-filter-button { min-height: 32px !important; height: 32px !important; width: auto !important; padding: 0 12px !important; border: 0 !important; border-radius: 10px !important; background: #ebebed !important; color: #1d1d1f !important; box-shadow: none !important; font-size: 12px !important; }
+  .interview-design-mobile-stream { display: flex; flex-direction: column; gap: 12px; padding: 0 12px 12px; }
+  .interview-design-mobile-card { display: flex; flex-direction: column; gap: 12px; padding: 14px; border: 1px solid #e5e5ea; border-radius: 14px; background: white; }
+  .interview-design-mobile-top { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+  .main main .interview-design-page .interview-design-delete { display: grid; place-items: center; margin-left: auto; width: 26px !important; height: 26px !important; min-height: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 6px !important; color: #ff3b30 !important; background: #fff2f0 !important; box-shadow: none !important; }
+  .interview-design-mobile-title h3 { margin: 0; font-size: 14px; line-height: 19px; font-weight: 600; color: #1d1d1f; overflow-wrap: anywhere; }
+  .interview-design-mobile-title p { margin: 4px 0 0; color: #8e8e93; font-size: 11px; line-height: 16px; }
+  .interview-design-mobile-data { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; padding: 12px; border: 1px solid #e5e5ea; border-radius: 10px; background: #fafafb; }
+  .interview-design-mobile-data > div { display: flex; flex-direction: column; gap: 3px; }
+  .interview-design-mobile-data small { color: #8e8e93; font-size: 10px; line-height: 13px; text-transform: uppercase; font-weight: 600; }
+  .interview-design-mobile-data b { font-size: 12px; line-height: 16px; font-weight: 500; overflow-wrap: anywhere; }
+  .interview-design-mobile-actions { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding-top: 10px; border-top: 1px solid #e5e5ea; }
+  .main main .interview-design-page .interview-design-mobile-actions :is(button,a) { display: inline-flex; align-items: center; justify-content: center; gap: 4px; width: auto !important; min-height: 30px !important; height: 30px !important; padding: 0 10px !important; border: 0 !important; border-radius: 8px !important; background: #eaf2ff !important; color: #007aff !important; font-size: 11px !important; box-shadow: none !important; }
+  .main main .interview-design-page .interview-design-mobile-actions .interview-design-edit { background: #ebebed !important; color: #1d1d1f !important; }
+  .interview-design-readonly { color: #8e8e93; font-size: 11px; }
+  .interview-design-mobile-empty { padding: 24px 12px; text-align: center; color: #8e8e93; font-size: 12px; }
+}

@@ -2,20 +2,14 @@
 
 import { useQuery } from "@tanstack/react-query";
 import {
-  Building2,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
+  ChevronDown,
   Clock,
   Download,
   Eye,
   FileCheck2,
   FileText,
-  Filter,
-  Globe2,
-  Info,
   Search,
-  UsersRound,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -201,316 +195,21 @@ export function DubaiDocumentsPage() {
   };
 
   return (
-    <div className="dubai-doc-page" style={{ maxWidth: "1600px", margin: "0 auto" }}>
-      {/* Top Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px", flexWrap: "wrap", gap: "12px" }}>
-        <div>
-          <div className="breadcrumb" style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-            Dashboard / Document / Documents Collect
-          </div>
-          <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--ink)", margin: "4px 0" }}>Documents Collect</h1>
-          <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0 }}>
-            Live verification status tracked automatically from each candidate&apos;s 360° workspace and dossier profile.
-          </p>
-        </div>
-
-        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-          <button
-            onClick={download}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "9px 16px",
-              borderRadius: "10px",
-              background: "#f0edff",
-              border: "1px solid #dcd5fb",
-              color: "#7258e8",
-              fontSize: "12px",
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-          >
-            <Download size={15} /> Download CSV
-          </button>
-        </div>
-      </div>
-
-      {/* Country Selector Tabs */}
-      <section
-        style={{
-          display: "flex",
-          gap: "8px",
-          overflowX: "auto",
-          paddingBottom: "8px",
-          marginBottom: "16px",
-        }}
-      >
-        {[
-          { id: "", label: "All Countries", flag: "🌍" },
-          ...(result.data?.filters?.countries || ["Saudi Arabia", "Dubai", "Other"]).map((cName) => ({
-            id: cName,
-            label: cName,
-            flag: getCountryFlag(cName),
-          })),
-        ].map((c) => {
-          const isSelected = country === c.id;
-          return (
-            <button
-              key={c.id || "all"}
-              type="button"
-              onClick={() => {
-                setCountry(c.id);
-                setPage(1);
-              }}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "8px 16px",
-                borderRadius: "10px",
-                border: "2px solid",
-                borderColor: isSelected ? "#7258e8" : "var(--line)",
-                background: isSelected ? "#7258e8" : "#fff",
-                color: isSelected ? "#fff" : "var(--ink)",
-                fontSize: "12px",
-                fontWeight: 700,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-                transition: "all 0.15s ease",
-                boxShadow: isSelected ? "0 2px 8px rgba(114,88,232,0.25)" : "none",
-              }}
-            >
-              <span style={{ fontSize: "13px" }}>{c.flag}</span> {c.label}
-            </button>
-          );
-        })}
+    <div className="dubai-doc-page country-design-page management-design-page documents-design-page">
+      <div className="country-design-breadcrumb">Dashboard / Document / Documents Collect</div>
+      <header className="country-design-heading"><div><h1>Documents Collect</h1><p>Live verification status tracked automatically from each candidate&apos;s 360° workspace and dossier profile.</p></div><div className="country-design-actions"><button data-action-ui="neutral" data-action-size="normal" onClick={download}><Download size={13} /> Download CSV</button></div></header>
+      <section className="country-design-metrics document-summary-strip">
+        <button type="button" className="country-design-metric document-summary-card" aria-pressed={!selectedCat} onClick={() => { setSelectedCat(""); setStatus(""); setPage(1); }} title="Click to show all documents"><div><span>Total Files Tracked</span><FileText size={16} color="#007aff" /></div><b>{meta.totalFiles}</b><p>Tracked candidate files</p></button>
+        {categories.map(cat => { const stats = summary[cat] ?? { PENDING: 0, DONE: 0, "NO NEED": 0 }; const isSelected = selectedCat === cat; return <button type="button" className="country-design-metric document-summary-card" key={cat} aria-pressed={isSelected} title="Click to filter by this category" onClick={() => { setSelectedCat(isSelected ? "" : cat); setPage(1); }}><div><span>{cat}</span><FileCheck2 size={16} color={isSelected ? "#007aff" : "#6855e8"} /></div><b>{stats.DONE}</b><p>Done · {stats.PENDING} pending · {stats["NO NEED"]} no need</p></button>; })}
       </section>
-
-      {/* Dynamic Summary Cards (Click to filter) */}
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
-          gap: "12px",
-          marginBottom: "18px",
-        }}
-      >
-        {/* Total Files Card */}
-        <div
-          onClick={() => {
-            setSelectedCat("");
-            setStatus("");
-            setPage(1);
-          }}
-          style={{
-            background: "linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%)",
-            border: "2px solid",
-            borderColor: selectedCat === "" ? "#10b981" : "#a7f3d0",
-            borderRadius: "14px",
-            padding: "16px 18px",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            boxShadow: "var(--shadow)",
-            cursor: "pointer",
-          }}
-          title="Click to show all documents"
-        >
-          <span style={{ fontSize: "11px", fontWeight: 800, color: "#065f46", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-            Total Files Tracked
-          </span>
-          <b style={{ fontSize: "26px", fontWeight: 900, color: "#047857", marginTop: "4px" }}>
-            {meta.totalFiles}
-          </b>
-        </div>
-
-        {/* Category Breakdown Cards */}
-        {categories.map((cat) => {
-          const stats = summary[cat] ?? { PENDING: 0, DONE: 0, "NO NEED": 0 };
-          const isSelected = selectedCat === cat;
-          return (
-            <div
-              key={cat}
-              onClick={() => {
-                setSelectedCat(isSelected ? "" : cat);
-                setPage(1);
-              }}
-              style={{
-                background: isSelected ? "#fcfaff" : "#fff",
-                border: "2px solid",
-                borderColor: isSelected ? "#7258e8" : "var(--line)",
-                borderRadius: "14px",
-                padding: "14px 16px",
-                boxShadow: isSelected ? "0 4px 12px rgba(114,88,232,0.2)" : "var(--shadow)",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                cursor: "pointer",
-                transition: "all 0.15s ease",
-              }}
-              title="Click to filter by this category"
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                <b style={{ fontSize: "12px", fontWeight: 800, color: isSelected ? "#7258e8" : "var(--ink)" }}>
-                  {cat}
-                </b>
-                {isSelected && <span style={{ fontSize: "10px", color: "#7258e8", fontWeight: 800 }}>ACTIVE</span>}
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "6px" }}>
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "4px",
-                    fontSize: "11px",
-                    fontWeight: 700,
-                    color: "#d97706",
-                    background: "#fffbeb",
-                    padding: "3px 6px",
-                    borderRadius: "6px",
-                  }}
-                >
-                  <Clock size={11} /> {stats.PENDING}
-                </span>
-
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "4px",
-                    fontSize: "11px",
-                    fontWeight: 700,
-                    color: "#059669",
-                    background: "#ecfdf5",
-                    padding: "3px 6px",
-                    borderRadius: "6px",
-                  }}
-                >
-                  <CheckCircle2 size={11} /> {stats.DONE}
-                </span>
-
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "4px",
-                    fontSize: "11px",
-                    fontWeight: 700,
-                    color: "#7c3aed",
-                    background: "#f5f3ff",
-                    padding: "3px 6px",
-                    borderRadius: "6px",
-                  }}
-                >
-                  {stats["NO NEED"]}
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </section>
-
-      {/* Filters Section */}
-      <section style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "16px", padding: "18px 22px", marginBottom: "18px", boxShadow: "var(--shadow)" }}>
-        <form onSubmit={handleSearch} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px", alignItems: "flex-end" }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px", fontWeight: 700, color: "var(--ink)" }}>
-            Search Candidate
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search candidate name, phone, passport, file..."
-              style={{
-                height: "40px",
-                padding: "0 12px",
-                borderRadius: "10px",
-                border: "1px solid var(--line)",
-                background: "#fafafd",
-                fontSize: "13px",
-                color: "var(--ink)",
-                outline: "none",
-              }}
-            />
-          </label>
-
-          <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px", fontWeight: 700, color: "var(--ink)" }}>
-            Document Status Filter
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              style={{
-                height: "40px",
-                padding: "0 12px",
-                borderRadius: "10px",
-                border: "1px solid var(--line)",
-                background: "#fafafd",
-                fontSize: "13px",
-                color: "var(--ink)",
-                outline: "none",
-              }}
-            >
-              <option value="">All Document Statuses</option>
-              <option value="PENDING">Has PENDING Documents</option>
-              <option value="DONE">Has DONE Documents</option>
-              <option value="NO NEED">Has NO NEED Documents</option>
-            </select>
-          </label>
-
-          <div style={{ display: "flex", gap: "8px" }}>
-            <button
-              type="submit"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "0 20px",
-                height: "40px",
-                borderRadius: "10px",
-                background: "#7258e8",
-                color: "#fff",
-                border: "none",
-                fontSize: "12px",
-                fontWeight: 700,
-                cursor: "pointer",
-                boxShadow: "0 2px 6px rgba(114,88,232,0.25)",
-              }}
-            >
-              <Search size={15} /> Apply
-            </button>
-            <button
-              type="button"
-              onClick={clearFilters}
-              style={{
-                padding: "0 16px",
-                height: "40px",
-                borderRadius: "10px",
-                background: "#f1f5f9",
-                border: "1px solid var(--line)",
-                color: "var(--muted)",
-                fontSize: "12px",
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              Clear
-            </button>
-          </div>
+      <section className="dubai-documents-main-section country-design-workspace">
+        <nav className="country-design-tabs management-tabs document-country-tabs" aria-label="Document countries">
+          {[{id: "", label: "All Countries", flag: "🌍"}, ...(result.data?.filters?.countries || ["Saudi Arabia", "Dubai", "Other"]).map(name => ({id: name, label: name, flag: getCountryFlag(name)}))].map(c => <button key={c.id || "all"} type="button" aria-pressed={country === c.id} onClick={() => { setCountry(c.id); setPage(1); }}>{c.flag} {c.label}</button>)}
+        </nav>
+        <form className="country-design-filters" onSubmit={handleSearch}>
+          <div className="country-design-filter-fields"><label className="country-design-search"><Search size={13} /><input aria-label="Search candidate documents" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search candidate name, phone, passport, file..." /></label><label className="country-design-select"><select aria-label="Document status filter" value={status} onChange={e => setStatus(e.target.value)}><option value="">All Document Statuses</option><option value="PENDING">Has PENDING Documents</option><option value="DONE">Has DONE Documents</option><option value="NO NEED">Has NO NEED Documents</option></select><ChevronDown size={10} /></label><button data-action-ui="primary" data-action-size="normal" className="management-filter-button" type="submit">Apply</button><button data-action-ui="neutral" data-action-size="normal" className="management-filter-button" type="button" onClick={clearFilters}>Clear</button></div>
+          <label className="country-design-page-size">Per Page: <span className="country-design-select"><select aria-label="Documents per page" value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}>{[10,20,50].map(n => <option key={n} value={n}>{n}</option>)}</select><ChevronDown size={10} /></span></label>
         </form>
-      </section>
-
-      {/* Main Table Section */}
-      <section
-        style={{
-          background: "#fff",
-          border: "1px solid var(--line)",
-          borderRadius: "16px",
-          padding: "18px 22px",
-          boxShadow: "var(--shadow)",
-          position: "relative",
-          minHeight: "380px",
-        }}
-      >
         {result.isFetching && (
           <div
             style={{
@@ -519,7 +218,7 @@ export function DubaiDocumentsPage() {
               left: 0,
               right: 0,
               height: "3px",
-              background: "linear-gradient(90deg, #7258e8, #a855f7, #7258e8)",
+              background: "linear-gradient(90deg, #007aff, #69afff, #007aff)",
               backgroundSize: "200% 100%",
               animation: "loading-bar 1s infinite linear",
               borderTopLeftRadius: "16px",
@@ -529,40 +228,11 @@ export function DubaiDocumentsPage() {
           />
         )}
 
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", flexWrap: "wrap", gap: "10px" }}>
-          <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 600 }}>
-            Showing <b>{meta.total ? (page - 1) * pageSize + 1 : 0}</b> to <b>{Math.min(page * pageSize, meta.total)}</b> of <b>{meta.total}</b> candidates
-            {selectedCat && <span style={{ color: "#7258e8", fontWeight: 700, marginLeft: "6px" }}>· Filtered by {selectedCat}</span>}
-          </span>
-
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 600 }}>Rows per page:</span>
-            <select
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(Number(e.target.value));
-                setPage(1);
-              }}
-              style={{
-                height: "32px",
-                padding: "0 8px",
-                borderRadius: "8px",
-                border: "1px solid var(--line)",
-                fontSize: "12px",
-                fontWeight: 700,
-                background: "#fafafd",
-              }}
-            >
-              <option value="10">10</option>
-              <option value="20">20</option>
-              <option value="50">50</option>
-            </select>
-          </div>
-        </div>
+        <div className="country-design-count" aria-live="polite">Showing {meta.total ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, meta.total)} of {meta.total} Total Candidate Documents {selectedCat && <span>· Filtered by {selectedCat}</span>}</div>
 
         {result.isError && <div className="form-error">Document records could not be loaded.</div>}
 
-        <div style={{ overflowX: "auto" }}>
+        <div className="desktop-documents-table management-table" style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
             <thead>
               <tr style={{ background: "#f8fafc", borderBottom: "1px solid var(--line)", color: "var(--muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
@@ -586,8 +256,6 @@ export function DubaiDocumentsPage() {
                     borderBottom: "1px solid var(--line)",
                     transition: "background 0.15s ease",
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "#fcfaff")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 >
                   <td style={{ padding: "12px 14px", color: "var(--muted)", fontWeight: 600 }}>
                     {(page - 1) * pageSize + index + 1}
@@ -735,7 +403,7 @@ export function DubaiDocumentsPage() {
 
                     return (
                       <td key={c} style={{ padding: "10px 6px", textAlign: "center" }}>
-                        <button
+                        <button data-action-ui="secondary" data-action-size="compact"
                           type="button"
                           onClick={() => {
                             setActiveDoc({
@@ -832,40 +500,219 @@ export function DubaiDocumentsPage() {
           </table>
         </div>
 
-        {/* Pagination */}
-        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "8px", marginTop: "16px" }}>
-          <button
-            disabled={page <= 1}
-            onClick={() => setPage(page - 1)}
-            style={{
-              padding: "6px 12px",
-              borderRadius: "8px",
-              border: "1px solid var(--line)",
-              background: page <= 1 ? "#fafafd" : "#fff",
-              color: page <= 1 ? "var(--muted)" : "var(--ink)",
-              cursor: page <= 1 ? "not-allowed" : "pointer",
-            }}
-          >
-            <ChevronLeft size={16} />
-          </button>
-          <span style={{ fontSize: "12px", fontWeight: 700, padding: "0 8px" }}>
-            Page {page} of {meta.totalPages}
-          </span>
-          <button
-            disabled={page >= meta.totalPages}
-            onClick={() => setPage(page + 1)}
-            style={{
-              padding: "6px 12px",
-              borderRadius: "8px",
-              border: "1px solid var(--line)",
-              background: page >= meta.totalPages ? "#fafafd" : "#fff",
-              color: page >= meta.totalPages ? "var(--muted)" : "var(--ink)",
-              cursor: page >= meta.totalPages ? "not-allowed" : "pointer",
-            }}
-          >
-            <ChevronRight size={16} />
-          </button>
+        {/* Mobile Documents Stream (Stitch Screen 84c1a2ba97ac4fdea66e3303dfa1376e) */}
+        <div className="mobile-documents-stream">
+          {rows.map((row) => {
+            const readyCount = categories.filter((c) => (row.statuses[c] ?? "PENDING") === "DONE").length;
+            return (
+              <article key={row.id} className="document-mobile-card">
+                {/* Identity Header */}
+                <div className="document-mobile-card-head">
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", minWidth: 0, flex: 1 }}>
+                    <div
+                      style={{
+                        width: "38px",
+                        height: "38px",
+                        borderRadius: "12px",
+                        background: "linear-gradient(135deg, #eff4ff 0%, #dbeafe 100%)",
+                        color: "#2563eb",
+                        display: "grid",
+                        placeItems: "center",
+                        fontWeight: 800,
+                        fontSize: "13px",
+                        flexShrink: 0,
+                        border: "1px solid #bfdbfe",
+                      }}
+                    >
+                      {row.name.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <Link
+                        prefetch={true}
+                        href={`/file/${row.id}`}
+                        style={{ fontWeight: 800, color: "var(--ink)", fontSize: "14px", textDecoration: "none", display: "block", lineHeight: "1.3", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                      >
+                        {row.name}
+                      </Link>
+                      <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "3px", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "3px" }}>📞 {row.phone}</span>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "3px" }}>{getCountryFlag(row.country)} <b>{row.country}</b></span>
+                      </div>
+                      <div style={{ fontSize: "11px", marginTop: "4px", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                        {row.profession && (
+                          <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 6px", borderRadius: "5px", background: "#f1f5f9", color: "#475569", border: "1px solid #e2e8f0" }}>
+                            {row.profession}
+                          </span>
+                        )}
+                        <span style={{ fontFamily: "monospace", color: "#3525cd", background: "#eef2ff", padding: "1px 6px", borderRadius: "5px", border: "1px solid #e0e7ff", fontWeight: 700, fontSize: "11px" }}>
+                          {row.fileNo}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Stage Tag */}
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      padding: "3px 8px",
+                      borderRadius: "9999px",
+                      fontSize: "10.5px",
+                      fontWeight: 800,
+                      background: "#ecfdf5",
+                      color: "#047857",
+                      border: "1px solid #a7f3d0",
+                      flexShrink: 0,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    <CheckCircle2 size={11} /> {row.currentStage || "Active"}
+                  </span>
+                </div>
+
+                {/* Milestones Strip */}
+                <div className="document-mobile-milestones">
+                  {row.medicalResult && (
+                    <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 7px", borderRadius: "5px", background: /fit/i.test(row.medicalResult) ? "#f0fdf4" : "#fef2f2", color: /fit/i.test(row.medicalResult) ? "#166534" : "#991b1b", border: `1px solid ${/fit/i.test(row.medicalResult) ? "#bbf7d0" : "#fecaca"}` }}>
+                      Med: {row.medicalResult}
+                    </span>
+                  )}
+                  {row.visaStatus && (
+                    <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 7px", borderRadius: "5px", background: "#eff6ff", color: "#1e40af", border: "1px solid #bfdbfe" }}>
+                      {/visa/i.test(row.visaStatus) ? row.visaStatus : `Visa: ${row.visaStatus}`}
+                    </span>
+                  )}
+                  {row.manpowerStatus && (
+                    <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 7px", borderRadius: "5px", background: "#fffbeb", color: "#92400e", border: "1px solid #fde68a" }}>
+                      BMET: {row.manpowerStatus}
+                    </span>
+                  )}
+                  <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 7px", borderRadius: "5px", background: row.fileStatus === "COMPLETED" ? "#f5f3ff" : "#f0fdf4", color: row.fileStatus === "COMPLETED" ? "#6d28d9" : "#166534", border: `1px solid ${row.fileStatus === "COMPLETED" ? "#ddd6fe" : "#bbf7d0"}` }}>
+                    {row.fileStatus || "ACTIVE"}
+                  </span>
+                </div>
+
+                {/* Checklist Matrix */}
+                <div className="document-mobile-checklist">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2px" }}>
+                    <span style={{ fontSize: "10.5px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                      Document Checklist Matrix
+                    </span>
+                    <span style={{ fontSize: "10.5px", fontWeight: 800, color: readyCount === categories.length ? "#059669" : "#4338ca", background: readyCount === categories.length ? "#ecfdf5" : "#eef2ff", padding: "2px 7px", borderRadius: "9999px", border: `1px solid ${readyCount === categories.length ? "#a7f3d0" : "#e0e7ff"}` }}>
+                      {readyCount}/{categories.length} Ready
+                    </span>
+                  </div>
+
+                  <div className="document-mobile-checklist-grid">
+                    {categories.map((c) => {
+                      const st = row.statuses[c] ?? "PENDING";
+                      const isDone = st === "DONE";
+                      const isNoNeed = st === "NO NEED";
+                      const hasAttachment = Boolean(row.docAttachments?.[c]);
+
+                      return (
+                        <button data-action-ui="secondary" data-action-size="normal"
+                          key={c}
+                          type="button"
+                          onClick={() => {
+                            setActiveDoc({
+                              candidateName: row.name,
+                              passportNo: row.passport !== "Not entered" ? row.passport : undefined,
+                              candidateNo: row.candidateNo,
+                              country: row.country,
+                              profession: row.profession,
+                              company: row.company,
+                              title: `${c} — ${row.name}`,
+                              category: c,
+                              url: row.docAttachments?.[c],
+                              fileNumber: row.fileNo,
+                              verifiedStatus: isDone ? "Verified Valid" : isNoNeed ? "Not Required" : "Pending Verification",
+                              extraMeta: {
+                                fileId: row.id,
+                                candidateId: row.candidateId || "",
+                              },
+                            });
+                          }}
+                          className={`document-mobile-check-item ${isDone ? "is-done" : isNoNeed ? "is-none" : "is-pending"}`}
+                          title={`Click to view, print or upload ${c}`}
+                        >
+                          <div className="doc-check-top">
+                            <span className="doc-check-title">{c}</span>
+                            {hasAttachment && <span className="doc-check-attach-icon" title="Document attached">📎</span>}
+                          </div>
+                          <div className="doc-check-status-row">
+                            {isDone ? (
+                              <span className="doc-status-badge is-done">
+                                <CheckCircle2 size={11} />
+                                <span>{hasAttachment ? "Attached" : "Done"}</span>
+                              </span>
+                            ) : isNoNeed ? (
+                              <span className="doc-status-badge is-none">
+                                <span>Not Req</span>
+                              </span>
+                            ) : (
+                              <span className="doc-status-badge is-pending">
+                                <Clock size={11} />
+                                <span>Pending</span>
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+              {/* Actions */}
+              <div className="document-mobile-actions">
+                <button data-action-ui="secondary" data-action-size="normal"
+                  type="button"
+                  onClick={() => {
+                    const primaryCat = categories[0] || "Passport";
+                    setActiveDoc({
+                      candidateName: row.name,
+                      passportNo: row.passport !== "Not entered" ? row.passport : undefined,
+                      candidateNo: row.candidateNo,
+                      country: row.country,
+                      profession: row.profession,
+                      company: row.company,
+                      title: `${primaryCat} — ${row.name}`,
+                      category: primaryCat,
+                      url: row.docAttachments?.[primaryCat],
+                      fileNumber: row.fileNo,
+                      verifiedStatus: row.statuses[primaryCat] === "DONE" ? "Verified Valid" : "Pending Verification",
+                      extraMeta: {
+                        fileId: row.id,
+                        candidateId: row.candidateId || "",
+                      },
+                    });
+                  }}
+                  style={{ background: "#f0edff", color: "#3525cd", border: "1px solid #dcd5fb", cursor: "pointer" }}
+                >
+                  <FileText size={13} /> View Documents
+                </button>
+                <Link
+                  prefetch={true}
+                  href={`/file/${row.id}`}
+                  style={{ background: "#3525cd", color: "#ffffff", border: "none" }}
+                >
+                  <Eye size={13} /> Dossier 360
+                </Link>
+              </div>
+            </article>
+          );
+        })}
+
+          {!rows.length && !result.isFetching && (
+            <div style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "16px", padding: "30px 16px", textAlign: "center", color: "var(--muted)", fontSize: "13px" }}>
+              No candidate documents match the selected filter.
+            </div>
+          )}
         </div>
+
+        <footer className="country-design-pagination"><span>{meta.total} Total Candidate Documents</span><div><button data-action-ui="neutral" data-action-size="normal" disabled={page <= 1} onClick={() => setPage(page-1)}>← Previous</button><span>Page {page} of {meta.totalPages}</span><button data-action-ui="neutral" data-action-size="normal" disabled={page >= meta.totalPages} onClick={() => setPage(page+1)}>Next →</button></div></footer>
       </section>
 
       {/* Document Viewer & Quick Uploader Modal */}

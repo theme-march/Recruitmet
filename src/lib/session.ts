@@ -1,6 +1,6 @@
 import "server-only";
 import { cache } from "react";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 import { createHash } from "node:crypto";
 import { prisma } from "@/lib/prisma";
@@ -27,7 +27,18 @@ export const hashToken = (token: string) => createHash("sha256").update(token).d
  * Prevents duplicate cookie lookups and database queries across layouts, pages, and metadata.
  */
 export const getSession = cache(async () => {
-  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  let token = (await cookies()).get(SESSION_COOKIE)?.value;
+  if (!token) {
+    try {
+      const headerList = await headers();
+      const auth = headerList.get("authorization");
+      if (auth?.startsWith("Bearer ")) {
+        token = auth.slice(7).trim();
+      }
+    } catch {
+      // In static generation or non-request context
+    }
+  }
   const payload = await verifySessionToken(token);
   if (!payload || !token) return null;
   const session = await prisma.session.findUnique({

@@ -12,6 +12,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { privateStorage } from "@/server/storage";
+import { assertPortalEmailAvailable } from "@/lib/agent-portal-account";
 
 const updateAgentSchema = z.object({
   action: z.string().optional(),
@@ -1071,13 +1072,25 @@ async function PATCHHandler(request: Request, { params }: { params: Promise<{ id
     // 5. Add Direct Agent Profile Note
     if (input.action === "add-agent-note") {
       if (!input.title && !input.description) throw new AppError("VALIDATION_ERROR", "Note title or description is required", 400);
-      const existingNotes = (currentRule.agentNotes as Array<Record<string, unknown>>) || [];
+      const defaultNotes = [
+        {
+          id: "NOTE-DEFAULT-1",
+          title: "Agreed Deployment Terms & SLA",
+          content: `Agency agreement active with ${agent.name}. Account settlement on candidate visa stamping & flight departure.`,
+          tag: "Agreement",
+          author: "Management",
+          createdBy: "Management",
+          createdAt: agent.createdAt.toISOString(),
+        },
+      ];
+      const existingNotes = (currentRule.agentNotes as Array<Record<string, unknown>>) || defaultNotes;
       const newNote = {
         id: `NOTE-${Date.now()}`,
         title: input.title?.trim() || "Administrative Note",
         content: input.description?.trim() || "",
         tag: input.docType || "General",
         author: session.user.name,
+        createdBy: session.user.name,
         createdAt: new Date().toISOString(),
       };
 
@@ -1099,7 +1112,18 @@ async function PATCHHandler(request: Request, { params }: { params: Promise<{ id
 
     // 6. Delete Direct Agent Profile Note
     if (input.action === "delete-agent-note" && input.noteId) {
-      const existingNotes = (currentRule.agentNotes as Array<{ id: string }>) || [];
+      const defaultNotes = [
+        {
+          id: "NOTE-DEFAULT-1",
+          title: "Agreed Deployment Terms & SLA",
+          content: `Agency agreement active with ${agent.name}. Account settlement on candidate visa stamping & flight departure.`,
+          tag: "Agreement",
+          author: "Management",
+          createdBy: "Management",
+          createdAt: agent.createdAt.toISOString(),
+        },
+      ];
+      const existingNotes = (currentRule.agentNotes as Array<{ id: string }>) || defaultNotes;
       const filtered = existingNotes.filter((n) => n.id !== input.noteId);
 
       await prisma.agent.update({
@@ -1121,7 +1145,25 @@ async function PATCHHandler(request: Request, { params }: { params: Promise<{ id
     // 7. Upload Agent Document / File
     if (input.action === "upload-agent-document") {
       if (!input.docName) throw new AppError("VALIDATION_ERROR", "Document file name is required", 400);
-      const existingDocs = (currentRule.documents as Array<Record<string, unknown>>) || [];
+      const defaultDocs = [
+        {
+          id: "DOC-DEFAULT-1",
+          name: `${agent.name.replace(/[^a-zA-Z0-9]/g, "_")}_Agency_Agreement.pdf`,
+          type: "Agency Agreement Deed",
+          size: "1.4 MB",
+          uploadedBy: "Admin",
+          createdAt: agent.createdAt.toISOString(),
+        },
+        {
+          id: "DOC-DEFAULT-2",
+          name: "Trade_License_Scan.pdf",
+          type: "Trade License",
+          size: "820 KB",
+          uploadedBy: "Admin",
+          createdAt: agent.createdAt.toISOString(),
+        },
+      ];
+      const existingDocs = (currentRule.documents as Array<Record<string, unknown>>) || defaultDocs;
       const newDoc = {
         id: `DOC-${Date.now()}`,
         name: input.docName.trim(),
@@ -1150,7 +1192,25 @@ async function PATCHHandler(request: Request, { params }: { params: Promise<{ id
 
     // 8. Delete Agent Document
     if (input.action === "delete-agent-document" && input.docId) {
-      const existingDocs = (currentRule.documents as Array<{ id: string }>) || [];
+      const defaultDocs = [
+        {
+          id: "DOC-DEFAULT-1",
+          name: `${agent.name.replace(/[^a-zA-Z0-9]/g, "_")}_Agency_Agreement.pdf`,
+          type: "Agency Agreement Deed",
+          size: "1.4 MB",
+          uploadedBy: "Admin",
+          createdAt: agent.createdAt.toISOString(),
+        },
+        {
+          id: "DOC-DEFAULT-2",
+          name: "Trade_License_Scan.pdf",
+          type: "Trade License",
+          size: "820 KB",
+          uploadedBy: "Admin",
+          createdAt: agent.createdAt.toISOString(),
+        },
+      ];
+      const existingDocs = (currentRule.documents as Array<{ id: string }>) || defaultDocs;
       const filtered = existingDocs.filter((d) => d.id !== input.docId);
 
       await prisma.agent.update({
@@ -1170,6 +1230,10 @@ async function PATCHHandler(request: Request, { params }: { params: Promise<{ id
     }
 
     // 9. Regular Agent Details Update
+    if (input.enablePortalLogin !== undefined || input.portalPassword || input.portalEmail) {
+      await assertPortalEmailAvailable(input.portalEmail || input.email || agent.email || `${agent.code.toLowerCase()}@agent.orbit.com`, agent.id);
+      if (agent.email) await assertPortalEmailAvailable(agent.email, agent.id);
+    }
     const updateData: Record<string, unknown> = {};
     if (input.name) updateData.name = input.name.trim();
     if (input.contactPerson !== undefined) updateData.contactPerson = input.contactPerson ? input.contactPerson.trim() : null;

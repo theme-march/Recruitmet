@@ -147,6 +147,9 @@ export function InterviewListPage({ upcomingOnly = false, initialData }: { upcom
   const [input, setInput] = useState("");
   const [search, setSearch] = useState("");
   const [countryFilter, setCountryFilter] = useState("all");
+  const [interviewView, setInterviewView] = useState<"all" | "upcoming" | "past">("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   // Create Modal States
   const [createOpen, setCreateOpen] = useState(false);
@@ -427,258 +430,74 @@ export function InterviewListPage({ upcomingOnly = false, initialData }: { upcom
     }
   }
 
+  const visibleSchedules = upcomingOnly ? upcoming : interviewView === "upcoming" ? upcoming : interviewView === "past" ? past : [...upcoming, ...past];
+  const totalPages = Math.max(1, Math.ceil(visibleSchedules.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const offset = (currentPage - 1) * pageSize;
+  const pageRows = visibleSchedules.slice(offset, offset + pageSize);
+  const upcomingIds = new Set(upcoming.map(row => row.id));
+
   return (
-    <div className="interview-list-page" style={{ maxWidth: "1600px", margin: "0 auto" }}>
-      {/* Top Header */}
-      <div
-        className="interview-page-head"
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "18px",
-          flexWrap: "wrap",
-          gap: "12px",
-        }}
-      >
-        <div>
-          <div
-            className="breadcrumb"
-            style={{
-              fontSize: "11px",
-              fontWeight: 700,
-              color: "var(--muted)",
-              textTransform: "uppercase",
-              letterSpacing: "0.5px",
-            }}
-          >
-            Candidates / Registration &amp; Interviews
+    <div className="interview-list-page country-design-page interview-design-page" aria-busy={query.isFetching}>
+      <nav className="country-design-breadcrumb" aria-label="Breadcrumb"><Link href="/dashboard">Dashboard</Link> / Registration &amp; Interviews</nav>
+      <header className="country-design-heading">
+        <div><h1>Registration &amp; Interviews</h1><p>Create, schedule and manage overseas recruitment interview drives with clients.</p></div>
+        <div className="country-design-actions interview-design-actions">
+          {canManage && <button data-action-ui="primary" data-action-size="normal" type="button" className="interview-design-create" onClick={() => {
+            if (activeCountries.length > 0 && !activeCountries.some(c => c.name === selectedCountry)) setSelectedCountry(activeCountries[0].name);
+            setCreateOpen(true);
+          }}><Plus size={14} /> Create Interview Drive</button>}
+          <Link data-action-ui="primary" data-action-size="normal" prefetch={true} href={moduleItemPath("call-center", "Create Candidate")}><Plus size={14} /> Create Candidate</Link>
+        </div>
+      </header>
+      <section className="country-design-metrics interview-design-metrics" aria-label="Interview summary">
+        {[
+          {label:"Upcoming Drives",value:upcoming.length,description:upcoming.length > 0 ? "Scheduled Ahead" : "All Corridors Clear",Icon:CalendarDays,tone:"purple"},
+          {label:"Past Drives",value:past.length,description:"Completed Sessions",Icon:UsersRound,tone:"green"},
+          {label:"Registered Candidates",value:[...upcoming,...past].reduce((acc,row) => acc + (row._count?.interviews || 0),0),description:"Candidates Evaluated",Icon:UsersRound,tone:"blue"},
+          {label:"Client Employers",value:new Set([...upcoming,...past].map(row => row.company).filter(Boolean)).size,description:"Active Companies",Icon:Building2,tone:"orange"},
+        ].map(({label,value,description,Icon,tone}) => <article key={label} className="country-design-metric"><div><span>{label}</span><Icon size={16} className={`interview-icon-${tone}`} /></div><b>{value}</b><p>{description}</p></article>)}
+      </section>
+      {query.isError && <div role="alert" className="form-error">Interview schedules could not be loaded.</div>}
+      <section className="country-design-workspace interview-design-workspace" aria-label="Interview drives">
+        <div className="country-design-tabs interview-design-country-tabs" role="group" aria-label="Filter interviews by country">
+          {countryTabs.map(c => <button key={c.id} type="button" aria-pressed={countryFilter === c.id} className={countryFilter === c.id ? "selected" : ""}
+            onClick={() => {setCountryFilter(c.id);setPage(1);}}>{c.label}<span className="interview-design-tab-count">{c.count}</span></button>)}
+        </div>
+        <form className="country-design-filters interview-design-filters" onSubmit={event => {event.preventDefault();setSearch(input.trim());setPage(1);}}>
+          <div className="country-design-filter-fields">
+            <label className="country-design-search interview-design-search"><Search size={14} aria-hidden="true" /><input aria-label="Search by interview name or company" value={input}
+              onChange={event => setInput(event.target.value)} placeholder="Interview title, company or profession..." /></label>
+            {!upcomingOnly && <span className="country-design-select"><select aria-label="Interview period" value={interviewView}
+              onChange={event => {setInterviewView(event.target.value as "all" | "upcoming" | "past");setPage(1);}}>
+              <option value="all">All Interviews</option><option value="upcoming">Upcoming interviews ({upcoming.length})</option><option value="past">Past interviews ({past.length})</option>
+            </select><span className="interview-design-select-arrow" aria-hidden="true">⌄</span></span>}
+            <button data-action-ui="primary" data-action-size="normal" type="submit" className="interview-design-filter-button">Search</button>
+            <button data-action-ui="neutral" data-action-size="normal" type="button" className="interview-design-filter-button" onClick={() => {setInput("");setSearch("");setPage(1);}}>Clear</button>
           </div>
-          <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--ink)", margin: "4px 0" }}>
-            Registration &amp; Interviews
-          </h1>
-          <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0 }}>
-            Create, schedule and manage overseas recruitment interview drives with clients.
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-          {canManage && (
-            <button
-              type="button"
-              className="button primary"
-              onClick={() => {
-                if (activeCountries.length > 0 && !activeCountries.some((c) => c.name === selectedCountry)) {
-                  setSelectedCountry(activeCountries[0].name);
-                }
-                setCreateOpen(true);
-              }}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "9px 18px",
-                borderRadius: "10px",
-                background: "#7258e8",
-                color: "#fff",
-                fontSize: "12px",
-                fontWeight: 700,
-                border: "none",
-                cursor: "pointer",
-                boxShadow: "0 2px 8px rgba(114,88,232,0.25)",
-              }}
-            >
-              <Plus size={15} /> Create Interview Drive
-            </button>
-          )}
-          <Link
-            prefetch={true}
-            href={moduleItemPath("call-center", "Create Candidate")}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "9px 14px",
-              borderRadius: "10px",
-              background: "#ecfdf5",
-              border: "1px solid #a7f3d0",
-              color: "#059669",
-              fontSize: "12px",
-              fontWeight: 700,
-              textDecoration: "none",
-            }}
-          >
-            <Plus size={14} /> Create Candidate
-          </Link>
-        </div>
-      </div>
-
-      {/* Country Filter Switcher Tabs */}
-      <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexWrap: "wrap" }}>
-        {countryTabs.map((c) => {
-          const active = countryFilter === c.id;
-          return (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => setCountryFilter(c.id)}
-              style={{
-                padding: "8px 16px",
-                borderRadius: "10px",
-                fontSize: "12px",
-                fontWeight: 800,
-                cursor: "pointer",
-                border: active ? "1px solid #7258e8" : "1px solid var(--line)",
-                background: active ? "#7258e8" : "#fff",
-                color: active ? "#fff" : "var(--ink)",
-                boxShadow: active ? "0 2px 6px rgba(114,88,232,0.25)" : "none",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                transition: "all 0.15s ease",
-              }}
-            >
-              <span>{c.label}</span>
-              <span
-                style={{
-                  fontSize: "11px",
-                  background: active ? "rgba(255,255,255,0.25)" : "#f1f5f9",
-                  padding: "1px 6px",
-                  borderRadius: "999px",
-                  color: active ? "#fff" : "var(--muted)",
-                }}
-              >
-                {c.count}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Search Filter Card */}
-      <form
-        className="interview-search-card"
-        onSubmit={(event) => {
-          event.preventDefault();
-          setSearch(input.trim());
-        }}
-        style={{
-          background: "#fff",
-          border: "1px solid var(--line)",
-          borderRadius: "16px",
-          padding: "18px 22px",
-          marginBottom: "20px",
-          boxShadow: "var(--shadow)",
-          display: "flex",
-          alignItems: "flex-end",
-          gap: "14px",
-          flexWrap: "wrap",
-        }}
-      >
-        <label
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "6px",
-            fontSize: "12px",
-            fontWeight: 700,
-            color: "var(--ink)",
-            flex: "1 1 320px",
-          }}
-        >
-          Search by interview name or company
-          <input
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            placeholder="Type interview title, company or profession..."
-            style={{
-              height: "42px",
-              padding: "0 14px",
-              borderRadius: "10px",
-              border: "1px solid var(--line)",
-              background: "#fafafd",
-              fontSize: "13px",
-              color: "var(--ink)",
-              outline: "none",
-            }}
-          />
-        </label>
-        <div style={{ display: "flex", gap: "10px" }}>
-          <button
-            type="submit"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "0 22px",
-              height: "42px",
-              borderRadius: "10px",
-              background: "#7258e8",
-              color: "#fff",
-              border: "none",
-              fontSize: "12px",
-              fontWeight: 700,
-              cursor: "pointer",
-              boxShadow: "0 2px 6px rgba(114,88,232,0.25)",
-            }}
-          >
-            <Search size={15} /> Search
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setInput("");
-              setSearch("");
-            }}
-            style={{
-              padding: "0 18px",
-              height: "42px",
-              borderRadius: "10px",
-              background: "#f1f5f9",
-              border: "1px solid var(--line)",
-              color: "var(--muted)",
-              fontSize: "12px",
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-          >
-            Clear
-          </button>
-        </div>
-      </form>
-
-      {query.isError && <div className="form-error">Interview schedules could not be loaded.</div>}
-
-      <ScheduleSection
-        title="Upcoming interviews"
-        count={upcoming.length}
-        rows={upcoming}
-        allCountries={allCountries}
-        canManage={canManage}
-        onEdit={openEditModal}
-        onDelete={handleDeleteSchedule}
-      />
-      {!upcomingOnly && (
-        <ScheduleSection
-          title="Past interviews"
-          count={past.length}
-          rows={past}
-          allCountries={allCountries}
-          canManage={canManage}
-          onEdit={openEditModal}
-          onDelete={handleDeleteSchedule}
-        />
-      )}
+          <label className="country-design-page-size">Per Page:<span className="country-design-select"><select aria-label="Interviews per page" value={pageSize}
+            onChange={event => {setPageSize(Number(event.target.value));setPage(1);}}>{[10,20,50,100].map(size => <option key={size} value={size}>{size}</option>)}</select><span className="interview-design-select-arrow" aria-hidden="true">⌄</span></span></label>
+        </form>
+        <div className="country-design-count">Showing {visibleSchedules.length ? offset + 1 : 0}–{Math.min(offset + pageSize,visibleSchedules.length)} of {visibleSchedules.length} Total {upcomingOnly || interviewView === "upcoming" ? "Upcoming Interviews" : interviewView === "past" ? "Past Interviews" : "Interviews"}</div>
+        <ScheduleSection rows={pageRows} allCountries={allCountries} canManage={canManage} onEdit={openEditModal} onDelete={handleDeleteSchedule}
+          offset={offset} upcomingIds={upcomingIds} loading={query.isLoading} error={query.isError} />
+        <div className="country-design-pagination"><span>{visibleSchedules.length} Total Interviews</span><div>
+          <button data-action-ui="neutral" data-action-size="normal" type="button" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>← Previous</button>
+          <span className="country-design-page-indicator">Page {currentPage} of {totalPages}</span>
+          <button data-action-ui="neutral" data-action-size="normal" type="button" disabled={currentPage >= totalPages} onClick={() => setPage(currentPage + 1)}>Next →</button>
+        </div></div>
+      </section>
 
       {/* 1. CREATE SCHEDULE MODAL */}
       {createOpen && (
-        <div className="lead-modal-overlay" onClick={() => setCreateOpen(false)}>
-          <div className="lead-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 580 }}>
-            <div className="lead-modal-header">
+        <div className="lead-modal-overlay master-modal-overlay" role="dialog" aria-modal="true" aria-label="Create interview drive" onClick={() => setCreateOpen(false)}>
+          <div className="lead-modal master-modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 580 }}>
+            <div className="lead-modal-header master-modal-header">
               <div>
                 <h2>Create New Company Interview Drive</h2>
                 <p>Create interview schedule directly linked with an active Works &amp; Demand letter.</p>
               </div>
-              <button className="lead-close-btn" onClick={() => setCreateOpen(false)}>
+              <button data-action-ui="neutral" data-action-size="icon" className="lead-close-btn master-modal-close" aria-label="Close create interview drive" onClick={() => setCreateOpen(false)}>
                 <X size={20} />
               </button>
             </div>
@@ -721,7 +540,7 @@ export function InterviewListPage({ upcomingOnly = false, initialData }: { upcom
                         <Sparkles size={14} className="text-emerald-600 shrink-0" />
                         <span>Auto-filled from Works &amp; Demands. You can still edit any field below.</span>
                       </div>
-                      <button
+                      <button data-action-ui="neutral" data-action-size="normal"
                         type="button"
                         onClick={() => setSelectedDemandId("")}
                         style={{ color: "#059669", textDecoration: "underline", background: "none", border: "none", cursor: "pointer", fontSize: 11 }}
@@ -841,11 +660,11 @@ export function InterviewListPage({ upcomingOnly = false, initialData }: { upcom
                   </label>
                 </div>
               </div>
-              <div className="lead-modal-footer">
-                <button type="button" className="button secondary" onClick={() => setCreateOpen(false)}>
+              <div className="lead-modal-footer master-modal-footer">
+                <button data-action-ui="neutral" data-action-size="normal" type="button" className="button secondary" onClick={() => setCreateOpen(false)}>
                   Cancel
                 </button>
-                <button type="submit" disabled={creating} className="button primary">
+                <button data-action-ui="primary" data-action-size="normal" type="submit" disabled={creating} className="button primary master-modal-primary">
                   {creating ? "Creating..." : "Publish Interview Drive"}
                 </button>
               </div>
@@ -856,14 +675,14 @@ export function InterviewListPage({ upcomingOnly = false, initialData }: { upcom
 
       {/* 2. EDIT SCHEDULE MODAL */}
       {editOpen && editingSchedule && (
-        <div className="lead-modal-overlay" onClick={() => setEditOpen(false)}>
-          <div className="lead-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 580 }}>
-            <div className="lead-modal-header">
+        <div className="lead-modal-overlay master-modal-overlay" role="dialog" aria-modal="true" aria-label="Edit interview drive" onClick={() => setEditOpen(false)}>
+          <div className="lead-modal master-modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 580 }}>
+            <div className="lead-modal-header master-modal-header">
               <div>
                 <h2>Edit Interview Schedule Drive</h2>
                 <p>Update country, title, reschedule date &amp; time, location, or quota for this interview.</p>
               </div>
-              <button className="lead-close-btn" onClick={() => setEditOpen(false)}>
+              <button data-action-ui="neutral" data-action-size="icon" className="lead-close-btn master-modal-close" aria-label="Close edit interview drive" onClick={() => setEditOpen(false)}>
                 <X size={20} />
               </button>
             </div>
@@ -975,20 +794,20 @@ export function InterviewListPage({ upcomingOnly = false, initialData }: { upcom
                   </label>
                 </div>
               </div>
-              <div className="lead-modal-footer" style={{ display: "flex", justifyContent: "space-between" }}>
-                <button
+              <div className="lead-modal-footer master-modal-footer" style={{ display: "flex", justifyContent: "space-between" }}>
+                <button data-action-ui="danger" data-action-size="normal"
                   type="button"
-                  className="button secondary"
+                  className="button secondary master-modal-danger"
                   style={{ color: "#e11d48", border: "1px solid #fecdd3", background: "#fff1f2" }}
                   onClick={() => handleDeleteSchedule(editingSchedule.id, editingSchedule.title)}
                 >
                   <Trash2 size={14} /> Delete Drive
                 </button>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <button type="button" className="button secondary" onClick={() => setEditOpen(false)}>
+                  <button data-action-ui="neutral" data-action-size="normal" type="button" className="button secondary" onClick={() => setEditOpen(false)}>
                     Cancel
                   </button>
-                  <button type="submit" disabled={updating} className="button primary">
+                  <button data-action-ui="primary" data-action-size="normal" type="submit" disabled={updating} className="button primary master-modal-primary">
                     {updating ? "Saving Changes..." : "Save Changes"}
                   </button>
                 </div>
@@ -1001,193 +820,58 @@ export function InterviewListPage({ upcomingOnly = false, initialData }: { upcom
   );
 }
 
-function ScheduleSection({
-  title,
-  count,
-  rows,
-  allCountries = [],
-  canManage,
-  onEdit,
-  onDelete,
-}: {
-  title: string;
-  count?: number;
+function ScheduleSection({ rows, allCountries = [], canManage = false, onEdit, onDelete, offset, upcomingIds, loading, error }: {
   rows: Schedule[];
   allCountries?: CountryRecord[];
   canManage?: boolean;
   onEdit: (sch: Schedule) => void;
   onDelete: (id: string, name: string) => void;
+  offset: number;
+  upcomingIds: Set<string>;
+  loading: boolean;
+  error: boolean;
 }) {
-  return (
-    <section className="schedule-section" style={{ marginBottom: "26px" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
-        <h2 style={{ fontSize: "16px", fontWeight: 800, color: "var(--ink)", margin: 0 }}>
-          {title}{" "}
-          {typeof count === "number" && (
-            <small style={{ color: "var(--muted)", fontWeight: 600, fontSize: "12px" }}>({count} total)</small>
-          )}
-        </h2>
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: "16px" }}>
-        {rows.map((row) => {
-          const cInfo = getScheduleCountry(row, allCountries);
-          return (
-            <article
-              key={row.id}
-              style={{
-                background: "#fff",
-                border: "1px solid var(--line)",
-                borderRadius: "16px",
-                padding: "18px 20px",
-                boxShadow: "var(--shadow)",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                gap: "14px",
-                transition: "transform 0.15s ease, box-shadow 0.15s ease",
-              }}
-            >
-              <div>
-                {/* Date, Country & Company Tag */}
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px", flexWrap: "wrap" }}>
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "5px",
-                      background: "#f0edff",
-                      color: "#7258e8",
-                      fontSize: "11px",
-                      fontWeight: 800,
-                      padding: "4px 10px",
-                      borderRadius: "8px",
-                    }}
-                  >
-                    <CalendarDays size={13} /> {readableDate(row.scheduledAt)}
-                  </span>
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "4px",
-                      fontSize: "11px",
-                      fontWeight: 800,
-                      color: "#0f766e",
-                      background: "#f0fdfa",
-                      border: "1px solid #ccfbf1",
-                      padding: "3px 8px",
-                      borderRadius: "6px",
-                    }}
-                  >
-                    {cInfo.flag} {cInfo.name}
-                  </span>
-                  {row.company && (
-                    <span
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: 700,
-                        color: "var(--muted)",
-                        background: "#f8fafc",
-                        border: "1px solid var(--line)",
-                        padding: "3px 8px",
-                        borderRadius: "6px",
-                      }}
-                    >
-                      {row.company}
-                    </span>
-                  )}
-                </div>
-
-                {/* Title */}
-                <h3 style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink)", margin: "0 0 6px", lineHeight: 1.35 }}>
-                  {row.title}
-                </h3>
-
-                {/* Profession */}
-                {row.profession && (
-                  <p style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 600, margin: 0 }}>
-                    {row.profession}
-                  </p>
-                )}
-              </div>
-
-              {/* Bottom Actions Bar */}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  borderTop: "1px solid var(--line)",
-                  paddingTop: "12px",
-                  gap: "8px",
-                  flexWrap: "wrap",
-                }}
-              >
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "5px",
-                    fontSize: "12px",
-                    fontWeight: 700,
-                    color: "#3b82f6",
-                    background: "#eff6ff",
-                    padding: "4px 10px",
-                    borderRadius: "8px",
-                  }}
-                >
-                  <UsersRound size={14} /> {row._count?.interviews ?? 0} Candidates
-                </span>
-
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <Link
-                    prefetch={true}
-                    href={`/module/registration/interview/${row.id}`}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "4px",
-                      padding: "6px 12px",
-                      borderRadius: "8px",
-                      background: "#7258e8",
-                      color: "#fff",
-                      fontSize: "11px",
-                      fontWeight: 700,
-                      textDecoration: "none",
-                      boxShadow: "0 2px 4px rgba(114,88,232,0.2)",
-                    }}
-                  >
-                    View details ➔
-                  </Link>
-                  {canManage && (
-                    <button
-                      type="button"
-                      onClick={() => onEdit(row)}
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "4px",
-                        padding: "6px 10px",
-                        borderRadius: "8px",
-                        background: "#f1f5f9",
-                        border: "1px solid var(--line)",
-                        color: "var(--ink)",
-                        fontSize: "11px",
-                        fontWeight: 700,
-                        cursor: "pointer",
-                      }}
-                      title="Edit or Reschedule Interview Drive"
-                    >
-                      <Edit size={12} /> Edit
-                    </button>
-                  )}
-                </div>
-              </div>
-            </article>
-          );
-        })}
-      </div>
-    </section>
-  );
+  const emptyMessage = loading ? "Loading interview schedules..." : error ? "Interview schedules could not be loaded." : "No interview schedules found.";
+  return <>
+    <div className="country-design-table interview-design-table">
+      <table><colgroup>{[50,170,260,125,120,155,165,115,180,110].map((width,index) => <col key={index} style={{width}} />)}</colgroup>
+        <thead><tr>{["SL","Actions","Interview Drive","Interview Date","Country","Client / Company","Profession / Trade","Candidates","Venue / Location","Period"].map(label => <th key={label}>{label}</th>)}</tr></thead>
+        <tbody>{rows.map((row,index) => {
+          const country = getScheduleCountry(row,allCountries);
+          const isUpcoming = upcomingIds.has(row.id);
+          return <tr key={row.id}>
+            <td className="country-design-serial">{offset + index + 1}</td>
+            <td><div className="interview-design-row-actions"><Link data-action-ui="secondary" data-action-size="compact" prefetch={true} href={`/module/registration/interview/${row.id}`} className="country-design-dossier">View details →</Link>
+              {canManage && <button data-action-ui="secondary" data-action-size="compact" type="button" className="country-design-dossier interview-design-edit" title="Edit or Reschedule Interview Drive" aria-label={`Edit ${row.title}`} onClick={() => onEdit(row)}><Edit size={12} /> Edit</button>}</div></td>
+            <td><div className="country-design-cell client"><b>{row.title}</b><span className="country-design-candidate-id">DRV-{row.id.slice(-6).toUpperCase()}</span></div></td>
+            <td><div className="country-design-cell"><b>{readableDate(row.scheduledAt)}</b></div></td>
+            <td><span className="interview-design-country">{country.flag} {country.name}</span></td>
+            <td><div className="country-design-cell"><b>{row.company || "Direct Client"}</b></div></td>
+            <td><div className="country-design-cell"><b>{row.profession || "General Staff"}</b></div></td>
+            <td><span className="country-design-candidate-id">{row._count?.interviews ?? 0} Candidates</span></td>
+            <td><div className="country-design-cell"><b>{row.venue || "Head Office"}</b></div></td>
+            <td><span className={`interview-design-period ${isUpcoming ? "upcoming" : "past"}`}>{isUpcoming ? "Upcoming" : "Past"}</span></td>
+          </tr>;
+        })}{!rows.length && <tr><td colSpan={10} className="country-design-empty">{emptyMessage}</td></tr>}</tbody>
+      </table>
+    </div>
+    <div className="interview-design-mobile-stream">
+      {rows.map(row => {
+        const country = getScheduleCountry(row,allCountries);
+        const isUpcoming = upcomingIds.has(row.id);
+        return <article key={row.id} className="interview-design-mobile-card">
+          <div className="interview-design-mobile-top"><span className="country-design-candidate-id">DRV-{row.id.slice(-6).toUpperCase()}</span><span className={`interview-design-period ${isUpcoming ? "upcoming" : "past"}`}>{isUpcoming ? "Upcoming" : "Past"}</span>
+            {canManage && <button data-action-ui="danger" data-action-size="icon" type="button" className="interview-design-delete" aria-label={`Delete ${row.title}`} title="Delete drive" onClick={() => onDelete(row.id,row.title)}><Trash2 size={14} /></button>}</div>
+          <div className="interview-design-mobile-title"><h3>{row.title}</h3><p>{row.company || "Direct Client"} · {readableDate(row.scheduledAt)}</p></div>
+          <div className="interview-design-mobile-data">
+            <div><small>Location</small><b>{row.venue || "Head Office"}</b></div><div><small>Candidates</small><b>{row._count?.interviews ?? 0} Registered</b></div>
+            <div><small>Country</small><b>{country.flag} {country.name}</b></div><div><small>Profession</small><b>{row.profession || "General Staff"}</b></div>
+          </div>
+          <div className="interview-design-mobile-actions">{canManage ? <button data-action-ui="secondary" data-action-size="normal" type="button" className="country-design-dossier interview-design-edit" onClick={() => onEdit(row)}><Edit size={12} /> Edit Schedule</button> : <span className="interview-design-readonly">Read-Only</span>}
+            <Link data-action-ui="secondary" data-action-size="normal" prefetch={true} href={`/module/registration/interview/${row.id}`} className="country-design-dossier">View details →</Link></div>
+        </article>;
+      })}
+      {!rows.length && <p className="interview-design-mobile-empty">{emptyMessage}</p>}
+    </div>
+  </>;
 }

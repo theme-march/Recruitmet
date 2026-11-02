@@ -19,8 +19,39 @@ export const errorResponse=(error:unknown)=>{
   if(isAppError(error)) {
     return Response.json({error:{code:error.code,message:error.message,fieldErrors:error.fieldErrors??{},correlationId}},{status:error.status});
   }
-  if(error instanceof Error&&error.name==="ZodError") {
-    return Response.json({error:{code:"VALIDATION_ERROR",message:"The submitted data is invalid.",fieldErrors:{},correlationId}},{status:422});
+  if (error && typeof error === "object" && "flatten" in error && typeof (error as any).flatten === "function") {
+    const flattened = (error as any).flatten();
+    const fieldErrors = (flattened.fieldErrors as Record<string, string[]>) ?? {};
+    const firstErrorMessage =
+      Object.values(fieldErrors).flat()[0] ||
+      (flattened.formErrors as string[])?.[0] ||
+      "The submitted data is invalid.";
+
+    return Response.json(
+      {
+        error: {
+          code: "VALIDATION_ERROR",
+          message: firstErrorMessage,
+          fieldErrors,
+          correlationId,
+        },
+      },
+      { status: 422 }
+    );
+  }
+
+  if (error instanceof Error && error.name === "ZodError") {
+    return Response.json(
+      {
+        error: {
+          code: "VALIDATION_ERROR",
+          message: error.message || "The submitted data is invalid.",
+          fieldErrors: {},
+          correlationId,
+        },
+      },
+      { status: 422 }
+    );
   }
   
   console.error(`[INTERNAL_ERROR ${correlationId}]:`, error);

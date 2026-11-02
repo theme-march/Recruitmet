@@ -83,10 +83,10 @@ export function DocumentViewerModal({
   };
 
   return (
-    <div className="doc-viewer-overlay" onClick={onClose}>
-      <div className="doc-viewer-modal" onClick={(e) => e.stopPropagation()}>
+    <div role="dialog" aria-modal="true" aria-label="EXECUTIVE BOARD OF THE HEALTH MINISTERS’ COUNCIL FOR GCC STATES" className="doc-viewer-overlay master-modal-overlay" onClick={onClose}>
+      <div className="doc-viewer-modal master-modal-card" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="doc-viewer-header no-print">
+        <div className="doc-viewer-header no-print master-modal-header">
           <div className="flex items-center gap-3">
             <div className="doc-type-icon">
               <FileText size={20} className="text-indigo-600" />
@@ -103,15 +103,15 @@ export function DocumentViewerModal({
           <div className="doc-viewer-controls">
             {currentUrl && !isPdf && (
               <>
-                <button className="ctrl-btn" onClick={handleZoomIn} title="Zoom In"><ZoomIn size={16} /></button>
-                <button className="ctrl-btn" onClick={handleZoomOut} title="Zoom Out"><ZoomOut size={16} /></button>
-                <button className="ctrl-btn" onClick={handleRotate} title="Rotate"><RotateCw size={16} /></button>
+                <button data-action-ui="secondary" data-action-size="icon" className="ctrl-btn" onClick={handleZoomIn} title="Zoom In"><ZoomIn size={16} /></button>
+                <button data-action-ui="secondary" data-action-size="icon" className="ctrl-btn" onClick={handleZoomOut} title="Zoom Out"><ZoomOut size={16} /></button>
+                <button data-action-ui="secondary" data-action-size="icon" className="ctrl-btn" onClick={handleRotate} title="Rotate"><RotateCw size={16} /></button>
               </>
             )}
-            <button className="ctrl-btn" onClick={handlePrint} title="Print Document">
+            <button data-action-ui="secondary" data-action-size="icon" className="ctrl-btn" onClick={handlePrint} title="Print Document">
               <Printer size={15} />
             </button>
-            <button
+            <button data-action-ui="secondary" data-action-size="normal"
               className="ctrl-btn"
               onClick={() => fileInputRef.current?.click()}
               title="Attach or Replace Physical Scanned File"
@@ -130,11 +130,11 @@ export function DocumentViewerModal({
               }}
             />
             {currentUrl && (
-              <a href={currentUrl} download={currentFileName || `${doc.title}.png`} className="ctrl-btn" title="Download Document">
+              <a data-action-ui="secondary" data-action-size="icon" href={currentUrl} download={currentFileName || `${doc.title}.png`} className="ctrl-btn" title="Download Document">
                 <Download size={16} />
               </a>
             )}
-            <button className="ctrl-btn close" onClick={onClose}><X size={18} /></button>
+            <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog" className="ctrl-btn close master-modal-close" onClick={onClose}><X size={18} /></button>
           </div>
         </div>
 

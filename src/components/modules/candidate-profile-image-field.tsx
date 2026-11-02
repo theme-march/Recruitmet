@@ -76,6 +76,7 @@ export function CandidateProfileImageField({
 
   return (
     <div
+      className="profile-image-field"
       style={{
         display: "flex",
         alignItems: "center",
@@ -87,6 +88,7 @@ export function CandidateProfileImageField({
       }}
     >
       <div
+        className="profile-image-avatar"
         style={{
           width: compact ? "60px" : "78px",
           height: compact ? "60px" : "78px",
@@ -132,7 +134,7 @@ export function CandidateProfileImageField({
           style={{ display: "none" }}
         />
         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-          <button
+          <button data-action-ui="secondary" data-action-size="compact"
             type="button"
             disabled={disabled}
             onClick={() => inputRef.current?.click()}
@@ -155,7 +157,7 @@ export function CandidateProfileImageField({
             {currentImage ? "Change Photo" : "Upload Photo"}
           </button>
           {currentImage && (
-            <button
+            <button data-action-ui="danger" data-action-size="compact"
               type="button"
               disabled={disabled}
               onClick={clearImage}

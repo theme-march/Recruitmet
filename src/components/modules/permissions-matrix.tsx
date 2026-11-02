@@ -1,5 +1,6 @@
 "use client";
 import { meQueryOptions } from "@/lib/queries/me";
+import { roleLabel } from "@/lib/roles";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -56,7 +57,7 @@ const moduleConfig: ModuleDefinition[] = [
   },
   {
     id: "call-center",
-    label: "Call Center & Leads",
+    label: "Office Operations & Leads",
     desc: "Lead pipeline management, inbound/outbound call logs, and candidate follow-ups",
     icon: Headphones,
     hasExport: true,
@@ -311,7 +312,7 @@ export function PermissionsMatrix() {
     }
   };
 
-  // Create Call Center Officer Handler
+  // Create Office Operations account Handler
   const handleCreateUser = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setCreatingUser(true);
@@ -338,7 +339,7 @@ export function PermissionsMatrix() {
         throw new Error(json.error?.message || json.message || "Failed to create officer account");
       }
 
-      toast.success(`Call Center Officer "${payload.name}" created successfully!`);
+      toast.success(`Office Operations staff account "${payload.name}" created successfully!`);
       setShowCreateUserModal(false);
       await queryClient.invalidateQueries({ queryKey: ["admin-users-list"] });
     } catch (err: any) {
@@ -366,7 +367,7 @@ export function PermissionsMatrix() {
 
   // Delete User Handler
   const handleDeleteUser = async (user: OfficerUser) => {
-    if (!confirm(`Are you sure you want to permanently delete Call Center Officer "${user.name}"?`)) return;
+    if (!confirm(`Are you sure you want to permanently delete Office Operations staff account "${user.name}"?`)) return;
     try {
       const res = await fetch(`/api/admin/users?userId=${user.id}`, { method: "DELETE" });
       const json = await res.json();
@@ -418,7 +419,7 @@ export function PermissionsMatrix() {
           Super Admin Access Required
         </h2>
         <p style={{ fontSize: "13px", color: "var(--muted)", lineHeight: 1.5, margin: 0 }}>
-          Only Super Administrators have authority to create Call Center Officer accounts and configure permissions.
+          Only Super Administrators have authority to create Office Operations accounts and configure permissions.
         </p>
       </div>
     );
@@ -448,12 +449,12 @@ export function PermissionsMatrix() {
             <ShieldCheck size={26} color="#7258e8" /> System Administration &amp; Access Control
           </h1>
           <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0 }}>
-            Super Administrator Control: Manage Call Center Officer accounts and granular module permissions.
+            Super Administrator Control: Manage Office Operations accounts and granular module permissions.
           </p>
         </div>
 
         {activeAdminTab === "matrix" ? (
-          <button
+          <button data-action-ui="primary" data-action-size="normal"
             type="button"
             disabled={saving || selectedRole === "SUPER_ADMIN"}
             onClick={handleSavePermissions}
@@ -476,7 +477,7 @@ export function PermissionsMatrix() {
             <Save size={16} /> {saving ? "Saving Permissions..." : "Save Permission Matrix"}
           </button>
         ) : (
-          <button
+          <button data-action-ui="primary" data-action-size="normal"
             type="button"
             onClick={() => setShowCreateUserModal(true)}
             style={{
@@ -495,7 +496,7 @@ export function PermissionsMatrix() {
               transition: "all 0.15s ease",
             }}
           >
-            <UserPlus size={16} /> Create Call Center Officer
+            <UserPlus size={16} /> Create Office Operations account
           </button>
         )}
       </div>
@@ -541,7 +542,7 @@ export function PermissionsMatrix() {
             transition: "all 0.15s ease",
           }}
         >
-          <Users size={16} /> Call Center Officers ({allOfficers.length})
+          <Users size={16} /> Office Operations staff ({allOfficers.length})
         </button>
       </div>
 
@@ -550,7 +551,7 @@ export function PermissionsMatrix() {
         <>
           {/* Role Selection Cards */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "16px", marginBottom: "24px" }}>
-            {/* Card 1: Call Center */}
+            {/* Card 1: Office Operations */}
             <div
               onClick={() => setSelectedRole("CALL_CENTER")}
               style={{
@@ -569,7 +570,7 @@ export function PermissionsMatrix() {
                     <Headphones size={20} />
                   </div>
                   <div>
-                    <b style={{ fontSize: "15px", color: "var(--ink)", display: "block" }}>Call Center Officer</b>
+                    <b style={{ fontSize: "15px", color: "var(--ink)", display: "block" }}>Office Operations</b>
                     <span style={{ fontSize: "11px", color: "var(--muted)" }}>Configurable Operational Role</span>
                   </div>
                 </div>
@@ -580,7 +581,7 @@ export function PermissionsMatrix() {
                 )}
               </div>
               <p style={{ fontSize: "12px", color: "var(--muted)", margin: "0 0 12px 0", lineHeight: 1.45 }}>
-                Configure individual Create, Read, Edit, and Delete access per module for Call Center staff.
+                Configure individual Create, Read, Edit, and Delete access per module for Office Operations staff.
               </p>
               <div style={{ fontSize: "12px", fontWeight: 700, color: "#7258e8" }}>
                 {Object.keys(granularState).filter((k) => (granularState[k] || []).length > 0).length} of {moduleConfig.length} Modules Active
@@ -630,7 +631,7 @@ export function PermissionsMatrix() {
                 <h2 style={{ fontSize: "17px", fontWeight: 800, color: "var(--ink)", margin: "0 0 4px" }}>
                   Granular CRUD &amp; Feature Matrix:{" "}
                   <span style={{ color: "#7258e8" }}>
-                    {selectedRole === "CALL_CENTER" ? "Call Center Officer" : "Super Administrator"}
+                    {selectedRole === "CALL_CENTER" ? "Office Operations" : "Super Administrator"}
                   </span>
                 </h2>
                 <p style={{ fontSize: "12px", color: "var(--muted)", margin: 0 }}>
@@ -642,7 +643,7 @@ export function PermissionsMatrix() {
 
               {selectedRole !== "SUPER_ADMIN" && (
                 <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                  <button
+                  <button data-action-ui="secondary" data-action-size="normal"
                     type="button"
                     onClick={setAllFullAccess}
                     style={{
@@ -658,7 +659,7 @@ export function PermissionsMatrix() {
                   >
                     <CheckSquare size={13} style={{ display: "inline", marginRight: 4 }} /> Full CRUD All
                   </button>
-                  <button
+                  <button data-action-ui="secondary" data-action-size="normal"
                     type="button"
                     onClick={setAllReadOnly}
                     style={{
@@ -674,7 +675,7 @@ export function PermissionsMatrix() {
                   >
                     <Eye size={13} style={{ display: "inline", marginRight: 4 }} /> Read-Only All
                   </button>
-                  <button
+                  <button data-action-ui="neutral" data-action-size="normal"
                     type="button"
                     onClick={resetToRecommended}
                     style={{
@@ -869,16 +870,16 @@ export function PermissionsMatrix() {
         </>
       )}
 
-      {/* TAB 2: CALL CENTER OFFICER ACCOUNTS MANAGEMENT */}
+      {/* TAB 2: OFFICE OPERATIONS OFFICER ACCOUNTS MANAGEMENT */}
       {activeAdminTab === "users" && (
         <div style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "16px", padding: "24px", boxShadow: "var(--shadow)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px", paddingBottom: "14px", borderBottom: "1px solid var(--line)", flexWrap: "wrap", gap: "12px" }}>
             <div>
               <h2 style={{ fontSize: "17px", fontWeight: 800, color: "var(--ink)", margin: "0 0 4px" }}>
-                Call Center Officer Accounts
+                Office Operations Accounts
               </h2>
               <p style={{ fontSize: "12px", color: "var(--muted)", margin: 0 }}>
-                Only Super Administrators can create, activate, lock, or delete Call Center user accounts.
+                Only Super Administrators can create, activate, lock, or delete Office Operations user accounts.
               </p>
             </div>
 
@@ -900,7 +901,7 @@ export function PermissionsMatrix() {
                   }}
                 />
               </div>
-              <button
+              <button data-action-ui="primary" data-action-size="normal"
                 type="button"
                 onClick={() => setShowCreateUserModal(true)}
                 style={{
@@ -1000,7 +1001,7 @@ export function PermissionsMatrix() {
                               color: isSuper ? "#d97706" : "#7258e8",
                             }}
                           >
-                            {user.role?.name ?? "Call Center"}
+                            {roleLabel(user.role?.name ?? "CALL_CENTER")}
                           </span>
                         </td>
                         <td style={{ padding: "14px", color: "#475569" }}>
@@ -1035,7 +1036,7 @@ export function PermissionsMatrix() {
                         </td>
                         <td style={{ padding: "14px 16px", textAlign: "right" }}>
                           {!isSuper && (
-                            <button
+                            <button data-action-ui="danger" data-action-size="compact"
                               type="button"
                               onClick={() => handleDeleteUser(user)}
                               title="Delete Officer Account"
@@ -1069,7 +1070,7 @@ export function PermissionsMatrix() {
 
       {/* CREATE OFFICER MODAL DIALOG */}
       {showCreateUserModal && (
-        <div
+        <div role="dialog" aria-modal="true" aria-label="Create Office Operations account" className="master-modal-overlay"
           style={{
             position: "fixed",
             inset: 0,
@@ -1082,7 +1083,7 @@ export function PermissionsMatrix() {
           }}
           onClick={() => !creatingUser && setShowCreateUserModal(false)}
         >
-          <div
+          <div className="master-modal-card master-modal-inline-card master-modal-panel"
             style={{
               background: "#fff",
               borderRadius: "16px",
@@ -1094,7 +1095,7 @@ export function PermissionsMatrix() {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div
+            <div className="master-modal-header"
               style={{
                 display: "flex",
                 justifyContent: "space-between",
@@ -1105,19 +1106,19 @@ export function PermissionsMatrix() {
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#f0edff", color: "#7258e8", display: "grid", placeItems: "center" }}>
+                <div className="master-modal-accent master-modal-icon" style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#f0edff", color: "#7258e8", display: "grid", placeItems: "center" }}>
                   <UserPlus size={18} />
                 </div>
                 <div>
                   <h3 style={{ fontSize: "16px", fontWeight: 800, color: "var(--ink)", margin: 0 }}>
-                    Create Call Center Officer
+                    Create Office Operations account
                   </h3>
                   <p style={{ fontSize: "11px", color: "var(--muted)", margin: 0 }}>
                     Only Super Administrator can provision new officer accounts.
                   </p>
                 </div>
               </div>
-              <button
+              <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog" className="master-modal-close"
                 type="button"
                 onClick={() => setShowCreateUserModal(false)}
                 style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", padding: "4px" }}
@@ -1257,7 +1258,7 @@ export function PermissionsMatrix() {
                     <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "var(--ink)", marginBottom: "5px" }}>
                       Assigned Role
                     </label>
-                    <div
+                    <div className="master-modal-accent master-modal-panel"
                       style={{
                         height: "40px",
                         borderRadius: "8px",
@@ -1272,7 +1273,7 @@ export function PermissionsMatrix() {
                         gap: "6px",
                       }}
                     >
-                      <Headphones size={14} /> Call Center Officer (Fixed)
+                      <Headphones size={14} /> Office Operations (Fixed)
                     </div>
                   </div>
                 </div>
@@ -1280,7 +1281,7 @@ export function PermissionsMatrix() {
 
               {/* Modal Actions */}
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "22px", paddingTop: "16px", borderTop: "1px solid var(--line)" }}>
-                <button
+                <button data-action-ui="neutral" data-action-size="normal"
                   type="button"
                   disabled={creatingUser}
                   onClick={() => setShowCreateUserModal(false)}
@@ -1297,7 +1298,7 @@ export function PermissionsMatrix() {
                 >
                   Cancel
                 </button>
-                <button
+                <button data-action-ui="primary" data-action-size="normal" className="master-modal-primary"
                   type="submit"
                   disabled={creatingUser}
                   style={{
@@ -1376,7 +1377,7 @@ function InnerButtonBadge({
   onClick: () => void;
 }) {
   return (
-    <button
+    <button  
       type="button"
       disabled={disabled}
       onClick={onClick}

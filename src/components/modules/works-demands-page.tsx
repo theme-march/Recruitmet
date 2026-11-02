@@ -1,31 +1,16 @@
 "use client";
+import { CountryDesignIcon } from "@/components/layout/country-design-icon";
 import { meQueryOptions } from "@/lib/queries/me";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Briefcase,
-  Building2,
-  Calendar,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  DollarSign,
   Edit3,
   ExternalLink,
   Eye,
   FileCheck,
-  FileSpreadsheet,
   FileText,
-  Globe,
-  MapPin,
-  Plus,
-  PlusCircle,
-  RotateCcw,
   Search,
-  Sparkles,
   Upload,
-  UploadCloud,
   Users,
   X,
 } from "lucide-react";
@@ -156,47 +141,9 @@ export function WorksDemandsPage() {
 
   const getStatusBadge = (status: string, saleQty: number, visaQty: number) => {
     const isFull = visaQty > 0 && saleQty >= visaQty;
-    if (isFull) {
-      return (
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "5px",
-            padding: "3px 9px",
-            borderRadius: "6px",
-            background: "#fef2f2",
-            color: "#b91c1c",
-            border: "1px solid #fecaca",
-            fontWeight: 700,
-            fontSize: "11px",
-            whiteSpace: "nowrap",
-          }}
-        >
-          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#ef4444" }} />
-          Full Quota ({saleQty}/{visaQty})
-        </span>
-      );
-    }
-
     return (
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "5px",
-          padding: "3px 9px",
-          borderRadius: "6px",
-          background: "#ecfdf5",
-          color: "#059669",
-          border: "1px solid #a7f3d0",
-          fontWeight: 700,
-          fontSize: "11px",
-          whiteSpace: "nowrap",
-        }}
-      >
-        <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#10b981" }} />
-        Active ({saleQty}/{visaQty})
+      <span className={`country-design-status works-design-status ${isFull ? "full" : "active"}`}>
+        {isFull ? "Full Quota" : "Active"} ({saleQty}/{visaQty})
       </span>
     );
   };
@@ -204,195 +151,84 @@ export function WorksDemandsPage() {
   const getCountryBadge = (country: string) => {
     const isKsa = country.toLowerCase().includes("saudi");
     const isDubai = country.toLowerCase().includes("dubai") || country.toLowerCase().includes("uae");
-    const bg = isKsa ? "#f0fdf4" : isDubai ? "#eff6ff" : "#fdf4ff";
-    const color = isKsa ? "#15803d" : isDubai ? "#1d4ed8" : "#86198f";
-    const border = isKsa ? "#bbf7d0" : isDubai ? "#bfdbfe" : "#f5d0fe";
-
     return (
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "4px",
-          padding: "3px 8px",
-          borderRadius: "6px",
-          background: bg,
-          color: color,
-          border: `1px solid ${border}`,
-          fontWeight: 700,
-          fontSize: "11px",
-          whiteSpace: "nowrap",
-        }}
-      >
+      <span className={`country-design-stage works-design-country ${isKsa ? "saudi" : isDubai ? "dubai" : "other"}`}>
         {isKsa ? "🇸🇦" : isDubai ? "🇦🇪" : "🌐"} {country}
       </span>
     );
   };
 
   return (
-    <div style={{ maxWidth: "1500px", margin: "0 auto", paddingBottom: "40px" }}>
-      {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "14px" }}>
+    <div className="country-design-page works-design-page">
+      <div className="country-design-breadcrumb">Dashboard / Works &amp; Demands</div>
+      <div className="country-design-heading">
         <div>
-          <div className="breadcrumb" style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-            Dashboard / Works &amp; Demands
-          </div>
-          <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--ink)", margin: "4px 0" }}>
-            Works &amp; Demands
-          </h1>
-          <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0 }}>
-            Live foreign company recruitment quotas, candidate sales, and visa demand management.
-          </p>
+          <h1>Works &amp; Demands</h1>
+          <p>Live foreign company recruitment quotas, candidate sales, and visa demand management.</p>
         </div>
-
-        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-          {canManage && (
-            <button
-              type="button"
-              onClick={() => setOpen(true)}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "9px 18px",
-                borderRadius: "10px",
-                background: "#7258e8",
-                color: "#fff",
-                fontSize: "12px",
-                fontWeight: 700,
-                border: "none",
-                cursor: "pointer",
-                boxShadow: "0 2px 8px rgba(114,88,232,0.25)",
-                transition: "all 0.15s ease",
-              }}
-            >
-              <Plus size={15} /> Create Work &amp; Demand
+        {canManage && (
+          <div className="country-design-actions">
+            <button data-action-ui="primary" data-action-size="normal" className="works-design-create" type="button" onClick={() => setOpen(true)}>
+              + Create Work &amp; Demand
             </button>
-          )}
+          </div>
+        )}
+      </div>
+
+      <div className="country-design-metrics works-design-metrics">
+        <div className="country-design-metric">
+          <div><span>Total Demands</span><CountryDesignIcon name="Folder" /></div>
+          <b>{meta.total}</b><p>Registered demands</p>
+        </div>
+        <div className="country-design-metric">
+          <div><span>Total Visa Quotas</span><CountryDesignIcon name="Visa" /></div>
+          <b>{totalVisas}</b><p>Visa allocations</p>
+        </div>
+        <div className="country-design-metric">
+          <div><span>Candidates Sold</span><Users size={16} color="#34c759" /></div>
+          <b>{totalSales}</b><p>Allocated candidates</p>
+        </div>
+        <div className="country-design-metric">
+          <div><span>Remaining Quotas</span><CountryDesignIcon name="Manpower" /></div>
+          <b>{Math.max(0, totalVisas - totalSales)}</b><p>Available visa quotas</p>
         </div>
       </div>
 
-      {/* KPI Cards Strip */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "14px", marginBottom: "20px" }}>
-        <div style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "12px", padding: "14px 18px", boxShadow: "var(--shadow)" }}>
-          <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase" }}>Total Demands</span>
-          <div style={{ fontSize: "20px", fontWeight: 800, color: "var(--ink)", marginTop: "4px" }}>{meta.total}</div>
+      <section className="demands-results-panel country-design-workspace works-design-workspace">
+        <div className="country-design-filters works-design-filters">
+          <form className="works-design-search-form" onSubmit={(event) => {
+            event.preventDefault(); setSearch(query.trim()); setPage(1);
+          }}>
+            <label className="country-design-search works-design-search">
+              <CountryDesignIcon name="Search" />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} aria-label="Search works and demands" placeholder="Search by demand no, company, profession, country, or location..." />
+              {query && (
+                <button data-action-ui="ghost" data-action-size="icon" type="button" aria-label="Clear demand search" onClick={() => { setQuery(""); setSearch(""); setPage(1); }}><X size={14} /></button>
+              )}
+            </label>
+            <button data-action-ui="primary" data-action-size="normal" className="works-design-search-submit" type="submit">Search</button>
+          </form>
+          <label className="country-design-page-size">
+            Per Page:
+            <span className="country-design-select">
+              <select aria-label="Demands per page" value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}>
+                <option value="10">10</option><option value="20">20</option><option value="50">50</option>
+              </select>
+              <CountryDesignIcon name="ChevronDown" />
+            </span>
+          </label>
         </div>
-        <div style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "12px", padding: "14px 18px", boxShadow: "var(--shadow)" }}>
-          <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase" }}>Total Visa Quotas</span>
-          <div style={{ fontSize: "20px", fontWeight: 800, color: "#7258e8", marginTop: "4px" }}>{totalVisas} Visas</div>
+        {result.isFetching && <div className="works-design-loading" role="status" aria-label="Loading works and demands"><div /></div>}
+        {result.isError && <div className="works-design-error" role="alert">Works and demands could not be loaded. Please refresh the page.</div>}
+        <div className="country-design-count">
+          Showing {meta.total ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, meta.total)} of {meta.total} Total Works &amp; Demands
         </div>
-        <div style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "12px", padding: "14px 18px", boxShadow: "var(--shadow)" }}>
-          <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase" }}>Candidates Sold</span>
-          <div style={{ fontSize: "20px", fontWeight: 800, color: "#059669", marginTop: "4px" }}>{totalSales} Allocated</div>
-        </div>
-        <div style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "12px", padding: "14px 18px", boxShadow: "var(--shadow)" }}>
-          <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase" }}>Remaining Quotas</span>
-          <div style={{ fontSize: "20px", fontWeight: 800, color: "#d97706", marginTop: "4px" }}>{Math.max(0, totalVisas - totalSales)} Left</div>
-        </div>
-      </div>
 
-      {/* Search and Table Card */}
-      <section style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "16px", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
-        {/* Search Bar */}
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            setSearch(query.trim());
-            setPage(1);
-          }}
-          style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "18px", flexWrap: "wrap" }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              background: "#f8fafc",
-              border: "1px solid var(--line)",
-              borderRadius: "10px",
-              padding: "7px 14px",
-              flex: "1",
-              minWidth: "260px",
-            }}
-          >
-            <Search size={16} color="var(--muted)" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search by demand no, company, profession, country, or location..."
-              style={{
-                border: "none",
-                outline: "none",
-                background: "transparent",
-                fontSize: "12px",
-                width: "100%",
-                color: "var(--ink)",
-              }}
-            />
-            {query && (
-              <button
-                type="button"
-                onClick={() => {
-                  setQuery("");
-                  setSearch("");
-                  setPage(1);
-                }}
-                style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--muted)" }}
-              >
-                <X size={14} />
-              </button>
-            )}
-          </div>
-          <button
-            type="submit"
-            style={{
-              padding: "8px 18px",
-              borderRadius: "10px",
-              background: "#7258e8",
-              color: "#fff",
-              fontSize: "12px",
-              fontWeight: 700,
-              border: "none",
-              cursor: "pointer",
-              boxShadow: "0 2px 6px rgba(114,88,232,0.2)",
-            }}
-          >
-            Search
-          </button>
-        </form>
-
-        {result.isFetching && (
-          <div style={{ height: "3px", width: "100%", background: "#f0edff", overflow: "hidden", marginBottom: "12px", borderRadius: "4px" }}>
-            <div style={{ height: "100%", width: "40%", background: "#7258e8", animation: "indeterminate 1.2s infinite ease-in-out" }} />
-          </div>
-        )}
-
-        {result.isError && (
-          <div style={{ padding: "12px 16px", background: "#fef2f2", color: "#b91c1c", borderRadius: "8px", fontSize: "12px", marginBottom: "14px", border: "1px solid #fecaca" }}>
-            Works and demands could not be loaded. Please refresh the page.
-          </div>
-        )}
-
-        {/* Table View */}
-        <div style={{ overflowX: "auto", border: "1px solid var(--line)", borderRadius: "12px" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
+        <div className="desktop-demands-table country-design-table works-design-table">
+          <table>
+            <colgroup>{[44, 75, 134, 116, 138, 120, 89, 76, 129, 107, 67, 102, 143].map((width, index) => <col key={index} style={{ width }} />)}</colgroup>
             <thead>
-              <tr style={{ background: "#f8fafc", borderBottom: "1px solid var(--line)" }}>
-                <th style={{ padding: "10px 12px", fontWeight: 700, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>SL.</th>
-                <th style={{ padding: "10px 12px", fontWeight: 700, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>Actions</th>
-                <th style={{ padding: "10px 12px", fontWeight: 700, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>Demand</th>
-                <th style={{ padding: "10px 12px", fontWeight: 700, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>Country</th>
-                <th style={{ padding: "10px 12px", fontWeight: 700, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>Company</th>
-                <th style={{ padding: "10px 12px", fontWeight: 700, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>Work Position</th>
-                <th style={{ padding: "10px 12px", fontWeight: 700, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>Salary</th>
-                <th style={{ padding: "10px 12px", fontWeight: 700, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>Visa Quota</th>
-                <th style={{ padding: "10px 12px", fontWeight: 700, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>Sale Qty.</th>
-                <th style={{ padding: "10px 12px", fontWeight: 700, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>Visa Rate</th>
-                <th style={{ padding: "10px 12px", fontWeight: 700, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>Files</th>
-                <th style={{ padding: "10px 12px", fontWeight: 700, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>Deadline</th>
-                <th style={{ padding: "10px 12px", fontWeight: 700, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>Status</th>
-              </tr>
+              <tr>{["SL", "Actions", "Demand", "Country", "Company", "Work Position", "Salary", "Visa Quota", "Sale Qty.", "Visa Rate", "Files", "Deadline", "Status"].map((heading) => <th key={heading} scope="col">{heading}</th>)}</tr>
             </thead>
             <tbody>
               {rows.map((row, index) => {
@@ -400,245 +236,165 @@ export function WorksDemandsPage() {
                 const saleV = row.saleVisaQuantity ?? (row.requirements?.saleVisaQuantity ?? 0);
                 const remaining = Math.max(0, totalV - saleV);
                 const percent = totalV > 0 ? Math.min(100, Math.round((saleV / totalV) * 100)) : 0;
-
                 return (
-                  <tr
-                    key={row.id}
-                    style={{
-                      borderBottom: "1px solid #f1f5f9",
-                      transition: "background 0.1s ease",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "#faf8ff")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                  >
-                    <td style={{ padding: "12px", color: "var(--muted)", fontWeight: 600 }}>
-                      {(page - 1) * pageSize + index + 1}
-                    </td>
-
-                    {/* Actions */}
-                    <td style={{ padding: "12px" }}>
-                      {canManage ? (
-                        <button
-                          type="button"
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "4px",
-                            padding: "5px 9px",
-                            borderRadius: "6px",
-                            background: "#f1f5f9",
-                            border: "1px solid var(--line)",
-                            color: "#7258e8",
-                            fontSize: "11px",
-                            fontWeight: 700,
-                            cursor: "pointer",
-                            transition: "all 0.15s ease",
-                          }}
-                          onClick={() => setEditRow(row)}
-                        >
-                          <Edit3 size={12} /> Edit
-                        </button>
-                      ) : (
-                        <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600 }}>
-                          Read-Only
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Demand */}
-                    <td style={{ padding: "12px" }}>
-                      <span
-                        style={{
-                          fontSize: "11px",
-                          fontWeight: 800,
-                          background: "#f0edff",
-                          color: "#7258e8",
-                          padding: "2px 7px",
-                          borderRadius: "4px",
-                          fontFamily: "monospace",
-                          display: "inline-block",
-                        }}
-                      >
-                        {row.demandNo}
-                      </span>
-                      {row.title && (
-                        <small style={{ display: "block", color: "var(--muted)", marginTop: "3px", fontSize: "11px" }}>
-                          {row.title}
-                        </small>
-                      )}
-                    </td>
-
-                    {/* Country */}
-                    <td style={{ padding: "12px" }}>{getCountryBadge(row.country)}</td>
-
-                    {/* Company */}
-                    <td style={{ padding: "12px" }}>
-                      <b style={{ color: "var(--ink)", display: "block" }}>{row.company.name}</b>
-                      {row.company.office && (
-                        <small style={{ color: "var(--muted)", fontSize: "11px" }}>
-                          {row.company.office.name}
-                        </small>
-                      )}
-                    </td>
-
-                    {/* Work Position */}
-                    <td style={{ padding: "12px" }}>
-                      <b style={{ color: "var(--ink)" }}>{row.profession}</b>
-                      {row.requirements?.workLocation && (
-                        <small style={{ display: "block", color: "var(--muted)", fontSize: "11px" }}>
-                          📍 {row.requirements.workLocation}
-                        </small>
-                      )}
-                    </td>
-
-                    {/* Salary */}
-                    <td style={{ padding: "12px" }}>
-                      <b style={{ color: "var(--ink)" }}>{money(row.salary, row.currency)}</b>
-                      {row.requirements?.workHour && (
-                        <small style={{ display: "block", color: "var(--muted)", fontSize: "11px" }}>
-                          ⏱️ {row.requirements.workHour}
-                        </small>
-                      )}
-                    </td>
-
-                    {/* Visa Quota */}
-                    <td style={{ padding: "12px" }}>
-                      <b style={{ color: "#7258e8", fontSize: "13px" }}>{totalV}</b>
-                    </td>
-
-                    {/* Sale Qty with mini meter */}
-                    <td style={{ padding: "12px", minWidth: "120px" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "3px" }}>
-                        <b style={{ color: saleV > 0 ? "#059669" : "var(--muted)", fontSize: "12px" }}>{saleV} sold</b>
-                        <small style={{ color: remaining === 0 ? "#ef4444" : "var(--muted)", fontWeight: 700, fontSize: "10px" }}>
-                          {remaining} left
-                        </small>
-                      </div>
-                      <div style={{ width: "100%", height: "5px", background: "#f1f5f9", borderRadius: "3px", overflow: "hidden" }}>
-                        <div style={{ width: `${percent}%`, height: "100%", background: percent >= 100 ? "#ef4444" : "#7258e8", borderRadius: "3px" }} />
+                  <tr key={row.id}>
+                    <td className="country-design-serial">{(page - 1) * pageSize + index + 1}</td>
+                    <td>{canManage ? <button data-action-ui="secondary" data-action-size="compact" type="button" className="country-design-dossier works-design-edit" onClick={() => setEditRow(row)}>Edit →</button> : <span className="works-design-read-only">Read-Only</span>}</td>
+                    <td><div className="country-design-cell works-design-demand"><span className="country-design-candidate-id">{row.demandNo}</span>{row.title && <small>{row.title}</small>}</div></td>
+                    <td>{getCountryBadge(row.country)}</td>
+                    <td><div className="country-design-cell client"><b>{row.company.name}</b>{row.company.office && <small>{row.company.office.name}</small>}</div></td>
+                    <td><div className="country-design-cell"><b>{row.profession}</b>{row.requirements?.workLocation && <small>📍 {row.requirements.workLocation}</small>}</div></td>
+                    <td><div className="country-design-cell"><b>{money(row.salary, row.currency)}</b>{row.requirements?.workHour && <small>⏱️ {row.requirements.workHour}</small>}</div></td>
+                    <td><b className="works-design-quota">{totalV}</b></td>
+                    <td>
+                      <div className="works-design-sales">
+                        <div><b className={saleV > 0 ? "sold" : ""}>{saleV} sold</b><small className={remaining === 0 ? "full" : ""}>{remaining} left</small></div>
+                        <div className="works-design-progress" role="progressbar" aria-label={`Allocated quota for ${row.demandNo}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}><div className={percent >= 100 ? "full" : ""} style={{ width: `${percent}%` }} /></div>
                       </div>
                     </td>
-
-                    {/* Visa Rate */}
-                    <td style={{ padding: "12px" }}>
-                      <b style={{ color: "var(--ink)" }}>{money(row.visaRate, row.currency)}</b>
-                      {row.commissionPerFile > 0 && (
-                        <small style={{ display: "block", color: "#059669", fontSize: "10px", fontWeight: 600 }}>
-                          Com: {money(row.commissionPerFile, row.currency)}
-                        </small>
-                      )}
-                    </td>
-
-                    {/* Files */}
-                    <td style={{ padding: "12px" }}>
-                      <div style={{ display: "flex", gap: "4px" }}>
-                        {row.requirements?.fileOneId ? (
-                          <FilePill label="File 1" onPreview={() => setPreviewFileId(row.requirements.fileOneId!)} />
-                        ) : (
-                          <span style={{ color: "var(--muted)", fontSize: "11px" }}>-</span>
-                        )}
-                        {row.requirements?.fileTwoId && (
-                          <FilePill label="File 2" onPreview={() => setPreviewFileId(row.requirements.fileTwoId!)} />
-                        )}
-                      </div>
-                    </td>
-
-                    {/* Deadline */}
-                    <td style={{ padding: "12px", whiteSpace: "nowrap" }}>
-                      {row.deadline ? (
-                        <span style={{ color: new Date(row.deadline) < new Date() ? "#dc2626" : "var(--ink)", fontWeight: 600 }}>
-                          {new Date(row.deadline).toLocaleDateString("en-GB")}
-                        </span>
-                      ) : (
-                        <span style={{ color: "var(--muted)" }}>N/A</span>
-                      )}
-                    </td>
-
-                    {/* Status */}
-                    <td style={{ padding: "12px" }}>
-                      {getStatusBadge(row.status, saleV, totalV)}
-                    </td>
+                    <td><div className="country-design-cell"><b>{money(row.visaRate, row.currency)}</b>{row.commissionPerFile > 0 && <small className="works-design-commission">Com: {money(row.commissionPerFile, row.currency)}</small>}</div></td>
+                    <td><div className="works-design-files">
+                      {row.requirements?.fileOneId ? <FilePill label="File 1" onPreview={() => setPreviewFileId(row.requirements.fileOneId!)} /> : <span className="works-design-read-only">-</span>}
+                      {row.requirements?.fileTwoId && <FilePill label="File 2" onPreview={() => setPreviewFileId(row.requirements.fileTwoId!)} />}
+                    </div></td>
+                    <td>{row.deadline ? <span className={`works-design-deadline ${new Date(row.deadline) < new Date() ? "overdue" : ""}`}>{new Date(row.deadline).toLocaleDateString("en-GB")}</span> : <span className="works-design-read-only">N/A</span>}</td>
+                    <td>{getStatusBadge(row.status, saleV, totalV)}</td>
                   </tr>
                 );
               })}
-
-              {!rows.length && !result.isFetching && (
-                <tr>
-                  <td colSpan={13} style={{ padding: "40px", textAlign: "center", color: "var(--muted)" }}>
-                    No works and demands available.
-                  </td>
-                </tr>
-              )}
+              {!rows.length && !result.isFetching && <tr><td colSpan={13} className="country-design-empty">No works and demands available.</td></tr>}
             </tbody>
           </table>
         </div>
 
-        {/* Footer Pagination */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px", flexWrap: "wrap", gap: "12px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <select
-              value={pageSize}
-              onChange={(event) => {
-                setPageSize(Number(event.target.value));
-                setPage(1);
-              }}
-              style={{
-                padding: "6px 12px",
-                borderRadius: "8px",
-                border: "1px solid var(--line)",
-                background: "#fff",
-                fontSize: "12px",
-                color: "var(--ink)",
-                outline: "none",
-              }}
-            >
-              <option value="10">10 per page</option>
-              <option value="20">20 per page</option>
-              <option value="50">50 per page</option>
-            </select>
-            <span style={{ fontSize: "12px", color: "var(--muted)" }}>
-              Showing {meta.total ? (page - 1) * pageSize + 1 : 0} to {Math.min(page * pageSize, meta.total)} of {meta.total} records
-            </span>
-          </div>
+        {/* Mobile Demands Feed (Stitch Screen 7f7d18060a604f1db01d912aa10ab430) */}
+        <div className="mobile-demands-stream">
+          {rows.map((row) => {
+            const totalV = row.visaQuantity ?? row.quantity ?? 0;
+            const saleV = row.saleVisaQuantity ?? (row.requirements?.saleVisaQuantity ?? 0);
+            const remaining = Math.max(0, totalV - saleV);
+            const percent = totalV > 0 ? Math.min(100, Math.round((saleV / totalV) * 100)) : 0;
 
-          <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-            <button
-              type="button"
-              disabled={page <= 1}
-              onClick={() => setPage(page - 1)}
-              style={{
-                padding: "6px 10px",
-                borderRadius: "8px",
-                border: "1px solid var(--line)",
-                background: page <= 1 ? "#f8fafc" : "#fff",
-                color: page <= 1 ? "#cbd5e1" : "var(--ink)",
-                cursor: page <= 1 ? "not-allowed" : "pointer",
-                display: "grid",
-                placeItems: "center",
-              }}
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <span style={{ fontSize: "12px", fontWeight: 700, padding: "0 8px", color: "var(--ink)" }}>
-              Page {page} of {Math.max(1, meta.totalPages)}
-            </span>
-            <button
-              type="button"
-              disabled={page >= meta.totalPages}
-              onClick={() => setPage(page + 1)}
-              style={{
-                padding: "6px 10px",
-                borderRadius: "8px",
-                border: "1px solid var(--line)",
-                background: page >= meta.totalPages ? "#f8fafc" : "#fff",
-                color: page >= meta.totalPages ? "#cbd5e1" : "var(--ink)",
-                cursor: page >= meta.totalPages ? "not-allowed" : "pointer",
-                display: "grid",
-                placeItems: "center",
-              }}
-            >
-              <ChevronRight size={16} />
-            </button>
+            return (
+              <article key={row.id} className="demand-mobile-card">
+                {/* Header: Demand No & Status */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #f1f5f9", paddingBottom: "10px" }}>
+                  <span style={{ fontFamily: "monospace", fontSize: "11px", fontWeight: 800, background: "#f0edff", color: "#4f46e5", padding: "3px 8px", borderRadius: "6px", border: "1px solid #e0e7ff" }}>
+                    {row.demandNo}
+                  </span>
+                  {getStatusBadge(row.status, saleV, totalV)}
+                </div>
+
+                {/* Body: Title & Meta */}
+                <div>
+                  <h3 style={{ fontSize: "14px", fontWeight: 800, color: "var(--ink)", margin: "0 0 4px", lineHeight: "1.3" }}>
+                    {row.title || `${row.company.name} ${row.profession}`}
+                  </h3>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", fontSize: "11px", color: "var(--muted)" }}>
+                    {getCountryBadge(row.country)}
+                    <span>•</span>
+                    <span style={{ fontWeight: 600, color: "var(--ink)" }}>{row.company.name}</span>
+                    {row.company.office && <span>({row.company.office.name})</span>}
+                  </div>
+                </div>
+
+                {/* Position & Financial Specs 2x2 Grid */}
+                <div className="demand-mobile-specs">
+                  <div>
+                    <span style={{ fontSize: "10px", textTransform: "uppercase", fontWeight: 700, color: "var(--muted)", display: "block" }}>Position</span>
+                    <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--ink)", display: "flex", alignItems: "center", gap: "4px", marginTop: "2px" }}>
+                      {row.profession}
+                      {row.requirements?.workLocation && (
+                        <span style={{ fontSize: "10px", color: "#e11d48", fontWeight: 500 }}>📍 {row.requirements.workLocation}</span>
+                      )}
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: "10px", textTransform: "uppercase", fontWeight: 700, color: "var(--muted)", display: "block" }}>Salary</span>
+                    <span style={{ fontSize: "12px", fontWeight: 800, color: "var(--ink)", display: "flex", alignItems: "center", gap: "4px", marginTop: "2px" }}>
+                      {money(row.salary, row.currency)}
+                      {row.requirements?.workHour && (
+                        <span style={{ fontSize: "10px", color: "var(--muted)", fontWeight: 500 }}>⏱ {row.requirements.workHour}</span>
+                      )}
+                    </span>
+                  </div>
+                  <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "6px" }}>
+                    <span style={{ fontSize: "10px", textTransform: "uppercase", fontWeight: 700, color: "var(--muted)", display: "block" }}>Visa Rate</span>
+                    <span style={{ fontSize: "12px", fontWeight: 800, color: "var(--ink)" }}>{money(row.visaRate, row.currency)}</span>
+                    {row.commissionPerFile > 0 && (
+                      <span style={{ display: "block", fontSize: "10px", color: "#059669", fontWeight: 600 }}>Com: {money(row.commissionPerFile, row.currency)}</span>
+                    )}
+                  </div>
+                  <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "6px" }}>
+                    <span style={{ fontSize: "10px", textTransform: "uppercase", fontWeight: 700, color: "var(--muted)", display: "block" }}>Deadline</span>
+                    <span style={{ fontSize: "12px", fontWeight: 700, color: row.deadline && new Date(row.deadline) < new Date() ? "#dc2626" : "var(--ink)" }}>
+                      {row.deadline ? new Date(row.deadline).toLocaleDateString("en-GB") : "Open"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Sales Allocation Meter */}
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11px", marginBottom: "6px" }}>
+                    <span style={{ fontWeight: 700, color: "var(--ink)" }}>
+                      Sale Qty: <strong style={{ color: "#059669" }}>{saleV} sold</strong>
+                    </span>
+                    <span style={{ color: "var(--muted)" }}>
+                      <strong style={{ color: remaining === 0 ? "#ef4444" : "#d97706" }}>{remaining} left</strong> / <strong style={{ color: "#4f46e5" }}>{totalV} quota</strong>
+                    </span>
+                  </div>
+                  <div className="demand-mobile-progress-track">
+                    <div style={{ width: `${percent}%`, height: "100%", background: percent >= 100 ? "#ef4444" : "#4f46e5", borderRadius: "9999px", transition: "width 0.3s ease" }} />
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="demand-mobile-actions">
+                  {canManage ? (
+                    <button data-action-ui="secondary" data-action-size="normal"
+                      type="button"
+                      onClick={() => setEditRow(row)}
+                      style={{ background: "#f0edff", color: "#4f46e5", border: "1px solid #dcd5fb", cursor: "pointer" }}
+                    >
+                      <Edit3 size={13} /> Edit Demand
+                    </button>
+                  ) : (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", color: "var(--muted)", fontWeight: 600 }}>
+                      Read-Only
+                    </div>
+                  )}
+
+                  {row.requirements?.fileOneId || row.requirements?.fileTwoId ? (
+                    <button data-action-ui="secondary" data-action-size="normal"
+                      type="button"
+                      onClick={() => setPreviewFileId(row.requirements?.fileOneId || row.requirements?.fileTwoId || null)}
+                      style={{ background: "#ffffff", color: "var(--ink)", border: "1px solid var(--line)", cursor: "pointer" }}
+                    >
+                      <FileCheck size={13} /> Attached Files
+                    </button>
+                  ) : (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: "var(--muted)" }}>
+                      No Documents
+                    </div>
+                  )}
+                </div>
+              </article>
+            );
+          })}
+
+          {!rows.length && !result.isFetching && (
+            <div style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "16px", padding: "30px 16px", textAlign: "center", color: "var(--muted)", fontSize: "13px" }}>
+              No works and demands available.
+            </div>
+          )}
+        </div>
+
+        <div className="country-design-pagination">
+          <span>{meta.total} Total Works &amp; Demands</span>
+          <div>
+            <button data-action-ui="neutral" data-action-size="normal" type="button" disabled={page <= 1} onClick={() => setPage(page - 1)}>← Previous</button>
+            <span className="country-design-page-indicator">Page {page} of {Math.max(1, meta.totalPages)}</span>
+            <button data-action-ui="neutral" data-action-size="normal" type="button" disabled={page >= meta.totalPages} onClick={() => setPage(page + 1)}>Next →</button>
           </div>
         </div>
       </section>
@@ -674,7 +430,7 @@ export function WorksDemandsPage() {
 
       {/* FILE PREVIEW MODAL */}
       {previewFileId && (
-        <div
+        <div role="dialog" aria-modal="true" aria-label="Dialog" className="master-modal-overlay"
           style={{
             position: "fixed",
             inset: 0,
@@ -687,7 +443,7 @@ export function WorksDemandsPage() {
           }}
           onClick={() => setPreviewFileId(null)}
         >
-          <div
+          <div className="master-modal-card master-modal-inline-card master-modal-panel"
             style={{
               background: "#fff",
               borderRadius: "16px",
@@ -700,7 +456,7 @@ export function WorksDemandsPage() {
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <b style={{ fontSize: "16px", color: "var(--ink)" }}>Attached Document Preview</b>
-              <button
+              <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog" className="master-modal-close"
                 type="button"
                 onClick={() => setPreviewFileId(null)}
                 style={{ border: "none", background: "#f1f5f9", borderRadius: "8px", padding: "6px", cursor: "pointer" }}
@@ -708,7 +464,7 @@ export function WorksDemandsPage() {
                 <X size={16} />
               </button>
             </div>
-            <div style={{ border: "1px solid var(--line)", borderRadius: "12px", overflow: "hidden", minHeight: "350px", display: "grid", placeItems: "center", background: "#f8fafc" }}>
+            <div className="master-modal-panel" style={{ border: "1px solid var(--line)", borderRadius: "12px", overflow: "hidden", minHeight: "350px", display: "grid", placeItems: "center", background: "#f8fafc" }}>
               <Image
                 src={`/api/files/${previewFileId}`}
                 alt="Demand Attachment"
@@ -725,7 +481,7 @@ export function WorksDemandsPage() {
                 <p style={{ fontSize: "13px", color: "var(--ink)", fontWeight: 600, margin: "0 0 8px" }}>
                   Document attachment
                 </p>
-                <a
+                <a data-action-ui="primary" data-action-size="normal"
                   href={`/api/files/${previewFileId}`}
                   target="_blank"
                   rel="noreferrer"
@@ -755,22 +511,10 @@ export function WorksDemandsPage() {
 
 function FilePill({ label, onPreview }: { label: string; onPreview: () => void }) {
   return (
-    <button
+    <button data-action-ui="secondary" data-action-size="normal"
       type="button"
       onClick={onPreview}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "4px",
-        padding: "4px 8px",
-        borderRadius: "6px",
-        background: "#eff6ff",
-        border: "1px solid #bfdbfe",
-        color: "#1d4ed8",
-        fontSize: "11px",
-        fontWeight: 700,
-        cursor: "pointer",
-      }}
+      className="country-design-dossier works-design-file-pill"
     >
       <Eye size={12} /> {label}
     </button>
@@ -926,7 +670,7 @@ function CreateDemandDialog({
   }
 
   return (
-    <div
+    <div role="dialog" aria-modal="true" aria-label="Create Work & Demand" className="master-modal-overlay"
       style={{
         position: "fixed",
         inset: 0,
@@ -939,7 +683,7 @@ function CreateDemandDialog({
       }}
       onClick={onClose}
     >
-      <form
+      <form className="master-modal-card master-modal-inline-card"
         noValidate
         onSubmit={submit}
         onClick={(e) => e.stopPropagation()}
@@ -955,7 +699,7 @@ function CreateDemandDialog({
         }}
       >
         {/* Modal Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", paddingBottom: "14px", borderBottom: "1px solid var(--line)" }}>
+        <div className="master-modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", paddingBottom: "14px", borderBottom: "1px solid var(--line)" }}>
           <div>
             <h2 style={{ fontSize: "19px", fontWeight: 800, color: "var(--ink)", margin: "0 0 3px" }}>
               Create Work &amp; Demand
@@ -964,7 +708,7 @@ function CreateDemandDialog({
               Add a new foreign company demand and visa quota allocation.
             </p>
           </div>
-          <button
+          <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog" className="master-modal-close"
             type="button"
             onClick={onClose}
             style={{ border: "none", background: "#f1f5f9", borderRadius: "8px", padding: "8px", cursor: "pointer", color: "var(--ink)" }}
@@ -974,7 +718,7 @@ function CreateDemandDialog({
         </div>
 
         {error && (
-          <div style={{ padding: "12px 16px", background: "#fef2f2", color: "#b91c1c", borderRadius: "10px", fontSize: "12px", marginBottom: "18px", border: "1px solid #fecaca", fontWeight: 600 }}>
+          <div className="master-modal-panel" style={{ padding: "12px 16px", background: "#fef2f2", color: "#b91c1c", borderRadius: "10px", fontSize: "12px", marginBottom: "18px", border: "1px solid #fecaca", fontWeight: 600 }}>
             {error}
           </div>
         )}
@@ -1016,7 +760,7 @@ function CreateDemandDialog({
                     </option>
                   ))}
                   {isSuperAdmin && (
-                    <option value="__new__" style={{ fontWeight: "bold", color: "#7258e8" }}>
+                    <option className="master-modal-accent" value="__new__" style={{ fontWeight: "bold", color: "#7258e8" }}>
                       + Add New Custom Office...
                     </option>
                   )}
@@ -1069,7 +813,7 @@ function CreateDemandDialog({
                     </option>
                   ))}
                   {isSuperAdmin && (
-                    <option value="__new__" style={{ fontWeight: "bold", color: "#7258e8" }}>
+                    <option className="master-modal-accent" value="__new__" style={{ fontWeight: "bold", color: "#7258e8" }}>
                       + Add New Custom Country...
                     </option>
                   )}
@@ -1122,7 +866,7 @@ function CreateDemandDialog({
                     </option>
                   ))}
                   {isSuperAdmin && (
-                    <option value="__new__" style={{ fontWeight: "bold", color: "#7258e8" }}>
+                    <option className="master-modal-accent" value="__new__" style={{ fontWeight: "bold", color: "#7258e8" }}>
                       + Add New Custom Company...
                     </option>
                   )}
@@ -1183,7 +927,7 @@ function CreateDemandDialog({
 
           <div style={{ gridColumn: "span 1.5" }}>
             <OrbitField label="File 1 (Document/Flyer)">
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "#f8fafc", padding: "6px 10px", borderRadius: "8px", border: "1px solid #cbd5e1" }}>
+              <div className="master-modal-panel" style={{ display: "flex", alignItems: "center", gap: "8px", background: "#f8fafc", padding: "6px 10px", borderRadius: "8px", border: "1px solid #cbd5e1" }}>
                 <input
                   type="file"
                   id="fileOneInput"
@@ -1216,7 +960,7 @@ function CreateDemandDialog({
 
           <div style={{ gridColumn: "span 1.5" }}>
             <OrbitField label="File 2 (Quota Paper)">
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "#f8fafc", padding: "6px 10px", borderRadius: "8px", border: "1px solid #cbd5e1" }}>
+              <div className="master-modal-panel" style={{ display: "flex", alignItems: "center", gap: "8px", background: "#f8fafc", padding: "6px 10px", borderRadius: "8px", border: "1px solid #cbd5e1" }}>
                 <input
                   type="file"
                   id="fileTwoInput"
@@ -1249,7 +993,7 @@ function CreateDemandDialog({
         </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "24px", paddingTop: "16px", borderTop: "1px solid var(--line)" }}>
-          <button
+          <button data-action-ui="neutral" data-action-size="normal"
             type="button"
             onClick={onClose}
             style={{
@@ -1265,7 +1009,7 @@ function CreateDemandDialog({
           >
             Cancel
           </button>
-          <button
+          <button data-action-ui="primary" data-action-size="normal" className="master-modal-primary"
             type="submit"
             disabled={saving}
             style={{
@@ -1343,7 +1087,7 @@ function EditDemandDialog({
   }
 
   return (
-    <div
+    <div role="dialog" aria-modal="true" aria-label="Edit Work & Demand:" className="master-modal-overlay"
       style={{
         position: "fixed",
         inset: 0,
@@ -1356,7 +1100,7 @@ function EditDemandDialog({
       }}
       onClick={onClose}
     >
-      <form
+      <form className="master-modal-card master-modal-inline-card"
         onSubmit={submit}
         onClick={(e) => e.stopPropagation()}
         style={{
@@ -1371,16 +1115,16 @@ function EditDemandDialog({
         }}
       >
         {/* Modal Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", paddingBottom: "14px", borderBottom: "1px solid var(--line)" }}>
+        <div className="master-modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", paddingBottom: "14px", borderBottom: "1px solid var(--line)" }}>
           <div>
             <h2 style={{ fontSize: "19px", fontWeight: 800, color: "var(--ink)", margin: "0 0 3px" }}>
-              Edit Work &amp; Demand: <span style={{ color: "#7258e8" }}>{row.demandNo}</span>
+              Edit Work &amp; Demand: <span className="master-modal-accent" style={{ color: "#7258e8" }}>{row.demandNo}</span>
             </h2>
             <p style={{ fontSize: "12px", color: "var(--muted)", margin: 0 }}>
               {row.company?.name} — {row.country}
             </p>
           </div>
-          <button
+          <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog" className="master-modal-close"
             type="button"
             onClick={onClose}
             style={{ border: "none", background: "#f1f5f9", borderRadius: "8px", padding: "8px", cursor: "pointer", color: "var(--ink)" }}
@@ -1390,7 +1134,7 @@ function EditDemandDialog({
         </div>
 
         {error && (
-          <div style={{ padding: "12px 16px", background: "#fef2f2", color: "#b91c1c", borderRadius: "10px", fontSize: "12px", marginBottom: "18px", border: "1px solid #fecaca", fontWeight: 600 }}>
+          <div className="master-modal-panel" style={{ padding: "12px 16px", background: "#fef2f2", color: "#b91c1c", borderRadius: "10px", fontSize: "12px", marginBottom: "18px", border: "1px solid #fecaca", fontWeight: 600 }}>
             {error}
           </div>
         )}
@@ -1448,7 +1192,7 @@ function EditDemandDialog({
         </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "24px", paddingTop: "16px", borderTop: "1px solid var(--line)" }}>
-          <button
+          <button data-action-ui="neutral" data-action-size="normal"
             type="button"
             onClick={onClose}
             style={{
@@ -1464,7 +1208,7 @@ function EditDemandDialog({
           >
             Cancel
           </button>
-          <button
+          <button data-action-ui="primary" data-action-size="normal" className="master-modal-primary"
             type="submit"
             disabled={saving}
             style={{
@@ -1507,7 +1251,7 @@ function OrbitField({
           {label} {required && <span style={{ color: "#ef4444" }}>*</span>}
         </span>
         {actionText && onAction && (
-          <button
+          <button data-action-ui="secondary" data-action-size="normal"
             type="button"
             onClick={onAction}
             style={{

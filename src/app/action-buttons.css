@@ -1,0 +1,170 @@
+/* Compact action controls for toolbars, tables and dialogs.
+   Mark actions explicitly so navigation, tabs, status cards and print layouts
+   retain their existing styling. Layered important rules beat legacy inline
+   and page-specific button declarations without changing their behavior. */
+@layer project-actions {
+  @media screen {
+    [data-action-ui] {
+      box-sizing: border-box !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 4px !important;
+      min-height: 30px !important;
+      height: auto !important;
+      max-width: 100% !important;
+      padding: 5px 11px !important;
+      border: 1px solid transparent !important;
+      border-radius: 999px !important;
+      background: #f0f1f4 !important;
+      color: #414651 !important;
+      box-shadow: none !important;
+      font-family: var(--font-inter), sans-serif !important;
+      font-size: 11.5px !important;
+      font-weight: 600 !important;
+      line-height: 18px !important;
+      letter-spacing: 0 !important;
+      text-transform: none !important;
+      text-decoration: none !important;
+      white-space: nowrap !important;
+      vertical-align: middle !important;
+      cursor: pointer !important;
+      transition: background-color .15s ease, filter .15s ease !important;
+    }
+
+    [data-action-ui="primary"] {
+      background: #007aff !important;
+      color: #fff !important;
+    }
+
+    [data-action-ui="secondary"] {
+      background: #eef4ff !important;
+      color: #2165c9 !important;
+      border-color: #e0eaff !important;
+    }
+
+    [data-action-ui="success"] {
+      background: #eaf8f0 !important;
+      color: #168253 !important;
+      border-color: #d7efdf !important;
+    }
+
+    [data-action-ui="note"] {
+      background: #eaf2ff !important;
+      color: #007aff !important;
+      border-color: #d0e2ff !important;
+    }
+
+    [data-action-ui="warning"] {
+      background: #fff6e8 !important;
+      color: #a9680c !important;
+      border-color: #f8e6c6 !important;
+    }
+
+    [data-action-ui="danger"] {
+      background: #fff1f2 !important;
+      color: #d93940 !important;
+      border-color: #f9dde1 !important;
+    }
+
+    [data-action-ui="ghost"] {
+      background: transparent !important;
+      color: #6e6e73 !important;
+    }
+
+    [data-action-size="compact"] {
+      min-height: 26px !important;
+      padding: 4px 9px !important;
+      font-size: 11px !important;
+      line-height: 16px !important;
+    }
+
+    [data-action-size="icon"] {
+      width: 28px !important;
+      min-width: 28px !important;
+      min-height: 28px !important;
+      height: 28px !important;
+      padding: 0 !important;
+      flex-shrink: 0 !important;
+    }
+
+    [data-action-ui] svg {
+      width: 13px !important;
+      height: 13px !important;
+      flex-shrink: 0 !important;
+      color: inherit !important;
+      stroke: currentColor !important;
+    }
+
+    [data-action-ui] > span { color: inherit !important; }
+    .agent-ledger-actions { gap: 5px !important; }
+    .pipeline-save-actions { justify-content: flex-end; }
+    .pipeline-save-action[data-action-ui] { width: auto !important; flex: 0 1 auto !important; }
+    .payment-modal-card [data-action-ui="success"]:is([type="submit"], .payment-modal-submit) {
+      background: #168253 !important;
+      color: #fff !important;
+      border-color: transparent !important;
+    }
+    .candidate-detail-actions {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr) minmax(0, 1fr);
+      align-items: stretch;
+      gap: 10px;
+    }
+
+    .candidate-detail-actions:not(:has(> :nth-child(3))) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .candidate-detail-action[data-action-ui] {
+      min-width: 0 !important;
+      width: 100% !important;
+      min-height: 42px !important;
+      padding: 10px 14px !important;
+      border-radius: 10px !important;
+      gap: 8px !important;
+      font-size: 12px !important;
+      line-height: 20px !important;
+      white-space: normal !important;
+      overflow-wrap: normal !important;
+      text-align: center !important;
+    }
+
+    .candidate-detail-action[data-action-ui] svg {
+      width: 16px !important;
+      height: 16px !important;
+    }
+
+    @media (max-width: 560px) {
+      .candidate-detail-actions,
+      .candidate-detail-actions:not(:has(> :nth-child(3))) {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .candidate-detail-action[data-action-ui] {
+        min-height: 44px !important;
+      }
+    }
+
+    [data-action-ui]:hover:not(:disabled):not([aria-disabled="true"]) { filter: brightness(.97) !important; }
+    [data-action-ui]:focus-visible { outline: 2px solid #007aff !important; outline-offset: 3px !important; }
+    [data-action-ui]:is(:disabled, [aria-disabled="true"]) { opacity: .5 !important; cursor: not-allowed !important; }
+
+    @media (max-width: 768px) {
+      [data-action-ui] {
+        min-height: 36px !important;
+        padding: 7px 11px !important;
+        white-space: normal !important;
+        overflow-wrap: anywhere !important;
+        text-align: center !important;
+      }
+
+      [data-action-size="icon"] {
+        width: 36px !important;
+        min-width: 36px !important;
+        height: 36px !important;
+        padding: 0 !important;
+      }
+    }
+  }
+}

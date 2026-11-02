@@ -1,6 +1,6 @@
 node_modules
 .next
-.env
+*.env
 *.log
 prisma/dev.db
 storage/private/
@@ -8,3 +8,6 @@ storage/private/
 .pnpm-store/
 tmp/
 *.tsbuildinfo
+.DS_Store
+*.DS_Store
+Thumbs.db

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requirePermission, requireSuperAdmin } from "@/lib/authorization";
+import { assertPortalEmailAvailable } from "@/lib/agent-portal-account";
 import { getSession } from "@/lib/session";
 import bcrypt from "bcryptjs";
 import type { ServerActionResult } from "./files";
@@ -50,6 +51,7 @@ export async function createAgentAction(
       code = `AGT-${String(count + 101).padStart(3, "0")}`;
     }
 
+    if (input.enablePortalLogin && (input.portalEmail || input.email)) await assertPortalEmailAvailable(input.portalEmail || input.email!);
     const agent = await prisma.agent.create({
       data: {
         code,

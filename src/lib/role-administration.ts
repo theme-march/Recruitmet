@@ -18,14 +18,14 @@ export async function getRoleCatalog() {
 export async function listRoles() {
   const catalog = await getRoleCatalog();
   const roles = await prisma.role.findMany({ include: { permissions: { include: { permission: true } }, _count: { select: { users: true } } }, orderBy: { createdAt: "asc" } });
-  return { catalog, roles: roles.map(role => ({ id: role.id, name: role.name, description: role.description, status: role.status, updatedAt: role.updatedAt, userCount: role._count.users, kind: toAppRole(role.name), granularPermissions: expandPermissions(role.permissions.map(r => r.permission), catalog) })) };
+  return { catalog, roles: roles.map(role => ({ id: role.id, name: role.name, description: toAppRole(role.name) === "CALL_CENTER" ? role.description?.replaceAll("Office Call Center", "Office Operations").replaceAll("Call Center", "Office Operations") ?? null : role.description, status: role.status, updatedAt: role.updatedAt, userCount: role._count.users, kind: toAppRole(role.name), granularPermissions: expandPermissions(role.permissions.map(r => r.permission), catalog) })) };
 }
 export async function saveRole(raw: unknown, session: AwaitedSession) {
   requireSuperAdmin(session);
   const input = roleInput.parse(raw);
   const catalog = await getRoleCatalog();
   const requestedName = input.name.toLowerCase().replace(/[^a-z]/g, "");
-  const reserved = ["superadministrator", "superadmin", "callcenter", "callcenterofficer", "agent", "agentpartner", "agentportal", "custom"];
+  const reserved = ["superadministrator", "superadmin", "officeoperations", "callcenter", "callcenterofficer", "agent", "agentpartner", "agentportal", "custom"];
   const current = input.roleId ? await prisma.role.findUnique({ where: { id: input.roleId } }) : null;
   if (input.roleId && !current) throw new AppError("NOT_FOUND", "Role not found.", 404);
   if (current && ["SUPER_ADMIN", "AGENT"].includes(toAppRole(current.name))) throw new AppError("PROTECTED_ROLE", "This built-in role is protected.", 403);

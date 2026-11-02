@@ -7,7 +7,7 @@ export type PermissionModule = { id: string; label: string; description: string;
 const crud: PermissionAction[] = ["read", "create", "edit", "delete", "export"];
 export const permissionModules: PermissionModule[] = [
   { id: "dashboard", label: "Analytics Dashboard", description: "Executive overview, operational and financial summaries", actions: ["read"] },
-  { id: "call-center", label: "Candidates & Call Center", description: "Candidate register, leads, calls and follow-ups", actions: [...crud, "assign", "import", "verify", "approve"] },
+  { id: "call-center", label: "Candidates & Office Operations", description: "Candidate register, leads, calls and follow-ups", actions: [...crud, "assign", "import", "verify", "approve"] },
   { id: "registration", label: "Registration & Interviews", description: "Schedules, assessments and interview conversion", actions: [...crud, "assign"] },
   { id: "office-vendor", label: "Works & Demands", description: "Companies, demand contracts and attached files", actions: crud },
   { id: "agents", label: "Agents", description: "Partner directory and dossiers; portal account provisioning remains Super Admin only", actions: [...crud, "assign"] },

@@ -340,124 +340,51 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
   ];
 
   return (
-    <div className="work-call-page" style={{ maxWidth: "1200px", margin: "0 auto" }}>
-      <div className="page-head compact" style={{ marginBottom: "18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div className="work-call-page country-design-page candidate-create-design-page">
+      <nav className="country-design-breadcrumb" aria-label="Breadcrumb">
+        <Link href="/">Dashboard</Link> / Candidates / Create Candidate
+      </nav>
+      <div className="country-design-heading">
         <div>
-          <div className="breadcrumb" style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-            Candidates / Create Candidate
-          </div>
-          <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--ink)", margin: "4px 0" }}>Create Candidate</h1>
-          <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0 }}>Register and onboard a new candidate with interview preferences and target country pipeline.</p>
+          <h1>Create Candidate</h1>
+          <p>Register and onboard a new candidate with interview preferences and target country pipeline.</p>
         </div>
-        <Link
-          prefetch={true}
-          href={moduleItemPath("call-center", "Registration & interviews")}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "6px",
-            padding: "9px 16px",
-            borderRadius: "10px",
-            background: "#f0edff",
-            border: "1px solid #dcd5fb",
-            color: "#7258e8",
-            fontSize: "12px",
-            fontWeight: 700,
-            textDecoration: "none",
-          }}
-        >
-          <List size={16} /> Registration &amp; Interviews
-        </Link>
+        <div className="country-design-actions">
+          <Link data-action-ui="neutral" data-action-size="normal" prefetch={true} href={moduleItemPath("call-center", "Registration & interviews")}>
+            <List size={16} /> Registration &amp; Interviews
+          </Link>
+        </div>
       </div>
 
-      <form className="work-call-form" onSubmit={submit} style={{ display: "grid", gap: "18px" }}>
+      <form className="work-call-form" onSubmit={submit}>
         {/* 1. INTERVIEW & DRIVE OPTIONS */}
-        <section
-          className="work-form-section"
-          style={{
-            background: "#fff",
-            border: "1px solid #e8e5f1",
-            borderRadius: "16px",
-            padding: "24px 26px",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.03)",
-          }}
-        >
+        <section className="work-form-section candidate-create-interview">
           {/* Header */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: interviewSectionOpen ? "18px" : 0,
-              borderBottom: interviewSectionOpen ? "1px solid #f1edf8" : "none",
-              paddingBottom: interviewSectionOpen ? "14px" : 0,
-              flexWrap: "wrap",
-              gap: "12px",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <div
-                style={{
-                  width: "40px",
-                  height: "40px",
-                  borderRadius: "12px",
-                  background: "linear-gradient(135deg, #f5f3ff 0%, #ede8ff 100%)",
-                  border: "1px solid #e0d7fe",
-                  color: "#7258e8",
-                  display: "grid",
-                  placeItems: "center",
-                  flexShrink: 0,
-                }}
-              >
+          <div className={`candidate-create-section-header${interviewSectionOpen ? "" : " is-collapsed"}`}>
+            <div>
+              <div className="candidate-create-section-icon">
                 <Calendar size={20} />
               </div>
               <div>
-                <h2 style={{ fontSize: "16px", fontWeight: 800, color: "var(--ink)", margin: 0, letterSpacing: "-0.2px", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                  1. Interview &amp; Drive Options <span style={{ background: "#f3f0ff", color: "#7258e8", border: "1px solid #ddd6fe", padding: "2px 9px", borderRadius: "12px", fontSize: "11px", fontWeight: 700 }}>(Optional)</span>
+                <h2>
+                  1. Interview &amp; Drive Options <span>(Optional)</span>
                 </h2>
-                <p style={{ margin: "3px 0 0", color: "#64748b", fontSize: "12.5px" }}>
+                <p>
                   Skip this section now if not applicable. These details can also be added or updated later from the candidate profile.
                 </p>
               </div>
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div>
               {selectedScheduleId && (
-                <span
-                  style={{
-                    fontSize: "11.5px",
-                    fontWeight: 700,
-                    color: "#059669",
-                    background: "#ecfdf5",
-                    border: "1px solid #a7f3d0",
-                    padding: "4px 11px",
-                    borderRadius: "20px",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "5px",
-                  }}
-                >
+                <span className="candidate-create-autofill">
                   <Sparkles size={13} /> Auto-filled from Schedule
                 </span>
               )}
-              <button
+              <button data-action-ui="secondary" data-action-size="normal"
                 type="button"
                 onClick={() => setInterviewSectionOpen((open) => !open)}
                 aria-expanded={interviewSectionOpen}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "5px",
-                  padding: "7px 13px",
-                  borderRadius: "9px",
-                  border: "1px solid #dcd5fb",
-                  background: interviewSectionOpen ? "#fff" : "#f8f7ff",
-                  color: "#7258e8",
-                  fontSize: "12px",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  transition: "all 0.15s ease",
-                }}
               >
                 {interviewSectionOpen ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
                 {interviewSectionOpen ? "Hide Fields" : "Show Fields"}
@@ -466,34 +393,16 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
           </div>
 
           {interviewSectionOpen && (
-            <div style={{ display: "grid", gap: "18px" }}>
+            <div>
               {/* Interview Schedule - Prominent Feature Field */}
-              <div
-                style={{
-                  background: "#fbfaff",
-                  border: "1px solid #ede8f8",
-                  borderRadius: "12px",
-                  padding: "14px 16px",
-                  display: "grid",
-                  gap: "8px",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "6px" }}>
+              <div className="candidate-create-schedule">
+                <div>
                   <label
                     htmlFor="interviewScheduleId"
-                    style={{
-                      fontSize: "12.5px",
-                      fontWeight: 700,
-                      color: "var(--ink)",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      cursor: "pointer",
-                    }}
                   >
-                    <Calendar size={15} color="#7258e8" /> Interview Schedule
+                    <Calendar size={15} color="#007aff" /> Interview Schedule
                   </label>
-                  <span style={{ fontSize: "11px", color: "#64748b" }}>
+                  <span>
                     Selecting a schedule automatically fills trade, company &amp; date
                   </span>
                 </div>
@@ -502,18 +411,6 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
                   name="interviewScheduleId"
                   value={selectedScheduleId}
                   onChange={(e) => handleScheduleChange(e.target.value)}
-                  style={{
-                    width: "100%",
-                    height: "44px",
-                    borderRadius: "9px",
-                    border: "1px solid #dcd5fb",
-                    padding: "0 13px",
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    outline: "none",
-                    background: "#fff",
-                    color: "var(--ink)",
-                  }}
                 >
                   <option value="">None / Open Candidate (Select Interview Schedule)</option>
                   {schedules.map((schedule) => (
@@ -525,7 +422,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
               </div>
 
               {/* 6 Core Candidate Preference Fields */}
-              <div className="work-form-grid" style={{ gap: "16px 20px" }}>
+              <div className="work-form-grid">
                 <label>
                   <span>Interested Work Category</span>
                   <select
@@ -626,97 +523,39 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
         </section>
 
         {/* 2. AGENT PARTNER ASSIGNMENT */}
-        <section
-          className="work-form-section"
-          style={{
-            background: "linear-gradient(135deg, #ffffff 0%, #faf9ff 100%)",
-            border: "1px solid #e2dcfb",
-            borderRadius: "16px",
-            padding: "22px 26px",
-            boxShadow: "0 4px 20px rgba(91, 71, 180, 0.05)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: "14px",
-              paddingBottom: "14px",
-              marginBottom: "16px",
-              borderBottom: "1px solid #eeeafd",
-              flexWrap: "wrap",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <div
-                style={{
-                  width: "40px",
-                  height: "40px",
-                  borderRadius: "12px",
-                  background: "linear-gradient(135deg, #f0edff 0%, #e7e0ff 100%)",
-                  border: "1px solid #dcd5fb",
-                  color: "#7258e8",
-                  display: "grid",
-                  placeItems: "center",
-                  flexShrink: 0,
-                }}
-              >
+        <section className="work-form-section candidate-create-agent">
+          <div className="candidate-create-section-header">
+            <div>
+              <div className="candidate-create-section-icon">
                 <Users size={20} />
               </div>
               <div>
-                <h2 style={{ fontSize: "16px", fontWeight: 800, color: "var(--ink)", margin: 0, letterSpacing: "-0.2px", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                <h2>
                   2. Link / Assign Agent Partner
-                  <span style={{ background: "#f3f0ff", color: "#7258e8", border: "1px solid #ddd6fe", padding: "2px 9px", borderRadius: "12px", fontSize: "11px", fontWeight: 700 }}>(Optional)</span>
+                  <span>(Optional)</span>
                 </h2>
-                <p style={{ margin: "3px 0 0", color: "#64748b", fontSize: "12.5px" }}>
+                <p>
                   Link this candidate to a registered agency partner or keep them as a direct office candidate.
                 </p>
               </div>
             </div>
 
-            <Link
+            <Link data-action-ui="primary" data-action-size="normal"
               href="/module/agents"
               prefetch={true}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "8px 14px",
-                borderRadius: "9px",
-                background: "#f0edff",
-                color: "#7258e8",
-                border: "1px solid #dcd5fb",
-                fontSize: "12px",
-                fontWeight: 800,
-                textDecoration: "none",
-                transition: "all 0.15s ease",
-              }}
             >
               <UserPlus size={14} /> Create New Agent
             </Link>
           </div>
 
-          <label style={{ display: "grid", gap: "7px" }}>
-            <span style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--ink)" }}>
+          <label>
+            <span>
               Select Agent Partner
             </span>
             <select
               name="agent"
               value={selectedAgent}
               onChange={(e) => setSelectedAgent(e.target.value)}
-              style={{
-                width: "100%",
-                height: "46px",
-                borderRadius: "10px",
-                border: "1px solid #cfc7ee",
-                padding: "0 14px",
-                fontSize: "13px",
-                fontWeight: 600,
-                outline: "none",
-                background: "#fff",
-                color: "var(--ink)",
-              }}
             >
               <option value="">Direct Office Candidate (No Agent)</option>
               <optgroup label="── Registered Agency Partners & Brokers ──">
@@ -730,19 +569,19 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
           </label>
 
           {selectedAgent && selectedAgent !== "Direct Office Candidate (No Agent)" && (
-            <div style={{ marginTop: "10px", padding: "9px 12px", borderRadius: "9px", background: "#ecfdf5", border: "1px solid #a7f3d0", fontSize: "11.5px", color: "#047857", fontWeight: 700, display: "flex", alignItems: "center", gap: "6px" }}>
+            <div className="candidate-create-agent-notice">
               <Check size={14} /> This lead and resulting files will be automatically attributed to "{selectedAgent}".
             </div>
           )}
         </section>
 
         {/* BASIC QUESTION */}
-        <section className="work-form-section" style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "16px", padding: "22px 26px", boxShadow: "var(--shadow)" }}>
-          <h2 style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink)", margin: "0 0 16px", borderBottom: "1px solid var(--line)", paddingBottom: "10px" }}>
+        <section className="work-form-section">
+          <h2>
             3. Basic Candidate Information
           </h2>
 
-          <div style={{ marginBottom: "18px" }}>
+          <div className="candidate-create-photo">
             <CandidateProfileImageField
               candidateName={candidateFullName || "New Candidate"}
               selectedFile={candidatePhotoFile}
@@ -753,7 +592,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
 
           <div className="work-form-grid">
             <label>
-              <span>Full Name <sup style={{ color: "#e11d48", fontSize: "14px" }}>*</sup></span>
+              <span>Full Name <sup>*</sup></span>
               <input
                 name="fullName"
                 placeholder="Enter candidate full name"
@@ -763,11 +602,11 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
               />
             </label>
             <label>
-              <span>Phone <sup style={{ color: "#e11d48", fontSize: "14px" }}>*</sup></span>
+              <span>Phone <sup>*</sup></span>
               <input name="phone" placeholder="e.g. 01700000000" required />
             </label>
-            <div className="dynamic-field full" style={{ gridColumn: "1 / -1" }}>
-              <span style={{ fontSize: "12px", fontWeight: 600, color: "#747083", marginBottom: "6px", display: "block" }}>Additional Phone Numbers</span>
+            <div className="dynamic-field full">
+              <span>Additional Phone Numbers</span>
               {phones.map((phone, index) => (
                 <input
                   key={index}
@@ -776,26 +615,12 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
                     setPhones(phones.map((item, itemIndex) => (itemIndex === index ? event.target.value : item)))
                   }
                   placeholder="Additional phone"
-                  style={{ marginBottom: "8px" }}
+
                 />
               ))}
-              <button
+              <button data-action-ui="primary" data-action-size="normal"
                 type="button"
                 onClick={() => setPhones([...phones, ""])}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  padding: "8px 14px",
-                  borderRadius: "8px",
-                  background: "#f0edff",
-                  border: "1px solid #dcd5fb",
-                  color: "#7258e8",
-                  fontSize: "12px",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  width: "fit-content",
-                }}
               >
                 <Plus size={15} /> Add Another Phone
               </button>
@@ -830,20 +655,19 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
         </section>
 
         {/* PREFER COUNTRY & DESTINATION */}
-        <section className="work-form-section" style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "16px", padding: "22px 26px", boxShadow: "var(--shadow)" }}>
-          <h2 style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink)", margin: "0 0 16px", borderBottom: "1px solid var(--line)", paddingBottom: "10px" }}>
+        <section className="work-form-section">
+          <h2>
             4. Prefer Country &amp; Target Destination
           </h2>
 
           <div className="work-form-grid">
-            <label style={{ gridColumn: "1 / -1" }}>
-              <span>Target Country <sup style={{ color: "#e11d48", fontSize: "14px" }}>*</sup></span>
+            <label>
+              <span>Target Country <sup>*</sup></span>
               <select
                 name="countrySelect"
                 required
                 value={selectedCountry}
                 onChange={(e) => setSelectedCountry(e.target.value)}
-                style={{ fontSize: "14px", fontWeight: 700, height: "46px" }}
               >
                 {dbCountries.length > 0 ? (
                   dbCountries.map((dc) => (
@@ -865,7 +689,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
                   </>
                 )}
               </select>
-              <small style={{ color: "var(--muted)", fontSize: "11px", marginTop: "5px", display: "block" }}>
+              <small>
                 Target overseas destination pipeline where this candidate will be processed upon lead confirmation.
               </small>
             </label>
@@ -873,8 +697,8 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
         </section>
 
         {/* PERSONAL INFORMATION */}
-        <section className="work-form-section" style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "16px", padding: "22px 26px", boxShadow: "var(--shadow)" }}>
-          <h2 style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink)", margin: "0 0 16px", borderBottom: "1px solid var(--line)", paddingBottom: "10px" }}>
+        <section className="work-form-section">
+          <h2>
             5. Personal Information
           </h2>
           <div className="work-form-grid">
@@ -947,8 +771,8 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
         </section>
 
         {/* COMMENTS & NOTES */}
-        <section className="work-form-section" style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "16px", padding: "22px 26px", boxShadow: "var(--shadow)" }}>
-          <h2 style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink)", margin: "0 0 16px", borderBottom: "1px solid var(--line)", paddingBottom: "10px" }}>
+        <section className="work-form-section">
+          <h2>
             6. Comments, Notes &amp; Activity Log
           </h2>
           <div className="comment-grid">
@@ -968,7 +792,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
                   rows={3}
                 />
               ))}
-              <button type="button" onClick={() => setWorkerComments([...workerComments, ""])}>
+              <button data-action-ui="primary" data-action-size="normal" type="button" onClick={() => setWorkerComments([...workerComments, ""])}>
                 <Plus size={14} /> Add more
               </button>
             </div>
@@ -988,7 +812,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
                   rows={3}
                 />
               ))}
-              <button type="button" onClick={() => setExecutiveComments([...executiveComments, ""])}>
+              <button data-action-ui="primary" data-action-size="normal" type="button" onClick={() => setExecutiveComments([...executiveComments, ""])}>
                 <Plus size={14} /> Add more
               </button>
             </div>
@@ -1008,7 +832,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
                   rows={3}
                 />
               ))}
-              <button type="button" onClick={() => setAdminComments([...adminComments, ""])}>
+              <button data-action-ui="primary" data-action-size="normal" type="button" onClick={() => setAdminComments([...adminComments, ""])}>
                 <Plus size={14} /> Add more
               </button>
             </div>
@@ -1016,58 +840,16 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
         </section>
 
         {/* STICKY FOOTER ACTIONS */}
-        <div
-          className="work-form-actions"
-          style={{
-            position: "sticky",
-            bottom: "16px",
-            zIndex: 10,
-            display: "flex",
-            justifyContent: "flex-end",
-            alignItems: "center",
-            gap: "12px",
-            padding: "14px 20px",
-            background: "rgba(255, 255, 255, 0.92)",
-            backdropFilter: "blur(12px)",
-            border: "1px solid var(--line)",
-            borderRadius: "14px",
-            boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
-          }}
-        >
+        <div className="work-form-actions">
           <Link
             prefetch={true}
             href={moduleItemPath("call-center", "Work Call List")}
-            style={{
-              padding: "10px 20px",
-              borderRadius: "10px",
-              background: "#f1f5f9",
-              border: "1px solid var(--line)",
-              color: "var(--muted)",
-              fontSize: "13px",
-              fontWeight: 700,
-              textDecoration: "none",
-            }}
           >
             Cancel
           </Link>
-          <button
+          <button data-action-ui="primary" data-action-size="normal"
             type="submit"
             disabled={saving}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "10px 24px",
-              borderRadius: "10px",
-              background: "#7258e8",
-              color: "#fff",
-              border: "none",
-              fontSize: "13px",
-              fontWeight: 700,
-              cursor: saving ? "not-allowed" : "pointer",
-              boxShadow: "0 4px 12px rgba(114,88,232,0.3)",
-              opacity: saving ? 0.7 : 1,
-            }}
           >
             <Send size={16} />
             {saving ? "Creating Candidate..." : "Submit Candidate"}
@@ -1077,7 +859,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
 
       {/* QUICK CREATE AGENT MODAL */}
       {showAgentModal && (
-        <div
+        <div role="dialog" aria-modal="true" aria-label="Quick Register Agent Partner" className="master-modal-overlay"
           style={{
             position: "fixed",
             inset: 0,
@@ -1090,7 +872,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
           }}
           onClick={() => !creatingAgent && setShowAgentModal(false)}
         >
-          <div
+          <div className="master-modal-card master-modal-inline-card master-modal-panel"
             style={{
               background: "#fff",
               borderRadius: "16px",
@@ -1101,7 +883,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div
+            <div className="master-modal-header"
               style={{
                 padding: "16px 20px",
                 borderBottom: "1px solid var(--line)",
@@ -1117,7 +899,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
                   Quick Register Agent Partner
                 </h3>
               </div>
-              <button
+              <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog" className="master-modal-close"
                 type="button"
                 onClick={() => setShowAgentModal(false)}
                 style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer" }}
@@ -1178,7 +960,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
               </div>
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "18px" }}>
-                <button
+                <button data-action-ui="neutral" data-action-size="normal"
                   type="button"
                   disabled={creatingAgent}
                   onClick={() => setShowAgentModal(false)}
@@ -1186,7 +968,7 @@ export function CreateWorkCallPage({ officerName }: { officerName: string }) {
                 >
                   Cancel
                 </button>
-                <button
+                <button data-action-ui="primary" data-action-size="normal" className="master-modal-primary"
                   type="submit"
                   disabled={creatingAgent}
                   style={{

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -124,7 +124,9 @@ const FIELD_TYPE_OPTIONS = [
 export function CountryPipelineDetail({ countryId }: { countryId?: string } = {}) {
   const params = useParams();
   const router = useRouter();
-  const id = countryId || (params?.id as string);
+  const rawId = (countryId || (params?.id as string) || "").trim();
+  const id = decodeURIComponent(rawId).trim();
+  const hasRedirectedRef = useRef(false);
 
   const [country, setCountry] = useState<CountryRecord | null>(null);
   const [loading, setLoading] = useState(true);
@@ -172,13 +174,43 @@ export function CountryPipelineDetail({ countryId }: { countryId?: string } = {}
       const json = await res.json();
       if (!json.success) throw new Error(json.error || "Failed to load countries");
 
-      const found = (json.data as CountryRecord[]).find(
-        (c) => c.id === id || c.code.toLowerCase() === id?.toLowerCase() || c.name.toLowerCase() === id?.toLowerCase()
-      );
+      const allCountries = (json.data as CountryRecord[]) || [];
+      const lower = id.toLowerCase();
+
+      const found = allCountries.find((c) => {
+        if (!c) return false;
+        const cId = (c.id || "").trim();
+        const cCode = (c.code || "").trim().toLowerCase();
+        const cName = (c.name || "").trim().toLowerCase();
+
+        if (cId === rawId || cId === id) return true;
+        if (cCode === lower) return true;
+        if (cName === lower) return true;
+
+        if (
+          (lower.includes("saudi") || lower === "ksa" || lower === "sa") &&
+          (cName.includes("saudi") || cCode === "sa" || cCode === "ksa")
+        ) {
+          return true;
+        }
+        if (
+          (lower.includes("dubai") || lower === "uae" || lower === "ae") &&
+          (cName.includes("dubai") || cCode === "ae" || cCode === "uae")
+        ) {
+          return true;
+        }
+        if (cName.replace(/\s+/g, "") === lower.replace(/\s+/g, "")) {
+          return true;
+        }
+        return false;
+      });
 
       if (!found) {
-        toast.error("Destination country not found");
-        router.push("/module/country-setup");
+        if (!hasRedirectedRef.current) {
+          hasRedirectedRef.current = true;
+          toast.error("Destination country not found");
+          router.replace("/module/country-setup");
+        }
         return;
       }
 
@@ -518,7 +550,7 @@ export function CountryPipelineDetail({ countryId }: { countryId?: string } = {}
     return (
       <div style={{ padding: "40px", textAlign: "center" }}>
         <p>Country not found.</p>
-        <Link href="/module/country-setup" style={{ color: "var(--purple)", fontWeight: 700 }}>
+        <Link data-action-ui="neutral" data-action-size="normal" href="/module/country-setup" style={{ color: "var(--purple)", fontWeight: 700 }}>
           ← Back to Destination Countries
         </Link>
       </div>
@@ -529,623 +561,160 @@ export function CountryPipelineDetail({ countryId }: { countryId?: string } = {}
   const flag = getCountryFlagEmoji(country.code, country.name);
 
   return (
-    <div style={{ maxWidth: "1400px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "24px" }}>
-      {/* 1. TOP BREADCRUMB & BACK BUTTON */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <Link
-            href="/module/country-setup"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "7px 14px",
-              borderRadius: "8px",
-              border: "1px solid var(--line)",
-              background: "#ffffff",
-              color: "var(--ink)",
-              fontSize: "12.5px",
-              fontWeight: 700,
-              textDecoration: "none",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-            }}
-          >
-            <ArrowLeft size={14} /> Back to Countries
-          </Link>
-          <span style={{ color: "var(--muted)", fontSize: "13px" }}>/</span>
-          <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--muted)" }}>Destination Country Management</span>
-          <span style={{ color: "var(--muted)", fontSize: "13px" }}>/</span>
-          <span style={{ fontSize: "13px", fontWeight: 800, color: "var(--purple)" }}>{country.name} Pipeline</span>
-        </div>
+    <div className="country-pipeline-container country-design-page country-pipeline-design-page">
+      <nav className="country-design-breadcrumb" aria-label="Breadcrumb">
+        Dashboard / <Link href="/module/country-setup">Destination Country Management</Link> / {country.name} Pipeline
+      </nav>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <button
-            type="button"
-            onClick={() => applyTemplateToStages(selectedTemplate)}
-            style={{
-              padding: "8px 16px",
-              borderRadius: "8px",
-              border: "1px solid var(--line)",
-              background: "#ffffff",
-              color: "var(--muted)",
-              fontSize: "12.5px",
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-          >
-            Reset Defaults
+      <header className="country-design-heading country-pipeline-heading">
+        <div>
+          <div className="country-pipeline-title-row">
+            <h1>{flag} {country.name} Pipeline</h1>
+            <span className="country-pipeline-code">{country.code}</span>
+            <span className={`country-pipeline-status ${country.active ? "active" : "inactive"}`}>
+              {country.active ? "● Active Pipeline" : "○ Inactive"}
+            </span>
+          </div>
+          <p>Customize and manage the candidate processing workflow, custom input fields &amp; milestones for {country.name}.</p>
+        </div>
+        <div className="country-design-actions country-pipeline-actions">
+          <Link data-action-ui="neutral" data-action-size="normal" href="/module/country-setup"><ArrowLeft size={14} /> Back to Countries</Link>
+          <button data-action-ui="neutral" data-action-size="normal" type="button" onClick={() => applyTemplateToStages(selectedTemplate)}><RefreshCw size={14} /> Reset Defaults</button>
+          <button data-action-ui="primary" data-action-size="normal" type="button" className="country-pipeline-primary" disabled={savingPipeline} onClick={handleSavePipelineConfig}>
+            <Save size={14} /> {savingPipeline ? "Saving..." : "Save Pipeline Configuration"}
           </button>
-          <button
-            type="button"
-            disabled={savingPipeline}
-            onClick={handleSavePipelineConfig}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "9px 22px",
-              borderRadius: "9px",
-              background: "#7258e8",
-              color: "#ffffff",
-              fontSize: "13px",
-              fontWeight: 800,
-              border: "none",
-              cursor: "pointer",
-              boxShadow: "0 2px 8px rgba(114,88,232,0.35)",
-            }}
-          >
-            <Save size={15} />
-            {savingPipeline ? "Saving..." : "Save Pipeline Configuration"}
-          </button>
+        </div>
+      </header>
+
+      <div className="country-design-metrics country-pipeline-metrics">
+        <div className="country-design-metric">
+          <div><span>Total {country.name} Candidates</span><Users size={16} className="country-pipeline-blue" /></div>
+          <b>{country.candidateCount}</b><p>Registered candidate files</p>
+        </div>
+        <div className="country-design-metric">
+          <div><span>Active Processing Stages</span><Layers size={16} className="country-pipeline-purple" /></div>
+          <b>{activeStagesList.length}</b><p>{stagesState.length} available milestones</p>
+        </div>
+        <div className="country-design-metric country-pipeline-text-metric">
+          <div><span>Country Currency</span><Coins size={16} className="country-pipeline-green" /></div>
+          <b>{country.currency}</b><p>Destination currency</p>
+        </div>
+        <div className="country-design-metric country-pipeline-text-metric">
+          <div><span>Local Timezone</span><Clock size={16} className="country-pipeline-orange" /></div>
+          <b>{country.timezone}</b><p>Destination local time</p>
         </div>
       </div>
 
-      {/* 2. COUNTRY BANNER HEADER */}
-      <div
-        style={{
-          background: "#ffffff",
-          border: "1px solid var(--line)",
-          borderRadius: "18px",
-          padding: "22px 28px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: "18px",
-          boxShadow: "var(--shadow)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <div
-            style={{
-              width: "60px",
-              height: "60px",
-              borderRadius: "14px",
-              background: "#f0edff",
-              display: "grid",
-              placeItems: "center",
-              fontSize: "32px",
-              boxShadow: "0 2px 8px rgba(114,88,232,0.15)",
-            }}
-          >
-            {flag}
-          </div>
+      <section className="country-pipeline-panel country-template-panel" aria-labelledby="pipeline-templates-title">
+        <div className="country-pipeline-panel-heading">
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <h1 style={{ margin: 0, fontSize: "22px", fontWeight: 900, color: "var(--ink)" }}>
-                {country.name}
-              </h1>
-              <span
-                style={{
-                  fontSize: "12px",
-                  fontWeight: 900,
-                  color: "#7258e8",
-                  background: "#f0edff",
-                  border: "1px solid #dcd5fb",
-                  padding: "2px 8px",
-                  borderRadius: "6px",
-                }}
-              >
-                {country.code}
-              </span>
-              <span
-                style={{
-                  fontSize: "12px",
-                  fontWeight: 800,
-                  color: country.active ? "#059669" : "#e11d48",
-                  background: country.active ? "#ecfdf5" : "#fff1f2",
-                  padding: "2px 8px",
-                  borderRadius: "6px",
-                }}
-              >
-                {country.active ? "● Active Pipeline" : "○ Inactive"}
-              </span>
-            </div>
-            <p style={{ margin: "4px 0 0", fontSize: "13px", color: "var(--muted)" }}>
-              Customize and manage the interactive candidate processing workflow, custom input fields &amp; milestones for {country.name}.
-            </p>
+            <h2 id="pipeline-templates-title">1-Click Workflow Preset Templates</h2>
+            <p>Switch or apply standard recruitment pipelines across Gulf, European or East Asian destinations.</p>
           </div>
+          <span className="country-pipeline-badge">Template: {selectedTemplate}</span>
         </div>
-
-        {/* Info Badges */}
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-          <div style={{ padding: "8px 14px", background: "#f8fafc", border: "1px solid var(--line)", borderRadius: "10px", display: "flex", alignItems: "center", gap: "6px" }}>
-            <Coins size={14} style={{ color: "#059669" }} />
-            <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--ink)" }}>Currency: {country.currency}</span>
-          </div>
-          <div style={{ padding: "8px 14px", background: "#f8fafc", border: "1px solid var(--line)", borderRadius: "10px", display: "flex", alignItems: "center", gap: "6px" }}>
-            <Clock size={14} style={{ color: "var(--muted)" }} />
-            <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--ink)" }}>{country.timezone}</span>
-          </div>
-          <div style={{ padding: "8px 14px", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "10px", display: "flex", alignItems: "center", gap: "6px" }}>
-            <Users size={14} style={{ color: "#1d4ed8" }} />
-            <span style={{ fontSize: "12px", fontWeight: 800, color: "#1d4ed8" }}>{country.candidateCount} Candidates</span>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. QUICK TEMPLATE SWITCHER */}
-      <div
-        style={{
-          background: "#ffffff",
-          border: "1px solid var(--line)",
-          borderRadius: "18px",
-          padding: "20px 24px",
-          boxShadow: "var(--shadow)",
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", flexWrap: "wrap", gap: "8px" }}>
-          <div>
-            <b style={{ fontSize: "14px", color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
-              <Sparkles size={16} style={{ color: "#7258e8" }} /> 1-Click Workflow Preset Templates
-            </b>
-            <small style={{ fontSize: "12px", color: "var(--muted)" }}>
-              Switch or apply standard recruitment pipelines across Gulf, European or East Asian destinations
-            </small>
-          </div>
-          <span style={{ fontSize: "11px", fontWeight: 800, background: "#f0edff", color: "#7258e8", padding: "3px 8px", borderRadius: "6px" }}>
-            Template: {selectedTemplate}
-          </span>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "12px" }}>
+        <div className="country-template-grid">
           {Object.values(PIPELINE_TEMPLATES).map((tmpl) => {
             const isSelected = selectedTemplate === tmpl.id;
             return (
-              <button
-                key={tmpl.id}
-                type="button"
-                onClick={() => applyTemplateToStages(tmpl.id)}
-                style={{
-                  padding: "14px 16px",
-                  borderRadius: "12px",
-                  border: `2px solid ${isSelected ? "#7258e8" : "var(--line)"}`,
-                  background: isSelected ? "#f9f8ff" : "#ffffff",
-                  textAlign: "left",
-                  cursor: "pointer",
-                  transition: "all 0.15s ease",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "6px",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <span style={{ fontSize: "18px" }}>{tmpl.flag}</span>
-                    <strong style={{ fontSize: "13px", color: isSelected ? "#7258e8" : "var(--ink)" }}>
-                      {tmpl.badge}
-                    </strong>
-                  </div>
-                  {isSelected && (
-                    <span style={{ fontSize: "10px", fontWeight: 800, background: "#7258e8", color: "#fff", padding: "1px 6px", borderRadius: "4px" }}>
-                      Active
-                    </span>
-                  )}
+              <button key={tmpl.id} type="button" aria-pressed={isSelected}
+                className={`country-template-card ${isSelected ? "selected" : ""}`}
+                onClick={() => applyTemplateToStages(tmpl.id)}>
+                <div className="country-template-title">
+                  <strong>{tmpl.flag} {tmpl.badge}</strong>
+                  {isSelected && <span className="country-template-active">Active</span>}
                 </div>
-                <p style={{ margin: 0, fontSize: "12px", color: "var(--muted)", lineHeight: "1.4" }}>
-                  {tmpl.description}
-                </p>
+                <p>{tmpl.description}</p>
               </button>
             );
           })}
         </div>
-      </div>
+      </section>
 
-      {/* 4. LIVE PIPELINE STEPPER FLOW RIBBON */}
-      <div
-        style={{
-          background: "#1e1b4b",
-          borderRadius: "18px",
-          padding: "20px 24px",
-          color: "#fff",
-          boxShadow: "0 10px 25px -5px rgba(30, 27, 75, 0.3)",
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <Layers size={17} style={{ color: "#a5b4fc" }} />
-            <span style={{ fontSize: "14px", fontWeight: 800, color: "#e0e7ff" }}>
-              Active Stepper Sequence Flow ({activeStagesList.length} Stages Active)
-            </span>
+      <section className="country-pipeline-panel country-stepper-ribbon" aria-labelledby="pipeline-preview-title">
+        <div className="country-pipeline-panel-heading">
+          <div>
+            <h2 id="pipeline-preview-title">Active Stepper Sequence Flow ({activeStagesList.length} Stages Active)</h2>
+            <p>Preview the processing sequence shown in candidate dossiers.</p>
           </div>
-          <span style={{ fontSize: "11px", fontWeight: 800, background: "#312e81", color: "#c7d2fe", padding: "3px 10px", borderRadius: "6px" }}>
-            Candidate Dossier Stepper Preview
-          </span>
+          <span className="country-pipeline-badge">Candidate Dossier Stepper Preview</span>
         </div>
-
-        <div
-          style={{
-            display: "flex",
-            gap: "10px",
-            overflowX: "auto",
-            paddingBottom: "8px",
-          }}
-        >
+        <div className="country-pipeline-sequence" role="region" aria-label="Active stage sequence" tabIndex={0}>
           {activeStagesList.map((st, idx) => (
-            <div
-              key={st.code}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                background: "rgba(255,255,255,0.08)",
-                border: "1px solid rgba(255,255,255,0.15)",
-                padding: "8px 14px",
-                borderRadius: "10px",
-                flexShrink: 0,
-              }}
-            >
-              <span
-                style={{
-                  width: "22px",
-                  height: "22px",
-                  borderRadius: "50%",
-                  background: "#7258e8",
-                  color: "#fff",
-                  fontSize: "11px",
-                  fontWeight: 900,
-                  display: "grid",
-                  placeItems: "center",
-                }}
-              >
-                {idx + 1}
-              </span>
-              <span style={{ fontSize: "13px", fontWeight: 700, color: "#fff" }}>
-                {st.label}
-              </span>
-              {idx < activeStagesList.length - 1 && (
-                <ArrowRight size={13} style={{ color: "#a5b4fc", marginLeft: "6px" }} />
-              )}
+            <div key={st.code} className="country-pipeline-sequence-step">
+              <span className="country-pipeline-step-number">{idx + 1}</span>
+              <strong>{st.label}</strong>
+              {idx < activeStagesList.length - 1 && <ArrowRight size={14} aria-hidden="true" />}
             </div>
           ))}
         </div>
-      </div>
+      </section>
 
-      {/* 5. MASTER STAGES LIBRARY & CUSTOM STAGE BUILDER */}
-      <div
-        style={{
-          background: "#ffffff",
-          border: "1px solid var(--line)",
-          borderRadius: "18px",
-          padding: "24px 28px",
-          boxShadow: "var(--shadow)",
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px", flexWrap: "wrap", gap: "12px" }}>
+      <section className="country-pipeline-panel country-master-stages-panel" aria-labelledby="pipeline-stages-title">
+        <div className="country-pipeline-panel-heading">
           <div>
-            <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "var(--ink)" }}>
-              Master Recruitment Stages ({stagesState.length} Stages Available)
-            </h3>
-            <p style={{ margin: "2px 0 0", fontSize: "12.5px", color: "var(--muted)" }}>
-              Click any stage card to toggle ON / OFF. Use arrows (↑ / ↓) to re-order the processing sequence.
-            </p>
+            <h2 id="pipeline-stages-title">Master Recruitment Stages ({stagesState.length} Stages Available)</h2>
+            <p>Toggle stages ON / OFF. Use arrows (↑ / ↓) to re-order the processing sequence.</p>
           </div>
-
-          <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-            <button
-              type="button"
-              onClick={openAddModal}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "8px 16px",
-                borderRadius: "8px",
-                background: "#7258e8",
-                color: "#ffffff",
-                fontSize: "12.5px",
-                fontWeight: 800,
-                border: "none",
-                cursor: "pointer",
-                boxShadow: "0 2px 6px rgba(114,88,232,0.3)",
-              }}
-            >
-              <Plus size={15} /> Add Custom Stage
-            </button>
-
-            <div style={{ display: "flex", gap: "10px", alignItems: "center", borderLeft: "1px solid var(--line)", paddingLeft: "10px" }}>
-              <span style={{ fontSize: "12px", fontWeight: 700, color: "#059669", display: "flex", alignItems: "center", gap: "4px" }}>
-                <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#059669" }}></span> {activeStagesList.length} Enabled
-              </span>
-              <span style={{ fontSize: "12px", fontWeight: 700, color: "#64748b", display: "flex", alignItems: "center", gap: "4px" }}>
-                <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#94a3b8" }}></span> {stagesState.length - activeStagesList.length} Disabled
-              </span>
-            </div>
+          <div className="country-pipeline-stage-actions">
+            <button data-action-ui="primary" data-action-size="normal" type="button" className="country-pipeline-primary" onClick={openAddModal}><Plus size={14} /> Add Custom Stage</button>
+            <span className="country-pipeline-enabled">● {activeStagesList.length} Enabled</span>
+            <span className="country-pipeline-disabled">● {stagesState.length - activeStagesList.length} Disabled</span>
           </div>
         </div>
-
-        {/* Stage Cards Grid */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(330px, 1fr))",
-            gap: "14px",
-          }}
-        >
+        <div className="country-stage-grid">
           {stagesState.map((st, index) => {
             const IconComponent = getStageIcon(st.iconName);
             const fieldCount = st.fields?.length || 0;
-
             return (
-              <div
-                key={st.code}
-                style={{
-                  padding: "16px 18px",
-                  borderRadius: "14px",
-                  border: `2px solid ${st.active ? "#a7f3d0" : "#e2e8f0"}`,
-                  background: st.active ? "#f0fdf4" : "#f8fafc",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "10px",
-                  transition: "all 0.15s ease",
-                  boxShadow: st.active ? "0 2px 8px rgba(16, 185, 129, 0.08)" : "none",
-                }}
-              >
-                {/* Header row: Icon, Label, Actions */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <div
-                      style={{
-                        width: "38px",
-                        height: "38px",
-                        borderRadius: "10px",
-                        background: st.active ? "#dcfce7" : "#e2e8f0",
-                        color: st.active ? "#059669" : "#64748b",
-                        display: "grid",
-                        placeItems: "center",
-                      }}
-                    >
-                      <IconComponent size={18} />
-                    </div>
+              <div key={st.code} className={`country-stage-card ${st.active ? "enabled" : "disabled"}`}>
+                <div className="country-stage-card-heading">
+                  <div className="country-stage-identity">
+                    <div className="country-stage-icon"><IconComponent size={18} /></div>
                     <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                        <b style={{ fontSize: "14px", color: "var(--ink)" }}>
-                          {st.label}
-                        </b>
-                        {st.isCustom && (
-                          <span style={{ fontSize: "9.5px", fontWeight: 800, background: "#f0edff", color: "#7258e8", padding: "1px 5px", borderRadius: "4px" }}>
-                            Custom
-                          </span>
-                        )}
-                      </div>
-                      <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>
-                        {st.subtitle}
-                      </span>
+                      <div className="country-stage-title"><h3>{st.label}</h3>{st.isCustom && <span className="country-pipeline-badge">Custom</span>}</div>
+                      <small>{st.subtitle}</small>
                     </div>
                   </div>
-
-                  {/* Toggle Switch */}
-                  {st.required ? (
-                    <span
-                      style={{
-                        fontSize: "10.5px",
-                        fontWeight: 800,
-                        background: "#fef3c7",
-                        color: "#b45309",
-                        padding: "3px 8px",
-                        borderRadius: "6px",
-                      }}
-                    >
-                      Required
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => toggleStageActive(st.code)}
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "5px",
-                        fontSize: "11px",
-                        fontWeight: 900,
-                        background: st.active ? "#059669" : "#cbd5e1",
-                        color: "#ffffff",
-                        padding: "3px 10px",
-                        borderRadius: "8px",
-                        border: "none",
-                        cursor: "pointer",
-                        boxShadow: st.active ? "0 2px 4px rgba(5,150,105,0.25)" : "none",
-                      }}
-                    >
-                      {st.active ? "ON" : "OFF"}
-                    </button>
+                  {st.required ? <span className="country-stage-required">Required</span> : (
+                    <button type="button" className="country-stage-toggle" aria-pressed={st.active}
+                      aria-label={`${st.active ? "Disable" : "Enable"} ${st.label}`}
+                      onClick={() => toggleStageActive(st.code)}>{st.active ? "ON" : "OFF"}</button>
                   )}
                 </div>
-
-                <p style={{ margin: 0, fontSize: "12px", color: "#475569", lineHeight: "1.4" }}>
-                  {st.description}
-                </p>
-
-                {/* Custom Fields Badge */}
-                {fieldCount > 0 && (
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                    <span style={{ fontSize: "11px", fontWeight: 800, background: "#eff6ff", color: "#2563eb", padding: "2px 8px", borderRadius: "5px", border: "1px solid #bfdbfe" }}>
-                      📋 {fieldCount} Custom Input Field{fieldCount > 1 ? "s" : ""} Configured
-                    </span>
+                <p>{st.description}</p>
+                {fieldCount > 0 && <span className="country-pipeline-badge country-stage-field-count">📋 {fieldCount} Custom Input Field{fieldCount > 1 ? "s" : ""} Configured</span>}
+                <div className="country-stage-card-footer">
+                  <div className="country-stage-reorder">
+                    <button data-action-ui="secondary" data-action-size="icon" type="button" disabled={index === 0} onClick={() => moveStageUp(index)}
+                      title="Move stage earlier in sequence" aria-label={`Move ${st.label} earlier`}><ArrowUp size={14} /></button>
+                    <button data-action-ui="secondary" data-action-size="icon" type="button" disabled={index === stagesState.length - 1} onClick={() => moveStageDown(index)}
+                      title="Move stage later in sequence" aria-label={`Move ${st.label} later`}><ArrowDown size={14} /></button>
+                    <span>Pos #{index + 1}</span>
                   </div>
-                )}
-
-                {/* Card Footer: Re-ordering & Edit/Delete Buttons */}
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    borderTop: "1px solid rgba(0,0,0,0.06)",
-                    paddingTop: "10px",
-                    marginTop: "2px",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                    <button
-                      type="button"
-                      disabled={index === 0}
-                      onClick={() => moveStageUp(index)}
-                      title="Move stage earlier in sequence"
-                      style={{
-                        background: "transparent",
-                        border: "1px solid #cbd5e1",
-                        borderRadius: "5px",
-                        padding: "3px 6px",
-                        color: index === 0 ? "#cbd5e1" : "#475569",
-                        cursor: index === 0 ? "default" : "pointer",
-                        display: "grid",
-                        placeItems: "center",
-                      }}
-                    >
-                      <ArrowUp size={12} />
-                    </button>
-                    <button
-                      type="button"
-                      disabled={index === stagesState.length - 1}
-                      onClick={() => moveStageDown(index)}
-                      title="Move stage later in sequence"
-                      style={{
-                        background: "transparent",
-                        border: "1px solid #cbd5e1",
-                        borderRadius: "5px",
-                        padding: "3px 6px",
-                        color: index === stagesState.length - 1 ? "#cbd5e1" : "#475569",
-                        cursor: index === stagesState.length - 1 ? "default" : "pointer",
-                        display: "grid",
-                        placeItems: "center",
-                      }}
-                    >
-                      <ArrowDown size={12} />
-                    </button>
-                    <span style={{ fontSize: "10.5px", color: "var(--muted)", marginLeft: "4px" }}>
-                      Pos #{index + 1}
-                    </span>
-                  </div>
-
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <button
-                      type="button"
-                      onClick={() => openEditModal(st)}
-                      title="Edit stage & custom input fields"
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "4px",
-                        background: "#ffffff",
-                        border: "1px solid #dcd5fb",
-                        color: "#7258e8",
-                        fontSize: "11.5px",
-                        fontWeight: 700,
-                        borderRadius: "6px",
-                        padding: "4px 8px",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <Edit2 size={12} /> Edit {fieldCount > 0 ? `(${fieldCount})` : ""}
-                    </button>
-
-                    {st.isCustom && (
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteStage(st.code, st.label)}
-                        title="Delete custom stage"
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "4px",
-                          background: "#fff1f2",
-                          border: "1px solid #fecdd3",
-                          color: "#e11d48",
-                          fontSize: "11.5px",
-                          fontWeight: 700,
-                          borderRadius: "6px",
-                          padding: "4px 8px",
-                          cursor: "pointer",
-                        }}
-                      >
-                        <Trash2 size={12} /> Delete
-                      </button>
-                    )}
+                  <div className="country-stage-edit-actions">
+                    <button data-action-ui="secondary" data-action-size="normal" type="button" onClick={() => openEditModal(st)} title="Edit stage & custom input fields"
+                      aria-label={`Edit ${st.label}`}><Edit2 size={12} /> Edit {fieldCount > 0 ? `(${fieldCount})` : ""}</button>
+                    {st.isCustom && <button data-action-ui="danger" data-action-size="normal" type="button" className="country-stage-delete" onClick={() => handleDeleteStage(st.code, st.label)}
+                      title="Delete custom stage"><Trash2 size={12} /> Delete</button>}
                   </div>
                 </div>
               </div>
             );
           })}
         </div>
-      </div>
+      </section>
 
-      {/* 6. BOTTOM ACTION FOOTER */}
-      <div
-        style={{
-          background: "#ffffff",
-          border: "1px solid var(--line)",
-          borderRadius: "16px",
-          padding: "16px 24px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          boxShadow: "var(--shadow)",
-        }}
-      >
-        <Link
-          href="/module/country-setup"
-          style={{
-            padding: "9px 18px",
-            borderRadius: "8px",
-            border: "1px solid var(--line)",
-            background: "#ffffff",
-            color: "var(--ink)",
-            fontSize: "13px",
-            fontWeight: 700,
-            textDecoration: "none",
-          }}
-        >
-          Cancel &amp; Return
-        </Link>
-
-        <button
-          type="button"
-          disabled={savingPipeline}
-          onClick={handleSavePipelineConfig}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "8px",
-            padding: "10px 24px",
-            borderRadius: "9px",
-            background: "#7258e8",
-            color: "#ffffff",
-            fontSize: "13.5px",
-            fontWeight: 800,
-            border: "none",
-            cursor: "pointer",
-            boxShadow: "0 2px 10px rgba(114,88,232,0.35)",
-          }}
-        >
-          <CheckCircle2 size={16} />
-          {savingPipeline ? "Saving Pipeline..." : "Save Pipeline Configuration"}
+      <div className="country-bottom-bar">
+        <Link href="/module/country-setup">Cancel &amp; Return</Link>
+        <button data-action-ui="primary" data-action-size="normal" type="button" className="country-pipeline-primary" disabled={savingPipeline} onClick={handleSavePipelineConfig}>
+          <CheckCircle2 size={14} /> {savingPipeline ? "Saving Pipeline..." : "Save Pipeline Configuration"}
         </button>
       </div>
 
       {/* 7. ADD / EDIT STAGE & CUSTOM FIELD BUILDER MODAL */}
       {modalOpen && (
-        <div
+        <div aria-label="Dialog" className="master-modal-overlay"
           role="dialog"
           aria-modal="true"
           style={{
@@ -1161,6 +730,7 @@ export function CountryPipelineDetail({ countryId }: { countryId?: string } = {}
           }}
         >
           <div
+            className="country-modal-card master-modal-card master-modal-panel"
             style={{
               background: "#ffffff",
               borderRadius: "20px",
@@ -1186,12 +756,13 @@ export function CountryPipelineDetail({ countryId }: { countryId?: string } = {}
               }}
             >
               <b style={{ fontSize: "16px", color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
-                <Sparkles size={18} style={{ color: "#7258e8" }} />
+                <Sparkles size={18} style={{ color: "#007aff" }} />
                 {modalMode === "ADD" ? "Add Custom Recruitment Stage" : `Configure Stage: ${stageForm.label}`}
               </b>
-              <button
+              <button data-action-ui="neutral" data-action-size="icon" className="master-modal-close"
                 type="button"
                 onClick={() => setModalOpen(false)}
+                aria-label="Close stage editor"
                 style={{ background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer" }}
               >
                 <X size={18} />
@@ -1201,7 +772,7 @@ export function CountryPipelineDetail({ countryId }: { countryId?: string } = {}
             {/* Modal Form Scrollable */}
             <form onSubmit={handleSaveStageForm} style={{ padding: "22px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "18px" }}>
               {/* Basic Info */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <div className="country-modal-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                 <div>
                   <label style={{ fontSize: "12px", fontWeight: 800, color: "var(--ink)", display: "block", marginBottom: "6px" }}>
                     Stage Name / Title <span style={{ color: "#e11d48" }}>*</span>
@@ -1281,7 +852,7 @@ export function CountryPipelineDetail({ countryId }: { countryId?: string } = {}
                     const IconComp = ic.icon;
                     const isSelected = stageForm.iconName === ic.name;
                     return (
-                      <button
+                      <button aria-pressed={isSelected}
                         key={ic.name}
                         type="button"
                         onClick={() => setStageForm({ ...stageForm, iconName: ic.name })}
@@ -1292,9 +863,9 @@ export function CountryPipelineDetail({ countryId }: { countryId?: string } = {}
                           gap: "4px",
                           padding: "8px 4px",
                           borderRadius: "8px",
-                          border: `1.5px solid ${isSelected ? "#7258e8" : "#e2e8f0"}`,
-                          background: isSelected ? "#f0edff" : "#ffffff",
-                          color: isSelected ? "#7258e8" : "#475569",
+                          border: `1.5px solid ${isSelected ? "#007aff" : "#e2e8f0"}`,
+                          background: isSelected ? "#eaf2ff" : "#ffffff",
+                          color: isSelected ? "#007aff" : "#475569",
                           cursor: "pointer",
                           fontSize: "10.5px",
                           fontWeight: isSelected ? 800 : 600,
@@ -1311,7 +882,7 @@ export function CountryPipelineDetail({ countryId }: { countryId?: string } = {}
               </div>
 
               {/* CUSTOM FORM FIELDS BUILDER SECTION */}
-              <div
+              <div className="master-modal-panel"
                 style={{
                   background: "#f8fafc",
                   border: "1px solid #e2e8f0",
@@ -1325,14 +896,14 @@ export function CountryPipelineDetail({ countryId }: { countryId?: string } = {}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
                     <b style={{ fontSize: "13px", color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
-                      <CheckSquare size={16} style={{ color: "#7258e8" }} />
+                      <CheckSquare size={16} style={{ color: "#007aff" }} />
                       Custom Processing Form Fields (ইনপুট ফিল্ড যোগ করুন)
                     </b>
                     <small style={{ fontSize: "11.5px", color: "var(--muted)" }}>
                       Define input text, number, textarea, date or file upload fields for this stage
                     </small>
                   </div>
-                  <button
+                  <button data-action-ui="primary" data-action-size="normal" className="master-modal-primary"
                     type="button"
                     onClick={addCustomField}
                     style={{
@@ -1341,7 +912,7 @@ export function CountryPipelineDetail({ countryId }: { countryId?: string } = {}
                       gap: "4px",
                       padding: "6px 12px",
                       borderRadius: "7px",
-                      background: "#7258e8",
+                      background: "#007aff",
                       color: "#ffffff",
                       fontSize: "11.5px",
                       fontWeight: 800,
@@ -1360,7 +931,7 @@ export function CountryPipelineDetail({ countryId }: { countryId?: string } = {}
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                     {stageForm.fields.map((field, fIdx) => (
-                      <div
+                      <div className="master-modal-panel"
                         key={field.id || fIdx}
                         style={{
                           background: "#ffffff",
@@ -1425,7 +996,7 @@ export function CountryPipelineDetail({ countryId }: { countryId?: string } = {}
                           </select>
 
                           {/* Delete Field */}
-                          <button
+                          <button data-action-ui="danger" data-action-size="icon" className="master-modal-danger"
                             type="button"
                             onClick={() => removeCustomField(fIdx)}
                             title="Remove field"
@@ -1463,7 +1034,7 @@ export function CountryPipelineDetail({ countryId }: { countryId?: string } = {}
                               type="checkbox"
                               checked={field.required || false}
                               onChange={(e) => updateCustomField(fIdx, { required: e.target.checked })}
-                              style={{ accentColor: "#7258e8" }}
+                              style={{ accentColor: "#007aff" }}
                             />
                             Required
                           </label>
@@ -1495,13 +1066,13 @@ export function CountryPipelineDetail({ countryId }: { countryId?: string } = {}
               </div>
 
               {/* Active Switch */}
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#f8fafc", padding: "10px 14px", borderRadius: "10px", border: "1px solid var(--line)" }}>
+              <div className="master-modal-panel" style={{ display: "flex", alignItems: "center", gap: "10px", background: "#f8fafc", padding: "10px 14px", borderRadius: "10px", border: "1px solid var(--line)" }}>
                 <input
                   type="checkbox"
                   id="stageActiveCheck"
                   checked={stageForm.active}
                   onChange={(e) => setStageForm({ ...stageForm, active: e.target.checked })}
-                  style={{ width: "18px", height: "18px", accentColor: "#7258e8", cursor: "pointer" }}
+                  style={{ width: "18px", height: "18px", accentColor: "#007aff", cursor: "pointer" }}
                 />
                 <label htmlFor="stageActiveCheck" style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--ink)", cursor: "pointer" }}>
                   Enable this stage in active candidate processing pipeline
@@ -1510,7 +1081,7 @@ export function CountryPipelineDetail({ countryId }: { countryId?: string } = {}
 
               {/* Modal Footer */}
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "10px", borderTop: "1px solid var(--line)", paddingTop: "14px" }}>
-                <button
+                <button data-action-ui="neutral" data-action-size="normal"
                   type="button"
                   onClick={() => setModalOpen(false)}
                   style={{
@@ -1526,18 +1097,18 @@ export function CountryPipelineDetail({ countryId }: { countryId?: string } = {}
                 >
                   Cancel
                 </button>
-                <button
+                <button data-action-ui="primary" data-action-size="normal" className="master-modal-primary"
                   type="submit"
                   style={{
                     padding: "9px 20px",
                     borderRadius: "8px",
-                    background: "#7258e8",
+                    background: "#007aff",
                     color: "#ffffff",
                     fontSize: "12.5px",
                     fontWeight: 800,
                     border: "none",
                     cursor: "pointer",
-                    boxShadow: "0 2px 6px rgba(114,88,232,0.3)",
+                    boxShadow: "0 2px 6px rgba(0,122,255,0.3)",
                   }}
                 >
                   {modalMode === "ADD" ? "Add Stage to Pipeline" : "Save Changes"}

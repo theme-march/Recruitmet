@@ -1,1 +1,46 @@
-{"name":"orbit-recruitment-os","version":"1.0.0","private":true,"scripts":{"dev":"next dev","build":"next build","start":"next start","typecheck":"tsc --noEmit","test":"node --experimental-strip-types --test tests/**/*.test.ts","db:generate":"prisma generate","db:push":"prisma db push","db:seed":"node --experimental-strip-types prisma/seed.ts"},"dependencies":{"@aws-sdk/client-s3":"latest","@prisma/client":"6.19.0","@tanstack/react-query":"latest","bcryptjs":"latest","countries-list":"^3.4.1","csv-parse":"latest","jose":"latest","lucide-react":"latest","next":"latest","pdf-lib":"latest","react":"latest","react-dom":"latest","sonner":"latest","zod":"latest"},"devDependencies":{"@types/node":"latest","@types/react":"latest","@types/react-dom":"latest","prisma":"6.19.0","tsx":"latest","typescript":"latest"},"prisma":{"seed":"node --experimental-strip-types prisma/seed.ts"},"pnpm":{"onlyBuiltDependencies":["@prisma/client","@prisma/engines","esbuild","prisma"]}}
+{
+  "name": "orbit-recruitment-os",
+  "version": "1.0.0",
+  "description": "Orbit Overseas - Recruitment & Office Operations Lead Management OS",
+  "author": "Orbit Overseas",
+  "license": "Envato Market / Standard Commercial License",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test tests/**/*.test.ts",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:seed": "node --experimental-strip-types prisma/seed.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1128.0",
+    "@prisma/client": "^6.19.0",
+    "@tanstack/react-query": "^5.102.8",
+    "bcryptjs": "^3.0.3",
+    "countries-list": "^3.4.1",
+    "csv-parse": "^7.0.2",
+    "jose": "^6.2.12",
+    "lucide-react": "^1.43.0",
+    "next": "^16.3.4",
+    "pdf-lib": "^1.17.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "sonner": "^2.0.8",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^26.5.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "prisma": "^6.19.0",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2"
+  },
+  "prisma": {
+    "seed": "node --experimental-strip-types prisma/seed.ts"
+  }
+}

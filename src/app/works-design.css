@@ -1,0 +1,44 @@
+/* Works & Demands uses the Dubai candidates workspace design. */
+.works-design-page { padding-bottom: 40px; }
+.works-design-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.works-design-page .country-design-actions .works-design-create { background: #007aff; color: white; font-weight: 600; }
+.works-design-search-form { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.works-design-search { width: 400px; }
+.works-design-search-submit { height: 32px; padding: 0 14px; border: 0; border-radius: 10px; background: #ebebed; color: #1d1d1f; font-size: 12px; font-weight: 500; }
+.works-design-table table { min-width: 1340px; }
+.works-design-table td { padding-top: 12px; padding-bottom: 12px; }
+.works-design-table .country-design-cell { overflow-wrap: anywhere; }
+.works-design-demand .country-design-candidate-id { max-width: 100%; overflow-wrap: anywhere; }
+.works-design-table .country-design-cell > b { color: #1d1d1f; }
+.works-design-quota { color: #1d1d1f; font-size: 13px; font-weight: 600; }
+.works-design-status { white-space: normal; }
+.works-design-status.active { background: #e5f8eb; color: #34c759; }
+.works-design-status.full { background: #fff2f0; color: #ff3b30; }
+.works-design-country.saudi { background: #e5f8eb; color: #34c759; }
+.works-design-country.dubai { background: #eaf2ff; color: #007aff; }
+.works-design-country.other { background: #f5f5f7; color: #8e8e93; }
+.works-design-sales { display: flex; flex-direction: column; gap: 5px; }
+.works-design-sales > div:first-child { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.works-design-sales b { color: #8e8e93; font-size: 12px; font-weight: 600; }
+.works-design-sales b.sold { color: #34c759; }
+.works-design-sales small { font-size: 10px; font-weight: 600; color: #8e8e93; }
+.works-design-sales small.full { color: #ff3b30; }
+.works-design-progress { height: 5px; border-radius: 3px; background: #f2f2f7; overflow: hidden; }
+.works-design-progress > div { height: 100%; border-radius: inherit; background: #007aff; }
+.works-design-progress > div.full { background: #ff3b30; }
+.works-design-table .works-design-commission { color: #34c759; font-size: 10px; font-weight: 600; }
+.works-design-files { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.works-design-files button { display: inline-flex; align-items: center; gap: 4px; padding: 5px 8px; border: 0; border-radius: 8px; background: #eaf2ff; color: #007aff; font-size: 10px; line-height: 12px; font-weight: 600; }
+.works-design-deadline { white-space: nowrap; color: #1d1d1f; font-size: 11px; font-weight: 500; }
+.works-design-deadline.overdue { color: #ff3b30; }
+.works-design-read-only { font-size: 11px; color: #8e8e93; }
+.works-design-loading { height: 3px; background: #eaf2ff; overflow: hidden; }
+.works-design-loading > div { height: 100%; width: 40%; background: #007aff; animation: indeterminate 1.2s infinite ease-in-out; }
+.works-design-error { margin: 12px 16px; padding: 12px 16px; border-radius: 8px; background: #fff2f0; color: #ff3b30; font-size: 12px; }
+@media (max-width: 768px) {
+  .works-design-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .works-design-search-form { width: 100%; }
+  .works-design-search { width: auto; flex: 1; }
+  .works-design-search-submit { height: 40px; flex-shrink: 0; }
+  .works-design-workspace .mobile-demands-stream { padding: 0 12px 12px; }
+}

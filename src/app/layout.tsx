@@ -1,9 +1,32 @@
 import type { Metadata, Viewport } from "next";
-import { DM_Sans, Manrope } from "next/font/google";
+import {
+  DM_Sans,
+  Inter,
+  JetBrains_Mono,
+  Manrope,
+} from "next/font/google";
 import "./globals.css";
 import "./components.css";
+import "./mobile-design-system.css";
+import "./dashboard-design.css";
+import "./country-design.css";
+import "./agents-design.css";
+import "./works-design.css";
+import "./payment-design.css";
+import "./management-design.css";
+import "./pipeline-design.css";
+import "./country-pipeline-design.css";
+import "./directory-design.css";
+import "./interview-design.css";
+import "./candidate-create-design.css";
+import "./modal-design.css";
+import "./agent-detail-design.css";
+import "./action-buttons.css";
+import "./agent-portal-design.css";
 import { Toaster } from "sonner";
 import { Providers } from "@/components/layout/providers";
+
+const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-inter", display: "swap" });
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -16,6 +39,13 @@ const manrope = Manrope({
   subsets: ["latin"],
   weight: ["500", "600", "700", "800"],
   variable: "--font-manrope",
+  display: "swap",
+});
+
+const jetBrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["500", "600", "700", "800"],
+  variable: "--font-jetbrains-mono",
   display: "swap",
 });
 
@@ -44,10 +74,14 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${dmSans.variable} ${manrope.variable}`} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${dmSans.variable} ${manrope.variable} ${jetBrainsMono.variable} ${inter.variable}`}
+      suppressHydrationWarning
+    >
       <body className={dmSans.className} suppressHydrationWarning>
         <Providers>{children}</Providers>
-        <Toaster richColors position="top-right" />
+        <Toaster richColors position="top-center" closeButton duration={4000} />
       </body>
     </html>
   );

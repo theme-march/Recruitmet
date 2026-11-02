@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
-import { loadEnvConfig } from "@next/env";
+import nextEnv from "@next/env";
+const { loadEnvConfig } = nextEnv;
 
 // Opt-in local integration test. Creates only uniquely named fixture accounts
 // and roles, then removes those exact records. Existing staff are never changed.
@@ -28,6 +29,7 @@ test("custom roles: assignment, exact grants, revocation, conflict and lockout s
     const roleId = roles[0];
     const made = await request("/api/admin/users", admin.cookie, "POST", { name: "QA Access " + suffix, email: "access-" + suffix + "@example.invalid", username: "qa_access_" + suffix, roleId, password });
     assert.equal(made.status, 201); userId = made.body.data.id;
+    assert.ok(userId);
     assert.equal((await db.user.findUniqueOrThrow({ where: { id: userId } })).roleId, roleId);
     const login = await request("/api/auth/login", "", "POST", { identity: "qa_access_" + suffix, password });
     assert.equal(login.status, 200);
@@ -48,6 +50,21 @@ test("custom roles: assignment, exact grants, revocation, conflict and lockout s
     ] as const) assert.equal((await request(path, login.cookie, method, body)).status, 403, path);
     const listed = await request("/api/admin/roles", admin.cookie);
     const role = listed.body.data.roles.find((r: { id: string }) => r.id === roleId);
+    const superRole = listed.body.data.roles.find((r: { kind: string }) => r.kind === "SUPER_ADMIN");
+    const ownersBefore = await db.user.count({ where: { role: { name: { in: ["SUPER_ADMIN", "Super Administrator"] } } } });
+    assert.equal((await request("/api/admin/users", admin.cookie, "POST", { name: "Forbidden second owner", email: "second-owner-" + suffix + "@example.invalid", username: "second_owner_" + suffix, roleId: superRole.id, password })).status, 409);
+    assert.equal((await request("/api/admin/users", admin.cookie, "PATCH", { userId, roleId: superRole.id })).status, 409);
+    assert.equal(await db.user.count({ where: { role: { name: { in: ["SUPER_ADMIN", "Super Administrator"] } } } }), ownersBefore);
+    const owner = await db.user.findFirstOrThrow({ where: { roleId: superRole.id } });
+    const collisionCode = "QA-OWNER-" + suffix;
+    assert.equal((await request("/api/agents", admin.cookie, "POST", { name: "Rejected owner collision", code: collisionCode, phone: "QA" + suffix, enablePortalLogin: true, portalEmail: owner.email })).status, 409);
+    assert.equal(await db.agent.count({ where: { code: collisionCode } }), 0, "portal collision must not create an agent");
+    const existingAgent = await db.agent.findFirst();
+    if (existingAgent) assert.equal((await request("/api/agents/" + existingAgent.id, admin.cookie, "PATCH", { enablePortalLogin: false, portalEmail: owner.email })).status, 409);
+    assert.equal((await db.user.findUniqueOrThrow({ where: { id: owner.id } })).roleId, superRole.id);
+    assert.equal((await db.user.findUniqueOrThrow({ where: { id: owner.id } })).status, "ACTIVE");
+    assert.equal((await request("/api/admin/users", admin.cookie, "PATCH", { userId: owner.id, status: "INACTIVE" })).status, 409);
+    assert.equal((await request("/api/admin/users", admin.cookie, "PATCH", { userId: owner.id, roleId })).status, 409);
     const versioned = { roleId, name: role.name, description: role.description, expectedUpdatedAt: role.updatedAt, granularMap: {} };
     assert.equal((await request("/api/admin/roles", admin.cookie, "POST", { ...versioned, granularMap: { agents: ["*"] } })).status, 422);
     assert.equal((await request("/api/agents", login.cookie)).status, 200, "invalid save must preserve permissions");
@@ -61,14 +78,38 @@ test("custom roles: assignment, exact grants, revocation, conflict and lockout s
     assert.equal((await request("/api/admin/users", admin.cookie, "PATCH", { userId, roleId: roles[1] })).status, 200);
     assert.equal((await request("/api/agents", login.cookie)).status, 200);
     assert.equal((await request("/api/agents", login.cookie, "POST", {})).status, 422, "granted create reaches validation");
-    assert.equal((await request("/api/admin/users", admin.cookie, "PATCH", { userId, password: "Reset!" + suffix + "!Secure" })).status, 200);
+    const beforeEmail = await db.user.findUniqueOrThrow({ where: { id: userId } });
+    assert.equal((await request("/api/admin/users", login.cookie, "PATCH", { userId, email: "unauthorized@example.invalid" })).status, 403);
+    assert.equal((await request("/api/admin/users", admin.cookie, "PATCH", { userId, email: owner.email })).status, 409);
+    assert.equal((await request("/api/admin/users", admin.cookie, "PATCH", { userId, email: "invalid-email" })).status, 422);
+    assert.equal((await db.user.findUniqueOrThrow({ where: { id: userId } })).email, beforeEmail.email);
+    const resetToken = await db.passwordResetToken.create({ data: { userId, tokenHash: randomUUID(), expiresAt: new Date(Date.now() + 60000) } });
+    const changedEmail = "updated-access-" + suffix + "@example.invalid";
+    const emailUpdate = await request("/api/admin/users", admin.cookie, "PATCH", { userId, email: " " + changedEmail.toUpperCase() + " " });
+    assert.equal(emailUpdate.status, 200);
+    assert.equal(emailUpdate.body.reauthRequired, false);
+    assert.equal((await db.user.findUniqueOrThrow({ where: { id: userId } })).email, changedEmail);
+    assert.ok((await db.passwordResetToken.findUniqueOrThrow({ where: { id: resetToken.id } })).usedAt);
+    assert.equal((await request("/api/me", login.cookie)).status, 401, "email changes revoke existing sessions");
+    assert.equal((await request("/api/auth/login", "", "POST", { identity: beforeEmail.email, password })).status, 401);
+    const newEmailLogin = await request("/api/auth/login", "", "POST", { identity: changedEmail, password });
+    assert.equal(newEmailLogin.status, 200, "email-only updates preserve the existing password");
+    const directory = await request("/api/admin/users?q=" + encodeURIComponent(changedEmail), admin.cookie);
+    assert.equal(directory.body.data.length, 1);
+    assert.equal(directory.body.data[0].email, changedEmail);
+    assert.equal("password" in directory.body.data[0], false);
+    assert.equal("passwordHash" in directory.body.data[0], false);
+    const resetPassword = "Reset!" + suffix + "!Secure";
+    assert.equal((await request("/api/admin/users", admin.cookie, "PATCH", { userId, password: resetPassword })).status, 200);
     const audit = await db.auditLog.findFirst({ where: { recordId: userId, action: "UPDATE_USER_ACCESS" }, orderBy: { createdAt: "desc" } });
     assert.equal(JSON.stringify(audit?.newValue).includes("Reset!"), false);
-    assert.equal((await request("/api/me", login.cookie)).status, 401);
-    const superRole = listed.body.data.roles.find((r: { kind: string }) => r.kind === "SUPER_ADMIN");
+    assert.equal(JSON.stringify(audit?.newValue).includes("passwordHash"), false);
+    assert.equal((await request("/api/me", newEmailLogin.cookie)).status, 401, "password reset revokes existing sessions");
+    assert.equal((await request("/api/auth/login", "", "POST", { identity: changedEmail, password })).status, 401);
+    assert.equal((await request("/api/auth/login", "", "POST", { identity: changedEmail, password: resetPassword })).status, 200);
     assert.equal((await request("/api/admin/roles?roleId=" + superRole.id, admin.cookie, "DELETE")).status, 403);
   } finally {
-    if (userId) { await db.session.deleteMany({ where: { userId } }); await db.user.delete({ where: { id: userId } }); }
+    if (userId) { await db.session.deleteMany({ where: { userId } }); await db.passwordResetToken.deleteMany({ where: { userId } }); await db.user.delete({ where: { id: userId } }); }
     for (const id of roles) await db.role.delete({ where: { id } });
     await db.$disconnect();
   }

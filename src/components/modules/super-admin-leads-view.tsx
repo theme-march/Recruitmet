@@ -99,7 +99,7 @@ export function SuperAdminLeadsView({
         <div>
           <span>OFFICE OVERSIGHT</span>
           <h1>Lead Control & Officer Reassignment</h1>
-          <p>Global view of all candidate leads across call center officers.</p>
+          <p>Global view of all candidate leads across office operations officers.</p>
         </div>
       </div>
 

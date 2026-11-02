@@ -46,10 +46,10 @@ export function OfficerDashboardPage() {
       <div className="officer-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px", flexWrap: "wrap", gap: "12px" }}>
         <div>
           <div className="breadcrumb" style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-            Dashboard / Call Center
+            Dashboard / Office Operations
           </div>
-          <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--ink)", margin: "4px 0" }}>Call Center – Officer Dashboard</h1>
-          <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0 }}>Welcome, <b>{data.officer}</b>. Live call center queue, daily follow-ups, and interview pipeline.</p>
+          <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--ink)", margin: "4px 0" }}>Office Operations – Officer Dashboard</h1>
+          <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0 }}>Welcome, <b>{data.officer}</b>. Live office operations queue, daily follow-ups, and interview pipeline.</p>
         </div>
 
         <div className="officer-actions" style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>

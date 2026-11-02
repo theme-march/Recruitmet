@@ -18,12 +18,16 @@ import {
   FileCheck2,
   FileText,
   FileWarning,
+  Filter,
   Globe,
   Hourglass,
   Layers,
+  MapPin,
   Paperclip,
+  Pause,
   Phone,
   Plane,
+  Play,
   Plus,
   Printer,
   RefreshCw,
@@ -163,7 +167,8 @@ type AgentNote = {
   title: string;
   content: string;
   tag: string;
-  createdBy: string;
+  createdBy?: string;
+  author?: string;
   createdAt: string;
 };
 
@@ -1013,9 +1018,10 @@ export function AgentProfileDetail({
     setUploadingDoc(true);
     const form = new FormData(e.currentTarget);
     try {
+      const customName = String(form.get("docName") || "").trim();
       const payload = {
         action: "upload-agent-document",
-        docName: selectedFileObj?.name || String(form.get("docName") || "Document.pdf").trim(),
+        docName: customName || selectedFileObj?.name || "Document.pdf",
         docType: String(form.get("docType") || "Trade License"),
         docSize: selectedFileObj?.size || "1.2 MB",
         fileData: selectedFileObj?.dataUrl || null,
@@ -1189,7 +1195,14 @@ export function AgentProfileDetail({
     allInterviews.filter((i) => /absent|resched|cancel|no_show/i.test(i.result)).length ||
     agentData.candidates?.filter((c) => /absent/i.test(c.interviewStatus || "")).length ||
     0;
-  const passRate = totalRegistered > 0 ? Math.round((selectedCount / totalRegistered) * 100) : 100;
+  const passRate = totalRegistered > 0 ? Math.round((selectedCount / totalRegistered) * 100) : 0;
+  const interviewSummaryRows = [
+    { key: "selected", label: "Selected / Passed", count: selectedCount, description: "Passed screening", icon: CheckCircle2 },
+    { key: "waiting", label: "Waiting / Scheduled", count: waitingCount, description: "Upcoming interviews", icon: CalendarClock },
+    { key: "attended", label: "Attended / In Evaluation", count: attendedCount, description: "Under client evaluation", icon: FileCheck2 },
+    { key: "rejected", label: "Rejected", count: rejectedCount, description: "Need re-assessment", icon: X },
+    { key: "absent", label: "Absent / Rescheduled", count: absentCount, description: "Did not attend drive", icon: RefreshCw },
+  ];
 
   // 100% Dynamic Country Breakdown Calculation - Only Displays Countries where Agent has Candidates
   const countryBreakdownList = (() => {
@@ -1246,197 +1259,17 @@ export function AgentProfileDetail({
     null;
 
   return (
-    <div style={{ maxWidth: "1600px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "20px" }}>
-      {/* 1. TOP HEADER & ACTION CONTROLS */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <Link
-            href="/module/agents/agent-list"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "7px 12px",
-              borderRadius: "8px",
-              background: "#ffffff",
-              border: "1px solid var(--line)",
-              fontSize: "12px",
-              fontWeight: 700,
-              color: "var(--ink)",
-              textDecoration: "none",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-            }}
-          >
-            <ArrowLeft size={14} /> Back to Agents Directory
-          </Link>
+    <div className="agent-profile-page country-design-page agent-detail-design-page" style={{ maxWidth: "1600px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "20px" }}>
+      <div className="agent-detail-content">
+      <nav className="agent-profile-breadcrumbs" aria-label="Breadcrumb">
+        <Link href="/dashboard">DASHBOARD</Link><span aria-hidden="true">/</span>
+        <Link href="/module/agents/agent-list">AGENTS</Link><span aria-hidden="true">/</span>
+        <span aria-current="page">{agentData.code}</span>
+      </nav>
 
-          <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600 }}>
-            AGENTS / <b>{agentData.name.toUpperCase()} ({agentData.code})</b>
-          </span>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-          <button
-            type="button"
-            onClick={() => refetch()}
-            disabled={isRefetching}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "8px 14px",
-              borderRadius: "8px",
-              background: "#ffffff",
-              border: "1px solid var(--line)",
-              fontSize: "12px",
-              fontWeight: 700,
-              color: "var(--ink)",
-              cursor: "pointer",
-            }}
-          >
-            <RefreshCw size={13} className={isRefetching ? "animate-spin" : ""} /> Refresh
-          </button>
-
-          <button
-            type="button"
-            onClick={() => window.print()}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "8px 14px",
-              borderRadius: "8px",
-              background: "#ffffff",
-              border: "1px solid var(--line)",
-              fontSize: "12px",
-              fontWeight: 700,
-              color: "var(--ink)",
-              cursor: "pointer",
-            }}
-          >
-            <Printer size={14} /> Print Statement
-          </button>
-
-          {isPortalMode && (
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "6px 12px",
-                borderRadius: "8px",
-                background: "#ecfdf5",
-                color: "#059669",
-                border: "1px solid #a7f3d0",
-                fontSize: "12px",
-                fontWeight: 700,
-              }}
-            >
-              <span>🛡️</span> Agent Self-Service Portal (Read-Only)
-            </div>
-          )}
-
-          {!isReadOnly && (
-            <button
-              type="button"
-              onClick={handleOpenGeneralPaymentModal}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "8px 16px",
-                borderRadius: "8px",
-                background: "#059669",
-                color: "#ffffff",
-                fontSize: "12px",
-                fontWeight: 800,
-                border: "none",
-                cursor: "pointer",
-                boxShadow: "0 2px 8px rgba(5,150,105,0.25)",
-              }}
-            >
-              <CreditCard size={14} /> + Collect Payment
-            </button>
-          )}
-
-          {!isReadOnly && (
-            <button
-              type="button"
-              onClick={() => setShowAssignModal(true)}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "8px 16px",
-                borderRadius: "8px",
-                background: "#7258e8",
-                color: "#ffffff",
-                fontSize: "12px",
-                fontWeight: 800,
-                border: "none",
-                cursor: "pointer",
-                boxShadow: "0 2px 8px rgba(114,88,232,0.25)",
-              }}
-            >
-              <UserPlus size={14} /> + Link / Assign Candidate
-            </button>
-          )}
-
-          {!isReadOnly && (
-            <button
-              type="button"
-              onClick={() => setShowEditModal(true)}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "8px 14px",
-                borderRadius: "8px",
-                background: "#f0edff",
-                color: "#7258e8",
-                border: "1px solid #dcd5fb",
-                fontSize: "12px",
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              <Edit size={13} /> Edit Agent Details
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* 2. AGENT PROFILE HERO CARD */}
-      <div
-        style={{
-          background: "#ffffff",
-          borderRadius: "16px",
-          border: "1px solid var(--line)",
-          padding: "20px 24px",
-          boxShadow: "var(--shadow)",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: "20px",
-          flexWrap: "wrap",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "16px", flex: 1, minWidth: "300px" }}>
-          <div
-            style={{
-              width: "56px",
-              height: "56px",
-              borderRadius: "14px",
-              background: "linear-gradient(135deg, #7258e8 0%, #4f46e5 100%)",
-              color: "#ffffff",
-              fontSize: "20px",
-              fontWeight: 900,
-              display: "grid",
-              placeItems: "center",
-              boxShadow: "0 4px 12px rgba(114,88,232,0.3)",
-              flexShrink: 0,
-            }}
-          >
+      <section className="agent-profile-heading" aria-label="Agent profile">
+        <div className="agent-profile-identity">
+          <div className="agent-profile-avatar">
             {agentData.profileImageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={agentData.profileImageUrl} alt={`${agentData.name} profile`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -1444,293 +1277,147 @@ export function AgentProfileDetail({
               agentData.name.slice(0, 2).toUpperCase()
             )}
           </div>
-
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
-              <h2 style={{ fontSize: "20px", fontWeight: 800, color: "var(--ink)", margin: 0 }}>
-                {agentData.name}
-              </h2>
-              <span style={{ fontSize: "11px", fontWeight: 800, background: "#f1f5f9", padding: "2px 8px", borderRadius: "6px", color: "#334155" }}>
-                {agentData.code}
-              </span>
-              <span
-                style={{
-                  fontSize: "11px",
-                  fontWeight: 800,
-                  padding: "2px 8px",
-                  borderRadius: "6px",
-                  background: agentData.status === "Active" ? "#ecfdf5" : "#fff1f2",
-                  color: agentData.status === "Active" ? "#059669" : "#e11d48",
-                  border: `1px solid ${agentData.status === "Active" ? "#a7f3d0" : "#fecdd3"}`,
-                }}
-              >
-                ● {agentData.status === "Active" ? "Active Partner" : agentData.status}
-              </span>
+          <div className="agent-profile-summary">
+            <div className="agent-profile-title-row">
+              <h1>{agentData.name}</h1>
+              <span className={`agent-profile-status ${agentData.status.toLowerCase()}`}>{agentData.status.toUpperCase()}</span>
             </div>
-
-            <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap", fontSize: "12px", color: "var(--muted)" }}>
-              {agentData.contactPerson && (
-                <span>👤 Contact Person: <b style={{ color: "var(--ink)" }}>{agentData.contactPerson}</b></span>
-              )}
-              <span>
-                📞 <a href={phoneHref(agentData.phone)} style={{ color: "#7258e8", textDecoration: "none", fontWeight: 700 }}>{agentData.phone}</a>
-              </span>
-              {agentData.email && (
-                <span>
-                  ✉️ <a href={`mailto:${agentData.email}`} style={{ color: "var(--muted)", textDecoration: "none" }}>{agentData.email}</a>
-                </span>
-              )}
-              {agentData.address && (
-                <span>📍 Location: <b>{agentData.address}</b></span>
-              )}
+            <div className="agent-profile-meta-row">
+              <span className="agent-profile-code">{agentData.code}</span>
+              {agentData.agreementKey && <span>{agentData.agreementKey}</span>}
+              {(agentData.address || agentData.district) && <span><MapPin size={13} aria-hidden="true" />{agentData.address || agentData.district}</span>}
+              <span className="agent-profile-partner"><span aria-hidden="true">●</span> Agent Partner</span>
             </div>
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
-          {agentData.agreementKey && (
-            <div style={{ background: "#f8fafc", border: "1px solid var(--line)", padding: "8px 14px", borderRadius: "10px" }}>
-              <small style={{ fontSize: "10.5px", color: "var(--muted)", display: "block" }}>📜 Agreement Ref</small>
-              <b style={{ fontSize: "12.5px", color: "#475569" }}>{agentData.agreementKey}</b>
-            </div>
+        <div className="agent-profile-toolbar-actions" role="group" aria-label="Agent actions">
+          <Link data-action-ui="secondary" data-action-size="normal" className="agent-detail-control" href="/module/agents/agent-list">
+            <ArrowLeft size={14} /> Back to Agents Directory
+          </Link>
+          <button data-action-ui="secondary" data-action-size="normal" className="agent-detail-control" type="button" onClick={() => refetch()} disabled={isRefetching}>
+            <RefreshCw size={14} className={isRefetching ? "animate-spin" : ""} /> Refresh
+          </button>
+          <button data-action-ui="secondary" data-action-size="normal" className="agent-detail-control" type="button" onClick={() => window.print()}>
+            <Printer size={14} /> Print Statement
+          </button>
+          {!isReadOnly && (
+            <>
+              <button data-action-ui="secondary" data-action-size="normal" className="agent-detail-control" type="button" onClick={() => setShowEditModal(true)}>
+                <Edit size={14} /> Edit Agent Details
+              </button>
+              <button data-action-ui="success" data-action-size="normal" className="agent-detail-control" type="button" onClick={handleOpenGeneralPaymentModal}>
+                <CreditCard size={14} /> Collect Payment
+              </button>
+              <button data-action-ui="primary" data-action-size="normal" className="agent-detail-control" type="button" onClick={() => setShowAssignModal(true)}>
+                <UserPlus size={14} /> Link / Assign Candidate
+              </button>
+            </>
           )}
-        </div>
-      </div>
-
-      {/* 3. 5 KEY EXECUTIVE KPI CARDS */}
-      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: "14px" }}>
-        {/* Card 1: TOTAL REFERRED */}
-        <div
-          style={{
-            background: "#ffffff",
-            border: "1px solid var(--line)",
-            borderRadius: "16px",
-            padding: "16px 18px",
-            boxShadow: "var(--shadow)",
-            display: "flex",
-            alignItems: "center",
-            gap: "14px",
-          }}
-        >
-          <div style={{ width: "42px", height: "42px", borderRadius: "12px", background: "#f0edff", color: "#7258e8", display: "grid", placeItems: "center", flexShrink: 0 }}>
-            <Users size={20} />
-          </div>
-          <div>
-            <span style={{ fontSize: "10.5px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
-              TOTAL REFERRED
-            </span>
-            <div style={{ display: "flex", alignItems: "baseline", gap: "5px", marginTop: "2px" }}>
-              <b style={{ fontSize: "20px", fontWeight: 900, color: "var(--ink)" }}>{totalCandidatesCount}</b>
-              <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 700 }}>Candidates</span>
-            </div>
-          </div>
+          {isPortalMode && <span className="agent-profile-read-only"><ShieldCheck size={14} aria-hidden="true" /> Read-Only Agent Portal</span>}
         </div>
 
-        {/* Card 2: 🟢 COMPLETED FILES */}
-        <div
-          style={{
-            background: "#ffffff",
-            border: "1px solid var(--line)",
-            borderRadius: "16px",
-            padding: "16px 18px",
-            boxShadow: "var(--shadow)",
-            display: "flex",
-            alignItems: "center",
-            gap: "14px",
-          }}
-        >
-          <div style={{ width: "42px", height: "42px", borderRadius: "12px", background: "#ecfdf5", color: "#059669", display: "grid", placeItems: "center", flexShrink: 0 }}>
-            <CheckCircle2 size={20} />
-          </div>
-          <div>
-            <span style={{ fontSize: "10.5px", fontWeight: 800, color: "#059669", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
-              🟢 COMPLETED FILES
-            </span>
-            <div style={{ display: "flex", alignItems: "baseline", gap: "5px", marginTop: "2px" }}>
-              <b style={{ fontSize: "20px", fontWeight: 900, color: "#059669" }}>{completedCandidatesCount}</b>
-              <span style={{ fontSize: "12px", color: "#059669", fontWeight: 700 }}>Done</span>
-            </div>
-          </div>
-        </div>
+        <dl className="agent-profile-info-grid" aria-label="Agent contact and account details">
+          <div><dt>Contact Person</dt><dd>{agentData.contactPerson || "Not recorded"}</dd></div>
+          <div><dt>Phone Number</dt><dd><a href={phoneHref(agentData.phone)}>{agentData.phone}</a></dd></div>
+          <div><dt>Email Address</dt><dd>{agentData.email ? <a href={`mailto:${agentData.email}`}>{agentData.email.split("@")[0]}@<wbr />{agentData.email.split("@").slice(1).join("@")}</a> : "Not recorded"}</dd></div>
+          <div><dt>Office Location</dt><dd>{agentData.address || agentData.district || "Not recorded"}</dd></div>
+          <div><dt>Agreement Reference</dt><dd>{agentData.agreementKey || "Not recorded"}</dd></div>
+          <div><dt>Portal Access</dt><dd>{agentData.hasPortalAccess ? "Enabled" : "Not enabled"}</dd></div>
+        </dl>
+      </section>
 
-        {/* Card 3: ⏳ INCOMPLETE / RUNNING */}
-        <div
-          style={{
-            background: "#ffffff",
-            border: "1px solid var(--line)",
-            borderRadius: "16px",
-            padding: "16px 18px",
-            boxShadow: "var(--shadow)",
-            display: "flex",
-            alignItems: "center",
-            gap: "14px",
-          }}
-        >
-          <div style={{ width: "42px", height: "42px", borderRadius: "12px", background: "#fffbeb", color: "#d97706", display: "grid", placeItems: "center", flexShrink: 0 }}>
-            <Clock size={20} />
-          </div>
-          <div>
-            <span style={{ fontSize: "10.5px", fontWeight: 800, color: "#d97706", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
-              ⏳ INCOMPLETE / RUNNING
-            </span>
-            <div style={{ display: "flex", alignItems: "baseline", gap: "5px", marginTop: "2px" }}>
-              <b style={{ fontSize: "20px", fontWeight: 900, color: "#d97706" }}>{incompleteCandidatesCount}</b>
-              <span style={{ fontSize: "12px", color: "#d97706", fontWeight: 700 }}>Pending</span>
-            </div>
-          </div>
+      {/* Summary cards share the country master list layout. */}
+      <section className="agent-detail-metrics agent-master-metrics" aria-label="Agent overview">
+        <div className="country-design-metric">
+          <div><span>Total Referred</span><Users size={16} color="#007aff" /></div>
+          <b>{totalCandidatesCount}</b>
+          <p>Referred candidate files</p>
         </div>
-
-        {/* Card 4: TOTAL MONEY COLLECTED */}
-        <div
-          style={{
-            background: "#ffffff",
-            border: "1px solid var(--line)",
-            borderRadius: "16px",
-            padding: "16px 18px",
-            boxShadow: "var(--shadow)",
-            display: "flex",
-            alignItems: "center",
-            gap: "14px",
-          }}
-        >
-          <div style={{ width: "42px", height: "42px", borderRadius: "12px", background: "#eff6ff", color: "#2563eb", display: "grid", placeItems: "center", flexShrink: 0 }}>
-            <CreditCard size={20} />
-          </div>
-          <div>
-            <span style={{ fontSize: "10.5px", fontWeight: 800, color: "#2563eb", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
-              TOTAL MONEY COLLECTED
-            </span>
-            <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginTop: "2px" }}>
-              <b style={{ fontSize: "20px", fontWeight: 900, color: "var(--ink)" }}>{formatTk(totalCollectedBDT)}</b>
-              <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 700 }}>BDT</span>
-            </div>
-            <div style={{ display: "flex", gap: "4px", marginTop: "4px", flexWrap: "wrap", fontSize: "10.5px", fontWeight: 700 }}>
-              {totalDueBDT > 0 && (
-                <span style={{ color: "#dc2626", background: "#fef2f2", padding: "1px 5px", borderRadius: "4px", border: "1px solid #fecdd3" }}>
-                  Due: {formatTk(totalDueBDT)}
-                </span>
-              )}
-              {totalAdvanceBDT > 0 && (
-                <span style={{ color: "#7c3aed", background: "#f5f3ff", padding: "1px 5px", borderRadius: "4px", border: "1px solid #ddd6fe" }}>
-                  Adv: + {formatTk(totalAdvanceBDT)}
-                </span>
-              )}
-            </div>
-          </div>
+        <div className="country-design-metric">
+          <div><span>Completed Files</span><CheckCircle2 size={16} color="#34c759" /></div>
+          <b>{completedCandidatesCount}</b>
+          <p>Completed candidate files</p>
+        </div>
+        <div className="country-design-metric">
+          <div><span>Incomplete / Running</span><Clock size={16} color="#ff9500" /></div>
+          <b>{incompleteCandidatesCount}</b>
+          <p>Pending candidate files</p>
+        </div>
+        <div className="country-design-metric money">
+          <div><span>Total Money Collected</span><CreditCard size={16} color="#34c759" /></div>
+          <b>{formatTk(totalCollectedBDT)} BDT</b>
+          <p className="agent-master-balances">
+            {totalDueBDT > 0 && <span className="country-design-due">Due: {formatTk(totalDueBDT)}</span>}
+            {totalAdvanceBDT > 0 && <span className="agent-master-advance">Adv: + {formatTk(totalAdvanceBDT)}</span>}
+            {totalDueBDT === 0 && totalAdvanceBDT === 0 && "Cumulative Accounts"}
+          </p>
         </div>
       </section>
 
-      {/* 4. COUNTRY-WISE CANDIDATE BREAKDOWN & TOTAL COLLECTIONS SECTION (Theme Adjusted & 100% Dynamic) */}
-      <div
-        style={{
-          background: "#ffffff",
-          borderRadius: "18px",
-          border: "1px solid var(--line)",
-          padding: "20px 24px",
-          boxShadow: "var(--shadow)",
-          display: "flex",
-          flexDirection: "column",
-          gap: "16px",
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <Globe size={18} style={{ color: "#7258e8" }} />
-              <h3 style={{ fontSize: "16px", fontWeight: 800, color: "var(--ink)", margin: 0 }}>
-                Country-Wise Candidate Breakdown &amp; Total Collections
-              </h3>
+      {/* Country collections summary */}
+      <section className="agent-country-breakdown agent-detail-panel" aria-labelledby="agent-country-breakdown-title">
+        <div className="agent-country-breakdown-head">
+          <div className="agent-country-breakdown-copy">
+            <div className="agent-country-breakdown-title">
+              <Globe size={18} aria-hidden="true" />
+              <h3 id="agent-country-breakdown-title">Country-Wise Candidate Breakdown &amp; Total Collections</h3>
             </div>
-            <p style={{ fontSize: "12px", color: "var(--muted)", margin: "4px 0 0" }}>
-              Shows candidate distribution, total package value, collected funds, and processing status by destination.
-            </p>
+            <p>Shows candidate distribution, total package value, collected funds, and processing status by destination.</p>
           </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              Destinations ({countryBreakdownList.length})
-            </span>
+          <div className="agent-country-breakdown-count">
+            <span>Destinations ({countryBreakdownList.length})</span>
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: "16px" }}>
-          {countryBreakdownList.map((cb) => {
-            const isSaudi = /saudi/i.test(cb.country);
-            const isDubai = /dubai|uae/i.test(cb.country);
+        {countryBreakdownList.length === 0 ? (
+          <div className="agent-country-empty">No candidate destination records found for this agent yet.</div>
+        ) : (
+          <div className="agent-country-breakdown-grid">
+            {countryBreakdownList.map((cb) => {
+              const isSaudi = /saudi/i.test(cb.country);
+              const isDubai = /dubai|uae/i.test(cb.country);
+              const countryName = getCleanCountryName(cb.country);
 
-            const tagBg = isSaudi ? "#ecfdf5" : isDubai ? "#f0edff" : "#f1f5f9";
-            const tagBorder = isSaudi ? "#a7f3d0" : isDubai ? "#dcd5fb" : "#e2e8f0";
-            const tagColor = isSaudi ? "#059669" : isDubai ? "#7258e8" : "#475569";
-            const code = getCountryCode(cb.country);
-
-            return (
-              <div
-                key={cb.country}
-                style={{
-                  background: "#ffffff",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: "14px",
-                  padding: "16px 18px",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                  gap: "12px",
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
-                  transition: "all 0.15s ease",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span style={{ fontSize: "11.5px", fontWeight: 900, color: tagColor, background: tagBg, border: `1px solid ${tagBorder}`, padding: "2px 7px", borderRadius: "5px" }}>
-                      {code}
-                    </span>
-                    <b style={{ fontSize: "14.5px", color: "var(--ink)" }}>{getCountryFlag(cb.country)} {getCleanCountryName(cb.country)}</b>
-                  </div>
-                  <span style={{ fontSize: "12px", fontWeight: 800, color: "#334155", background: "#f8fafc", padding: "3px 10px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
-                    {cb.candidateCount} Candidate(s)
-                  </span>
-                </div>
-
-                <div style={{ background: "#f8fafc", borderRadius: "10px", padding: "12px 14px", border: "1px solid #e2e8f0" }}>
-                  <span style={{ fontSize: "10.5px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
-                    TOTAL COLLECTED FOR {getCleanCountryName(cb.country).toUpperCase()}:
-                  </span>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: "8px", marginTop: "2px", flexWrap: "wrap" }}>
-                    <b style={{ fontSize: "20px", fontWeight: 900, color: "#15803d" }}>
-                      {formatTk(cb.totalCollected)} <small style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 700 }}>BDT</small>
-                    </b>
-                    {cb.totalDue > 0 ? (
-                      <span style={{ fontSize: "11px", fontWeight: 800, color: "#dc2626", background: "#fef2f2", padding: "2px 7px", borderRadius: "4px", border: "1px solid #fecdd3" }}>
-                        Due: {formatTk(cb.totalDue)}
+              return (
+                <article className="agent-country-card" key={cb.country} aria-label={`${countryName} collections`}>
+                  <div className="agent-country-card-head">
+                    <div className="agent-country-card-identity">
+                      <span className={`agent-country-code ${isSaudi ? "saudi" : isDubai ? "dubai" : "general"}`}>
+                        {getCountryCode(cb.country)}
                       </span>
-                    ) : cb.totalAdvance > 0 ? (
-                      <span style={{ fontSize: "11px", fontWeight: 800, color: "#7c3aed", background: "#f5f3ff", padding: "2px 7px", borderRadius: "4px", border: "1px solid #ddd6fe" }}>
-                        ● + {formatTk(cb.totalAdvance)} Advance
-                      </span>
-                    ) : null}
+                      <b><span aria-hidden="true">{getCountryFlag(cb.country)}</span> {countryName}</b>
+                    </div>
+                    <span className="agent-country-candidate-count">{cb.candidateCount} Candidate(s)</span>
                   </div>
-                  <div style={{ marginTop: "4px", fontSize: "11px", color: "var(--muted)" }}>
-                    Contract Package: <b>{formatTk(cb.totalPackage)} BDT</b>
-                  </div>
-                </div>
 
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11.5px", fontWeight: 700, paddingTop: "2px" }}>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", color: "#2563eb", background: "#eff6ff", padding: "3px 8px", borderRadius: "6px", border: "1px solid #bfdbfe" }}>
-                    ⚡ {cb.inProcess} in Processing
-                  </span>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", color: "#059669", background: "#ecfdf5", padding: "3px 8px", borderRadius: "6px", border: "1px solid #a7f3d0" }}>
-                    ✈️ {cb.completed} Completed Flights
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+                  <div className="agent-country-finance">
+                    <span className="agent-country-finance-label">Total collected for {countryName}:</span>
+                    <div className="agent-country-total-row">
+                      <b className="agent-country-total">{formatTk(cb.totalCollected)} <small>BDT</small></b>
+                      {cb.totalDue > 0 ? (
+                        <span className="agent-country-balance due">Due: {formatTk(cb.totalDue)}</span>
+                      ) : cb.totalAdvance > 0 ? (
+                        <span className="agent-country-balance advance">+ {formatTk(cb.totalAdvance)} Advance</span>
+                      ) : null}
+                    </div>
+                    <div className="agent-country-package">Contract Package: <b>{formatTk(cb.totalPackage)} BDT</b></div>
+                  </div>
+
+                  <div className="agent-country-statuses">
+                    <span className="processing"><span aria-hidden="true">⚡</span> {cb.inProcess} in Processing</span>
+                    <span className="completed"><span aria-hidden="true">✈️</span> {cb.completed} Completed Flights</span>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       {/* 4.5 SMART DUAL ALERT NOTIFICATION HUB (EXPIRY & MISSING REQUIREMENTS) */}
       {(criticalExpiryCount > 0 || warningExpiryCount > 0 || candidatesWithMissingDocs.length > 0) && (
-        <div
+        <div className="agent-detail-grid"
           style={{
             display: "grid",
             gridTemplateColumns:
@@ -1742,7 +1429,7 @@ export function AgentProfileDetail({
         >
           {/* Card 1: Expiry Alert Card */}
           {(criticalExpiryCount > 0 || warningExpiryCount > 0) && (
-            <div
+            <div className="agent-detail-panel agent-detail-alert"
               style={{
                 background:
                   criticalExpiryCount > 0
@@ -1761,7 +1448,7 @@ export function AgentProfileDetail({
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1, minWidth: "260px" }}>
-                <div
+                <div className="agent-detail-grid"
                   style={{
                     width: "38px",
                     height: "38px",
@@ -1816,7 +1503,7 @@ export function AgentProfileDetail({
                 </div>
               </div>
 
-              <button
+              <button data-action-ui="secondary" data-action-size="normal" className="agent-detail-control"
                 type="button"
                 onClick={() => setActiveMainTab("expiry")}
                 style={{
@@ -1850,6 +1537,7 @@ export function AgentProfileDetail({
 
       {/* 5. MAIN MULTI-TAB WORKSPACE */}
       <div
+        className="agent-workspace agent-detail-panel"
         style={{
           background: "#ffffff",
           borderRadius: "18px",
@@ -1862,9 +1550,9 @@ export function AgentProfileDetail({
         }}
       >
         {/* Workspace Tab Switcher */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", borderBottom: "1px solid #f1f5f9", paddingBottom: "14px" }}>
+        <div className="agent-workspace-tabs" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", borderBottom: "1px solid #f1f5f9", paddingBottom: "14px" }}>
           <div className="scrollable-tabs-bar" style={{ display: "flex", gap: "8px", width: "100%" }}>
-            <button
+            <button aria-pressed={activeMainTab === "ledger"} className="agent-detail-control agent-detail-filter"
               type="button"
               onClick={() => setActiveMainTab("ledger")}
               style={{
@@ -1900,7 +1588,7 @@ export function AgentProfileDetail({
               </span>
             </button>
 
-            <button
+            <button aria-pressed={activeMainTab === "missing"} className="agent-detail-control agent-detail-filter"
               type="button"
               onClick={() => setActiveMainTab("missing")}
               style={{
@@ -1951,7 +1639,7 @@ export function AgentProfileDetail({
               )}
             </button>
 
-            <button
+            <button aria-pressed={activeMainTab === "expiry"} className="agent-detail-control agent-detail-filter"
               type="button"
               onClick={() => setActiveMainTab("expiry")}
               style={{
@@ -2001,7 +1689,7 @@ export function AgentProfileDetail({
               )}
             </button>
 
-            <button
+            <button aria-pressed={activeMainTab === "interviews"} className="agent-detail-control agent-detail-filter"
               type="button"
               onClick={() => setActiveMainTab("interviews")}
               style={{
@@ -2037,7 +1725,7 @@ export function AgentProfileDetail({
               </span>
             </button>
 
-            <button
+            <button aria-pressed={activeMainTab === "docs"} className="agent-detail-control agent-detail-filter"
               type="button"
               onClick={() => setActiveMainTab("docs")}
               style={{
@@ -2077,11 +1765,11 @@ export function AgentProfileDetail({
 
         {/* TAB 1: CANDIDATES & FINANCIAL LEDGER */}
         {activeMainTab === "ledger" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+          <div className="agent-ledger-panel" style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
             {/* Filter Toolbar */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
-              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                <button
+            <div className="agent-ledger-toolbar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
+              <div className="agent-ledger-status-filters" style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                <button aria-pressed={completionTab === "All"} className="agent-detail-control agent-detail-filter"
                   type="button"
                   onClick={() => setCompletionTab("All")}
                   style={{
@@ -2096,10 +1784,10 @@ export function AgentProfileDetail({
                     cursor: "pointer",
                   }}
                 >
-                  All Candidates ({agentData.candidates.length})
+                  <Users size={14} /> All Candidates ({agentData.candidates.length})
                 </button>
 
-                <button
+                <button aria-pressed={completionTab === "Completed"} className="agent-detail-control agent-detail-filter"
                   type="button"
                   onClick={() => setCompletionTab("Completed")}
                   style={{
@@ -2114,10 +1802,10 @@ export function AgentProfileDetail({
                     cursor: "pointer",
                   }}
                 >
-                  🟢 Completed ({completedCandidatesCount})
+                  <CheckCircle2 size={14} /> Completed ({completedCandidatesCount})
                 </button>
 
-                <button
+                <button aria-pressed={completionTab === "Incomplete"} className="agent-detail-control agent-detail-filter"
                   type="button"
                   onClick={() => setCompletionTab("Incomplete")}
                   style={{
@@ -2132,10 +1820,10 @@ export function AgentProfileDetail({
                     cursor: "pointer",
                   }}
                 >
-                  ⏳ In-Process ({incompleteCandidatesCount})
+                  <Hourglass size={14} /> In-Process ({incompleteCandidatesCount})
                 </button>
 
-                <button
+                <button aria-pressed={completionTab === "Hold"} className="agent-detail-control agent-detail-filter"
                   type="button"
                   onClick={() => setCompletionTab("Hold")}
                   style={{
@@ -2150,10 +1838,10 @@ export function AgentProfileDetail({
                     cursor: "pointer",
                   }}
                 >
-                  ⏸️ On Hold ({candidatesOnHold.length})
+                  <Pause size={14} /> On Hold ({candidatesOnHold.length})
                 </button>
 
-                <button
+                <button aria-pressed={docStatusFilter === "Missing"} className="agent-detail-control agent-detail-filter"
                   type="button"
                   onClick={() => setDocStatusFilter(docStatusFilter === "Missing" ? "All" : "Missing")}
                   style={{
@@ -2168,10 +1856,10 @@ export function AgentProfileDetail({
                     cursor: "pointer",
                   }}
                 >
-                  🔴 Missing Docs ({candidatesWithMissingDocs.length})
+                  <AlertCircle size={14} /> Missing Docs ({candidatesWithMissingDocs.length})
                 </button>
 
-                <button
+                <button aria-pressed={docStatusFilter === "Complete"} className="agent-detail-control agent-detail-filter"
                   type="button"
                   onClick={() => setDocStatusFilter(docStatusFilter === "Complete" ? "All" : "Complete")}
                   style={{
@@ -2186,15 +1874,15 @@ export function AgentProfileDetail({
                     cursor: "pointer",
                   }}
                 >
-                  🟢 Docs Complete ({candidatesWithCompleteDocs.length})
+                  <FileCheck2 size={14} /> Docs Complete ({candidatesWithCompleteDocs.length})
                 </button>
               </div>
 
-              <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+              <div className="agent-ledger-tools" style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                 {/* Country Filter */}
-                <div style={{ display: "flex", gap: "4px", background: "#f8fafc", padding: "3px", borderRadius: "8px", border: "1px solid var(--line)", flexWrap: "wrap" }}>
+                <div className="agent-ledger-country-filter agent-detail-panel" style={{ display: "flex", gap: "4px", background: "#f8fafc", padding: "3px", borderRadius: "8px", border: "1px solid var(--line)", flexWrap: "wrap" }}>
                   {["All", ...countryBreakdownList.map((cb) => cb.country)].map((c) => (
-                    <button
+                    <button aria-pressed={countryFilter === c} className="agent-detail-control agent-detail-filter"
                       key={c}
                       type="button"
                       onClick={() => setCountryFilter(c)}
@@ -2216,10 +1904,11 @@ export function AgentProfileDetail({
                 </div>
 
                 {/* Search Input */}
-                <div style={{ position: "relative" }}>
+                <div className="agent-ledger-search" style={{ position: "relative" }}>
                   <Search size={14} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "var(--muted)" }} />
                   <input
                     type="text"
+                    aria-label="Search agent candidates"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search candidate, passport, phone..."
@@ -2239,9 +1928,10 @@ export function AgentProfileDetail({
               </div>
             </div>
 
+            <div className="agent-detail-result-count">Showing {filteredCandidates.length ? 1 : 0}–{filteredCandidates.length} of {agentData.candidates.length} Total Agent Candidates</div>
             {/* Candidates Table */}
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
+            <div className="agent-ledger-table-wrap agent-detail-table-scroll" style={{ overflowX: "auto" }}>
+              <table className="agent-ledger-table agent-detail-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
                 <thead>
                   <tr style={{ background: "#f8fafc", borderBottom: "1px solid var(--line)", color: "var(--muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                     <th style={{ padding: "10px 14px", width: "40px" }}>#</th>
@@ -2257,18 +1947,19 @@ export function AgentProfileDetail({
                 <tbody>
                   {filteredCandidates.map((cand, idx) => (
                     <tr
+                      className="agent-ledger-row"
                       key={cand.fileId}
                       style={{ borderBottom: "1px solid var(--line)", transition: "background 0.15s ease" }}
                       onMouseEnter={(e) => (e.currentTarget.style.background = "#fcfaff")}
                       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                     >
-                      <td style={{ padding: "12px 14px", fontWeight: 700, color: "var(--muted)" }}>
+                      <td data-label="Row" style={{ padding: "12px 14px", fontWeight: 700, color: "var(--muted)" }}>
                         {idx + 1}
                       </td>
 
-                      <td style={{ padding: "12px 14px" }}>
+                      <td data-label="Candidate & Contact" style={{ padding: "12px 14px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                          <span style={{ width: "32px", height: "32px", borderRadius: "50%", background: "#e0e7ff", color: "#4338ca", fontSize: "11px", fontWeight: 800, display: "grid", placeItems: "center" }}>
+                          <span className="agent-detail-accent agent-master-candidate-avatar" style={{ width: "32px", height: "32px", borderRadius: "50%", background: "#e0e7ff", color: "#4338ca", fontSize: "11px", fontWeight: 800, display: "grid", placeItems: "center" }}>
                             {cand.fullName.slice(0, 2).toUpperCase()}
                           </span>
                           <div>
@@ -2276,27 +1967,28 @@ export function AgentProfileDetail({
                               type="button"
                               onClick={() => handleOpenPaymentModalForCandidate(cand)}
                               style={{ background: "transparent", border: "none", padding: 0, color: "var(--ink)", fontSize: "13.5px", fontWeight: 800, textAlign: "left", cursor: "pointer" }}
-                              className="hover:underline"
+                              className="hover:underline agent-detail-name"
                             >
                               {cand.fullName}
                             </button>
-                            <small style={{ color: "var(--muted)", fontSize: "11px", display: "block" }}>
-                              ID: {cand.candidateNo} · <a href={phoneHref(cand.phone)} style={{ color: "#7258e8", textDecoration: "none" }}>{cand.phone}</a>
-                            </small>
+                            <div className="agent-master-candidate-contact">
+                              <span className="country-design-candidate-id">{cand.candidateNo}</span>
+                              <a className="agent-master-candidate-phone" href={phoneHref(cand.phone)}>{cand.phone}</a>
+                            </div>
                           </div>
                         </div>
                       </td>
 
-                      <td style={{ padding: "12px 14px" }}>
+                      <td data-label="Passport & File" style={{ padding: "12px 14px" }}>
                         <div>
-                          <b style={{ fontFamily: "monospace", color: "var(--ink)", fontSize: "12.5px", display: "block" }}>
+                          <b className="agent-master-passport" style={{ fontFamily: "monospace", color: "var(--ink)", fontSize: "12.5px", display: "block" }}>
                             {cand.passportNumber || "No Passport"}
                           </b>
                           <small style={{ color: "var(--muted)", fontSize: "11px" }}>File: {cand.fileNo}</small>
                         </div>
                       </td>
 
-                      <td style={{ padding: "12px 14px" }}>
+                      <td data-label="Destination & Trade" style={{ padding: "12px 14px" }}>
                         <div>
                           <span style={{ fontSize: "12.5px", fontWeight: 700, display: "block" }}>
                             {getCountryFlag(cand.country)} {cand.country}
@@ -2305,7 +1997,7 @@ export function AgentProfileDetail({
                         </div>
                       </td>
 
-                      <td style={{ padding: "12px 14px" }}>
+                      <td data-label="Processing Status" style={{ padding: "12px 14px" }}>
                         <div>
                           <span
                             style={{
@@ -2366,7 +2058,7 @@ export function AgentProfileDetail({
 
                           {cand.hasMissingDocs || (cand.missingDocs && cand.missingDocs.length > 0) ? (
                             <div style={{ marginTop: "4px" }}>
-                              <button
+                              <button data-action-ui="danger" data-action-size="compact" className="agent-detail-control"
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -2414,10 +2106,11 @@ export function AgentProfileDetail({
                       </td>
 
                       {/* Itemized Payments Column with inline receipts and direct modal trigger */}
-                      <td style={{ padding: "12px 14px" }}>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                      <td data-label="Itemized Receipts" style={{ padding: "12px 14px" }}>
+                        <div className="agent-ledger-receipts" style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                           {cand.payments.slice(0, 2).map((p, pIdx) => (
                             <div
+                              className="agent-ledger-receipt agent-detail-panel"
                               key={p.id || pIdx}
                               style={{
                                 display: "flex",
@@ -2434,9 +2127,10 @@ export function AgentProfileDetail({
                               <span style={{ color: "#334155", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100px" }}>
                                 {p.type}
                               </span>
-                              <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                              <div className="agent-ledger-receipt-meta" style={{ display: "flex", alignItems: "center", gap: "4px" }}>
                                 <b style={{ color: "#059669" }}>{formatTk(p.amount)}</b>
-                                <button
+                                <button data-action-ui="secondary" data-action-size="icon"
+                                  className="agent-ledger-print agent-detail-control"
                                   type="button"
                                   onClick={() => openPrintReceipt(p, cand)}
                                   style={{
@@ -2451,14 +2145,15 @@ export function AgentProfileDetail({
                                   }}
                                   title="Print receipt"
                                 >
-                                  🖨️
+                                  <Printer size={16} strokeWidth={2.2} />
                                 </button>
                               </div>
                             </div>
                           ))}
 
                           {cand.payments.length > 2 && (
-                            <button
+                            <button data-action-ui="secondary" data-action-size="compact"
+                              className="agent-ledger-more-receipts agent-detail-control agent-detail-accent"
                               type="button"
                               onClick={() => handleOpenPaymentModalForCandidate(cand)}
                               style={{
@@ -2477,7 +2172,8 @@ export function AgentProfileDetail({
                           )}
 
                           {/* Direct button to open Candidate Payment Deposits & Financial Receipts Modal */}
-                          <button
+                          <button data-action-ui="success" data-action-size="compact"
+                            className="agent-ledger-collect agent-detail-control"
                             type="button"
                             onClick={() => handleOpenPaymentModalForCandidate(cand)}
                             style={{
@@ -2502,7 +2198,7 @@ export function AgentProfileDetail({
                         </div>
                       </td>
 
-                      <td style={{ padding: "12px 14px" }}>
+                      <td data-label="Financial Ledger" style={{ padding: "12px 14px" }}>
                         <div>
                           <b style={{ fontSize: "13.5px", color: "#059669", display: "block" }}>{formatTk(cand.totalPaid)}</b>
                           <small style={{ fontSize: "10.5px", color: "var(--muted)", display: "block" }}>
@@ -2514,7 +2210,7 @@ export function AgentProfileDetail({
                                 Due: {formatTk(cand.dueAmount)}
                               </span>
                             ) : (
-                              <span style={{ fontSize: "10.5px", color: "#7c3aed", fontWeight: 800, background: "#f5f3ff", padding: "1px 5px", borderRadius: "3px" }}>
+                              <span className="agent-detail-accent" style={{ fontSize: "10.5px", color: "#7c3aed", fontWeight: 800, background: "#f5f3ff", padding: "1px 5px", borderRadius: "3px" }}>
                                 + {formatTk(cand.advanceAmount)} Advance
                               </span>
                             )}
@@ -2522,9 +2218,9 @@ export function AgentProfileDetail({
                         </div>
                       </td>
 
-                      <td style={{ padding: "12px 14px", textAlign: "center" }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
-                          <button
+                      <td data-label="Actions" style={{ padding: "12px 14px", textAlign: "center" }}>
+                        <div className="agent-ledger-actions" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                          <button data-action-ui="success" data-action-size="compact" className="agent-detail-control"
                             type="button"
                             onClick={() => handleOpenPaymentModalForCandidate(cand)}
                             style={{
@@ -2545,7 +2241,7 @@ export function AgentProfileDetail({
                             <CreditCard size={12} /> Pay
                           </button>
 
-                          <button
+                          <button data-action-ui="note" data-action-size="compact" className="agent-detail-control"
                             type="button"
                             onClick={() => setNoteCandidate(cand)}
                             style={{
@@ -2567,7 +2263,7 @@ export function AgentProfileDetail({
                           </button>
 
                           {cand.status === "HOLD" ? (
-                            <button
+                            <button data-action-ui="success" data-action-size="compact" className="agent-detail-control"
                               type="button"
                               onClick={() => setReleaseCandidate(cand)}
                               style={{
@@ -2585,10 +2281,10 @@ export function AgentProfileDetail({
                               }}
                               title="Release Candidate from Hold"
                             >
-                              ▶️ Release
+                              <Play size={12} /> Release
                             </button>
                           ) : (
-                            <button
+                            <button data-action-ui="warning" data-action-size="compact" className="agent-detail-control"
                               type="button"
                               onClick={() => setHoldCandidate(cand)}
                               style={{
@@ -2606,11 +2302,11 @@ export function AgentProfileDetail({
                               }}
                               title="Place Candidate on Hold"
                             >
-                              ⏸️ Hold
+                              <Pause size={12} /> Hold
                             </button>
                           )}
 
-                          <Link
+                          <Link data-action-ui="primary" data-action-size="compact" className="agent-detail-control agent-detail-primary"
                             href={`/file/${cand.fileId}`}
                             style={{
                               display: "inline-flex",
@@ -2628,7 +2324,8 @@ export function AgentProfileDetail({
                             <Eye size={12} /> Open Dossier
                           </Link>
 
-                          <button
+                          <button data-action-ui="danger" data-action-size="compact"
+                            className="agent-ledger-unlink agent-detail-control"
                             type="button"
                             onClick={() => handleUnlinkCandidate(cand.fileId, cand.fullName)}
                             style={{
@@ -2642,7 +2339,7 @@ export function AgentProfileDetail({
                             }}
                             title="Unlink candidate from this agent"
                           >
-                            <Trash2 size={12} />
+                            <Trash2 size={12} /> <span>Unlink</span>
                           </button>
                         </div>
                       </td>
@@ -2658,6 +2355,10 @@ export function AgentProfileDetail({
                 </tbody>
               </table>
             </div>
+            <div className="agent-master-table-footer">
+              <span>{agentData.candidates.length} Total Agent Candidates</span>
+              <span>{filteredCandidates.length} shown</span>
+            </div>
           </div>
         )}
 
@@ -2665,7 +2366,7 @@ export function AgentProfileDetail({
         {activeMainTab === "missing" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
             {/* Header & Stats Banner */}
-            <div
+            <div className="agent-detail-panel"
               style={{
                 background: "#fef2f2",
                 borderRadius: "14px",
@@ -2704,8 +2405,8 @@ export function AgentProfileDetail({
             </div>
 
             {/* Quick KPI Strip for Missing Categories */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "10px" }}>
-              <div style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "12px", padding: "12px 14px" }}>
+            <div className="agent-detail-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "10px" }}>
+              <div className="agent-detail-panel" style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "12px", padding: "12px 14px" }}>
                 <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase" }}>📘 Passports Missing</span>
                 <div style={{ fontSize: "18px", fontWeight: 900, color: "#dc2626", marginTop: "2px" }}>
                   {agentData.metrics?.missingPassports || candidatesWithMissingDocs.filter((c) => (c.missingDocs || []).some((d) => d.category === "PASSPORT")).length}
@@ -2713,7 +2414,7 @@ export function AgentProfileDetail({
                 <small style={{ fontSize: "10.5px", color: "var(--muted)" }}>Scan / Number missing</small>
               </div>
 
-              <div style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "12px", padding: "12px 14px" }}>
+              <div className="agent-detail-panel" style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "12px", padding: "12px 14px" }}>
                 <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase" }}>🏥 Medical Slips Missing</span>
                 <div style={{ fontSize: "18px", fontWeight: 900, color: "#d97706", marginTop: "2px" }}>
                   {agentData.metrics?.missingMedicals || candidatesWithMissingDocs.filter((c) => (c.missingDocs || []).some((d) => d.category === "MEDICAL")).length}
@@ -2721,7 +2422,7 @@ export function AgentProfileDetail({
                 <small style={{ fontSize: "10.5px", color: "var(--muted)" }}>GAMCA checkup pending</small>
               </div>
 
-              <div style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "12px", padding: "12px 14px" }}>
+              <div className="agent-detail-panel" style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "12px", padding: "12px 14px" }}>
                 <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase" }}>🛡️ Police PCC Missing</span>
                 <div style={{ fontSize: "18px", fontWeight: 900, color: "#2563eb", marginTop: "2px" }}>
                   {agentData.metrics?.missingPolices || candidatesWithMissingDocs.filter((c) => (c.missingDocs || []).some((d) => d.category === "POLICE")).length}
@@ -2729,15 +2430,15 @@ export function AgentProfileDetail({
                 <small style={{ fontSize: "10.5px", color: "var(--muted)" }}>Clearance slip needed</small>
               </div>
 
-              <div style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "12px", padding: "12px 14px" }}>
+              <div className="agent-detail-panel" style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "12px", padding: "12px 14px" }}>
                 <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase" }}>🪪 NID Cards Missing</span>
-                <div style={{ fontSize: "18px", fontWeight: 900, color: "#7c3aed", marginTop: "2px" }}>
+                <div className="agent-detail-accent" style={{ fontSize: "18px", fontWeight: 900, color: "#7c3aed", marginTop: "2px" }}>
                   {agentData.metrics?.missingNids || candidatesWithMissingDocs.filter((c) => (c.missingDocs || []).some((d) => d.category === "NID")).length}
                 </div>
                 <small style={{ fontSize: "10.5px", color: "var(--muted)" }}>Smart card copy missing</small>
               </div>
 
-              <div style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "12px", padding: "12px 14px" }}>
+              <div className="agent-detail-panel" style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "12px", padding: "12px 14px" }}>
                 <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase" }}>🛂 Visas Missing</span>
                 <div style={{ fontSize: "18px", fontWeight: 900, color: "#059669", marginTop: "2px" }}>
                   {agentData.metrics?.missingVisas || candidatesWithMissingDocs.filter((c) => (c.missingDocs || []).some((d) => d.category === "VISA")).length}
@@ -2747,7 +2448,7 @@ export function AgentProfileDetail({
             </div>
 
             {/* Filter & Search Bar */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", background: "#f8fafc", padding: "12px 16px", borderRadius: "12px", border: "1px solid var(--line)" }}>
+            <div className="agent-detail-panel" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", background: "#f8fafc", padding: "12px 16px", borderRadius: "12px", border: "1px solid var(--line)" }}>
               <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                 {[
                   { id: "ALL", label: `All Missing (${candidatesWithMissingDocs.length})` },
@@ -2757,7 +2458,7 @@ export function AgentProfileDetail({
                   { id: "NID", label: "🪪 NID Copy" },
                   { id: "VISA", label: "🛂 Visa Copy" },
                 ].map((cat) => (
-                  <button
+                  <button aria-pressed={missingCategoryFilter === cat.id} className="agent-detail-control agent-detail-filter"
                     key={cat.id}
                     type="button"
                     onClick={() => setMissingCategoryFilter(cat.id)}
@@ -2801,8 +2502,8 @@ export function AgentProfileDetail({
             </div>
 
             {/* Missing Documents Table */}
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
+            <div className="agent-detail-table-scroll" style={{ overflowX: "auto" }}>
+              <table className="agent-detail-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
                 <thead>
                   <tr style={{ background: "#f8fafc", borderBottom: "1px solid var(--line)", color: "var(--muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                     <th style={{ padding: "10px 14px", width: "40px" }}>#</th>
@@ -2836,7 +2537,7 @@ export function AgentProfileDetail({
                               {cand.fullName}
                             </b>
                             <small style={{ color: "var(--muted)", fontSize: "11px", display: "block" }}>
-                              ID: {cand.candidateNo} · <a href={phoneHref(cand.phone)} style={{ color: "#7258e8", textDecoration: "none" }}>{cand.phone}</a>
+                              ID: {cand.candidateNo} · <a className="agent-detail-accent" href={phoneHref(cand.phone)} style={{ color: "#7258e8", textDecoration: "none" }}>{cand.phone}</a>
                             </small>
                           </div>
                         </div>
@@ -2871,7 +2572,7 @@ export function AgentProfileDetail({
                       <td style={{ padding: "12px 14px" }}>
                         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                           {(cand.missingDocs || []).map((doc, dIdx) => (
-                            <div
+                            <div className="agent-detail-panel"
                               key={dIdx}
                               style={{
                                 background: "#fef2f2",
@@ -2911,7 +2612,7 @@ export function AgentProfileDetail({
 
                       <td style={{ padding: "12px 14px", textAlign: "center" }}>
                         <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
-                          <Link
+                          <Link data-action-ui="secondary" data-action-size="compact" className="agent-detail-control agent-detail-accent"
                             href={`/file/${cand.fileNo || cand.fileId}`}
                             style={{
                               padding: "6px 12px",
@@ -2952,7 +2653,7 @@ export function AgentProfileDetail({
         {activeMainTab === "expiry" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
             {/* Expiry Header & Stats */}
-            <div
+            <div className="agent-detail-panel"
               style={{
                 background: "#f8fafc",
                 borderRadius: "14px",
@@ -2975,15 +2676,15 @@ export function AgentProfileDetail({
               </div>
 
               <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                <div style={{ background: "#fff1f2", border: "1px solid #fecdd3", borderRadius: "8px", padding: "6px 12px", textAlign: "center" }}>
+                <div className="agent-detail-panel" style={{ background: "#fff1f2", border: "1px solid #fecdd3", borderRadius: "8px", padding: "6px 12px", textAlign: "center" }}>
                   <span style={{ fontSize: "10px", fontWeight: 800, color: "#e11d48", textTransform: "uppercase", display: "block" }}>Critical (&lt; 15d)</span>
                   <b style={{ fontSize: "15px", color: "#9f1239" }}>{criticalExpiryCount}</b>
                 </div>
-                <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "8px", padding: "6px 12px", textAlign: "center" }}>
+                <div className="agent-detail-panel" style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "8px", padding: "6px 12px", textAlign: "center" }}>
                   <span style={{ fontSize: "10px", fontWeight: 800, color: "#d97706", textTransform: "uppercase", display: "block" }}>Warning (16-60d)</span>
                   <b style={{ fontSize: "15px", color: "#92400e" }}>{warningExpiryCount}</b>
                 </div>
-                <div style={{ background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "8px", padding: "6px 12px", textAlign: "center" }}>
+                <div className="agent-detail-panel" style={{ background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "8px", padding: "6px 12px", textAlign: "center" }}>
                   <span style={{ fontSize: "10px", fontWeight: 800, color: "#059669", textTransform: "uppercase", display: "block" }}>Safe Valid</span>
                   <b style={{ fontSize: "15px", color: "#065f46" }}>{safeExpiryCount}</b>
                 </div>
@@ -3021,7 +2722,7 @@ export function AgentProfileDetail({
                     { id: "WARNING", label: `⚠️ Warning (${warningExpiryCount})` },
                     { id: "SAFE", label: `🟢 Safe (${safeExpiryCount})` },
                   ].map((f) => (
-                    <button
+                    <button aria-pressed={expiryStatusFilter === f.id} className="agent-detail-control agent-detail-filter"
                       key={f.id}
                       type="button"
                       onClick={() => setExpiryStatusFilter(f.id)}
@@ -3066,8 +2767,8 @@ export function AgentProfileDetail({
             </div>
 
             {/* Master Expiry Table */}
-            <div style={{ overflowX: "auto", border: "1px solid var(--line)", borderRadius: "12px" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+            <div className="agent-detail-table-scroll" style={{ overflowX: "auto", border: "1px solid var(--line)", borderRadius: "12px" }}>
+              <table className="agent-detail-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
                 <thead>
                   <tr style={{ background: "#f8fafc", borderBottom: "1px solid var(--line)", textAlign: "left" }}>
                     <th style={{ padding: "10px 14px", fontWeight: 800, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>SL</th>
@@ -3095,7 +2796,7 @@ export function AgentProfileDetail({
                         <td style={{ padding: "12px 14px" }}>
                           <b style={{ fontSize: "12.5px", color: "var(--ink)", display: "block" }}>{item.candidate.fullName}</b>
                           <span style={{ fontSize: "11px", color: "var(--muted)", display: "block" }}>{item.candidate.fileNo} • {item.candidate.phone}</span>
-                          <span style={{ fontSize: "11px", color: "#4338ca", fontWeight: 700 }}>🌍 {item.candidate.country} ({item.candidate.profession})</span>
+                          <span className="agent-detail-accent" style={{ fontSize: "11px", color: "#4338ca", fontWeight: 700 }}>🌍 {item.candidate.country} ({item.candidate.profession})</span>
                         </td>
                         <td style={{ padding: "12px 14px" }}>
                           <div style={{ display: "inline-flex", alignItems: "center", gap: "5px", marginBottom: "2px" }}>
@@ -3133,7 +2834,7 @@ export function AgentProfileDetail({
                           </span>
                         </td>
                         <td style={{ padding: "12px 14px", textAlign: "right" }}>
-                          <Link
+                          <Link data-action-ui="primary" data-action-size="compact" className="agent-detail-control agent-detail-primary"
                             href={`/file/${item.candidate.fileId}`}
                             style={{
                               display: "inline-flex",
@@ -3167,7 +2868,7 @@ export function AgentProfileDetail({
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
               <div style={{ display: "flex", gap: "6px" }}>
                 {["All", "Selected", "Waiting", "Rejected"].map((st) => (
-                  <button
+                  <button aria-pressed={interviewStatusFilter === st} className="agent-detail-control agent-detail-filter"
                     key={st}
                     type="button"
                     onClick={() => setInterviewStatusFilter(st)}
@@ -3189,8 +2890,8 @@ export function AgentProfileDetail({
               </div>
             </div>
 
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
+            <div className="agent-detail-table-scroll" style={{ overflowX: "auto" }}>
+              <table className="agent-detail-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
                 <thead>
                   <tr style={{ background: "#f8fafc", borderBottom: "1px solid var(--line)", color: "var(--muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                     <th style={{ padding: "10px 14px" }}>Candidate</th>
@@ -3234,7 +2935,7 @@ export function AgentProfileDetail({
                         </span>
                       </td>
                       <td style={{ padding: "12px 14px", textAlign: "center" }}>
-                        <button
+                        <button data-action-ui="primary" data-action-size="compact" className="agent-detail-control agent-detail-primary"
                           type="button"
                           onClick={() => setEditingInterview(inv)}
                           style={{
@@ -3268,15 +2969,15 @@ export function AgentProfileDetail({
 
         {/* TAB 3: AGENCY DOCUMENTS & OFFICE NOTES */}
         {activeMainTab === "docs" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+          <div className="agent-detail-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
             {/* Agency Documents */}
-            <div style={{ background: "#f8fafc", border: "1px solid var(--line)", borderRadius: "14px", padding: "18px" }}>
+            <div className="agent-detail-panel" style={{ background: "#f8fafc", border: "1px solid var(--line)", borderRadius: "14px", padding: "18px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
                 <div>
                   <b style={{ fontSize: "14px", color: "var(--ink)", display: "block" }}>Agency Contracts &amp; Scans</b>
                   <small style={{ fontSize: "11px", color: "var(--muted)" }}>Trade License, MoU, Cheque copy</small>
                 </div>
-                <button
+                <button data-action-ui="primary" data-action-size="normal" className="agent-detail-control agent-detail-primary"
                   type="button"
                   onClick={() => setShowDocUploadModal(true)}
                   style={{
@@ -3299,7 +3000,7 @@ export function AgentProfileDetail({
 
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {agentData.documents.map((doc) => (
-                  <div
+                  <div className="agent-detail-panel"
                     key={doc.id}
                     style={{
                       display: "flex",
@@ -3321,7 +3022,7 @@ export function AgentProfileDetail({
 
                     <div style={{ display: "flex", gap: "6px" }}>
                       {doc.fileData && (
-                        <a
+                        <a data-action-ui="secondary" data-action-size="normal" className="agent-detail-control agent-detail-accent"
                           href={doc.fileData}
                           download={doc.name}
                           target="_blank"
@@ -3339,7 +3040,7 @@ export function AgentProfileDetail({
                           View
                         </a>
                       )}
-                      <button
+                      <button data-action-ui="danger" data-action-size="icon" className="agent-detail-control"
                         type="button"
                         onClick={() => handleDeleteDocument(doc.id, doc.name)}
                         style={{
@@ -3365,13 +3066,13 @@ export function AgentProfileDetail({
             </div>
 
             {/* Office Notes */}
-            <div style={{ background: "#f8fafc", border: "1px solid var(--line)", borderRadius: "14px", padding: "18px" }}>
+            <div className="agent-detail-panel" style={{ background: "#f8fafc", border: "1px solid var(--line)", borderRadius: "14px", padding: "18px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
                 <div>
                   <b style={{ fontSize: "14px", color: "var(--ink)", display: "block" }}>Administrative Notes</b>
                   <small style={{ fontSize: "11px", color: "var(--muted)" }}>Internal remarks &amp; special terms</small>
                 </div>
-                <button
+                <button data-action-ui="note" data-action-size="normal" className="agent-detail-control agent-detail-primary"
                   type="button"
                   onClick={() => setShowAgentNoteModal(true)}
                   style={{
@@ -3394,7 +3095,7 @@ export function AgentProfileDetail({
 
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {agentData.agentNotes.map((n) => (
-                  <div
+                  <div className="agent-detail-panel"
                     key={n.id}
                     style={{
                       padding: "10px 12px",
@@ -3405,7 +3106,7 @@ export function AgentProfileDetail({
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <b style={{ fontSize: "12px", color: "var(--ink)" }}>📌 {n.title}</b>
-                      <button
+                      <button data-action-ui="danger" data-action-size="icon" className="agent-detail-control"
                         type="button"
                         onClick={() => handleDeleteAgentNote(n.id)}
                         style={{ background: "transparent", border: "none", color: "#e11d48", cursor: "pointer" }}
@@ -3415,7 +3116,7 @@ export function AgentProfileDetail({
                     </div>
                     <p style={{ margin: "4px 0 0", fontSize: "11.5px", color: "#475569" }}>{n.content}</p>
                     <small style={{ fontSize: "10px", color: "var(--muted)", marginTop: "4px", display: "block" }}>
-                      By {n.createdBy} · {new Date(n.createdAt).toLocaleDateString("en-GB")}
+                      By {n.createdBy || n.author || "Management"} · {new Date(n.createdAt).toLocaleDateString("en-GB")}
                     </small>
                   </div>
                 ))}
@@ -3428,7 +3129,7 @@ export function AgentProfileDetail({
             </div>
 
             {/* Candidate Notes & Price Remarks */}
-            <div style={{ background: "#f8fafc", border: "1px solid var(--line)", borderRadius: "14px", padding: "18px", gridColumn: "1 / -1" }}>
+            <div className="agent-detail-panel" style={{ background: "#f8fafc", border: "1px solid var(--line)", borderRadius: "14px", padding: "18px", gridColumn: "1 / -1" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
                 <div>
                   <b style={{ fontSize: "14px", color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
@@ -3438,15 +3139,15 @@ export function AgentProfileDetail({
                     All notes, fee agreements &amp; special instructions recorded for this agent's candidates
                   </small>
                 </div>
-                <span style={{ fontSize: "11px", fontWeight: 800, background: "#f0edff", color: "#7258e8", padding: "3px 8px", borderRadius: "6px" }}>
+                <span className="agent-detail-accent" style={{ fontSize: "11px", fontWeight: 800, background: "#f0edff", color: "#7258e8", padding: "3px 8px", borderRadius: "6px" }}>
                   {agentData.candidates.reduce((acc, c) => acc + (c.notes?.length || 0), 0)} Total Notes
                 </span>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "10px" }}>
+              <div className="agent-detail-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "10px" }}>
                 {agentData.candidates.flatMap((cand) =>
                   (cand.notes || []).map((n) => (
-                    <div
+                    <div className="agent-detail-panel"
                       key={n.id}
                       style={{
                         padding: "12px 14px",
@@ -3460,7 +3161,7 @@ export function AgentProfileDetail({
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                         <div>
-                          <span style={{ fontSize: "10.5px", fontWeight: 800, color: "var(--purple)", background: "var(--purple-soft)", padding: "1px 6px", borderRadius: "4px", display: "inline-block", marginBottom: "2px" }}>
+                          <span className="agent-detail-accent" style={{ fontSize: "10.5px", fontWeight: 800, color: "var(--purple)", background: "var(--purple-soft)", padding: "1px 6px", borderRadius: "4px", display: "inline-block", marginBottom: "2px" }}>
                             {cand.fullName} ({cand.fileNo})
                           </span>
                           <b style={{ fontSize: "12.5px", color: "var(--ink)", display: "block" }}>📌 {n.title}</b>
@@ -3471,7 +3172,7 @@ export function AgentProfileDetail({
                               ৳ {n.price.toLocaleString()} BDT
                             </span>
                           )}
-                          <button
+                          <button data-action-ui="danger" data-action-size="icon" className="agent-detail-control"
                             type="button"
                             onClick={() => handleDeleteCandidateNote(n.id)}
                             title="Delete note"
@@ -3501,120 +3202,65 @@ export function AgentProfileDetail({
         )}
       </div>
 
-      {/* 6. STANDALONE CARD: Candidate Interviews Status */}
-      <div
-        style={{
-          background: "#ffffff",
-          borderRadius: "18px",
-          border: "1px solid var(--line)",
-          padding: "24px 26px",
-          boxShadow: "var(--shadow)",
-          display: "flex",
-          flexDirection: "column",
-          gap: "16px",
-        }}
-      >
-        {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", borderBottom: "1px solid var(--line)", paddingBottom: "16px" }}>
+      {/* Interview status summary */}
+      <section className="agent-detail-panel agent-interview-summary" aria-labelledby="agent-interview-summary-title">
+        <header className="agent-interview-summary-header">
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px", flexWrap: "wrap" }}>
-              <span style={{ fontSize: "11px", fontWeight: 800, background: "#f0edff", color: "#7258e8", border: "1px solid #dcd5fb", padding: "3px 10px", borderRadius: "6px", letterSpacing: "0.5px" }}>
-                🎙️ SCREENING &amp; INTERVIEWS PIPELINE
-              </span>
-              <span style={{ fontSize: "11px", fontWeight: 800, background: "#ecfdf5", color: "#059669", border: "1px solid #a7f3d0", padding: "3px 10px", borderRadius: "6px" }}>
-                ● {passRate}% Pass Rate
-              </span>
-            </div>
-            <h3 style={{ fontSize: "16px", fontWeight: 800, margin: 0, color: "var(--ink)" }}>
-              Candidate Interviews Status
-            </h3>
-            <p style={{ fontSize: "12.5px", color: "var(--muted)", margin: "4px 0 0" }}>
-              Track every candidate registered for interviews, screening outcomes, and progress through medical, visa &amp; flight.
-            </p>
+            <span className="agent-interview-eyebrow"><CalendarDays size={14} aria-hidden="true" /> Screening &amp; interviews pipeline</span>
+            <h3 id="agent-interview-summary-title">Candidate Interviews Status</h3>
+            <p>Track interview registrations and screening outcomes at a glance.</p>
           </div>
+          <span className="agent-interview-pass-rate"><TrendingUp size={14} aria-hidden="true" /> {passRate}% Pass Rate</span>
+        </header>
+
+        <div className="agent-interview-summary-scroll" role="region" aria-label="Interview status summary table" tabIndex={0}>
+          <table className="agent-interview-summary-table" aria-labelledby="agent-interview-summary-title">
+            <thead>
+              <tr>
+                <th scope="col">Interview status</th>
+                <th scope="col" className="agent-interview-count">Candidates</th>
+                <th scope="col">Share of total</th>
+                <th scope="col">Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              {interviewSummaryRows.map(({ key, label, count, description, icon: Icon }) => {
+                const share = totalRegistered > 0 ? Math.round((count / totalRegistered) * 100) : 0;
+                return (
+                  <tr key={key} className={`agent-interview-row agent-interview-${key}`}>
+                    <th scope="row">
+                      <span className="agent-interview-label"><span className="agent-interview-icon"><Icon size={15} aria-hidden="true" /></span>{label}</span>
+                    </th>
+                    <td className="agent-interview-count"><b>{count.toLocaleString()}</b></td>
+                    <td>
+                      <div className="agent-interview-share">
+                        <span className="agent-interview-track" aria-hidden="true"><span style={{ width: `${Math.min(share, 100)}%` }} /></span>
+                        <span>{share}%</span>
+                      </div>
+                    </td>
+                    <td className="agent-interview-description">{description}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr>
+                <th scope="row"><span className="agent-interview-label"><Users size={16} aria-hidden="true" />Total Registered</span></th>
+                <td className="agent-interview-count"><b>{totalRegistered.toLocaleString()}</b></td>
+                <td>{totalRegistered > 0 ? "100%" : "—"}</td>
+                <td className="agent-interview-description">Total drives applied</td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
+      </section>
 
-        {/* 6 Sub-metrics Cards */}
-        <div className="responsive-kpi-grid">
-          {/* Metric 1: TOTAL REGISTERED */}
-          <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "14px", padding: "16px 18px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
-            <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
-              TOTAL REGISTERED
-            </span>
-            <div style={{ display: "flex", alignItems: "baseline", gap: "5px", marginTop: "6px" }}>
-              <b style={{ fontSize: "22px", fontWeight: 900, color: "var(--ink)" }}>{totalRegistered}</b>
-              <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 700 }}>Candidates</span>
-            </div>
-            <small style={{ fontSize: "11px", color: "#64748b", display: "block", marginTop: "4px" }}>Total drives applied</small>
-          </div>
-
-          {/* Metric 2: SELECTED / PASSED */}
-          <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "14px", padding: "16px 18px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
-            <span style={{ fontSize: "11px", fontWeight: 800, color: "#166534", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
-              🏆 SELECTED / PASSED
-            </span>
-            <div style={{ display: "flex", alignItems: "baseline", gap: "5px", marginTop: "6px" }}>
-              <b style={{ fontSize: "22px", fontWeight: 900, color: "#15803d" }}>{selectedCount}</b>
-              <span style={{ fontSize: "12px", color: "#15803d", fontWeight: 700 }}>Selected</span>
-            </div>
-            <small style={{ fontSize: "11px", color: "#16a34a", display: "block", marginTop: "4px", fontWeight: 600 }}>Passed screening</small>
-          </div>
-
-          {/* Metric 3: WAITING / SCHEDULED */}
-          <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "14px", padding: "16px 18px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
-            <span style={{ fontSize: "11px", fontWeight: 800, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
-              ⏳ WAITING / SCHEDULED
-            </span>
-            <div style={{ display: "flex", alignItems: "baseline", gap: "5px", marginTop: "6px" }}>
-              <b style={{ fontSize: "22px", fontWeight: 900, color: "#b45309" }}>{waitingCount}</b>
-              <span style={{ fontSize: "12px", color: "#b45309", fontWeight: 700 }}>In Queue</span>
-            </div>
-            <small style={{ fontSize: "11px", color: "#d97706", display: "block", marginTop: "4px", fontWeight: 600 }}>Upcoming interviews</small>
-          </div>
-
-          {/* Metric 4: ATTENDED / IN EVALUATION */}
-          <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "14px", padding: "16px 18px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
-            <span style={{ fontSize: "11px", fontWeight: 800, color: "#1e40af", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
-              📋 ATTENDED / IN EVALUATION
-            </span>
-            <div style={{ display: "flex", alignItems: "baseline", gap: "5px", marginTop: "6px" }}>
-              <b style={{ fontSize: "22px", fontWeight: 900, color: "#1d4ed8" }}>{attendedCount}</b>
-              <span style={{ fontSize: "12px", color: "#1d4ed8", fontWeight: 700 }}>In Review</span>
-            </div>
-            <small style={{ fontSize: "11px", color: "#2563eb", display: "block", marginTop: "4px", fontWeight: 600 }}>Under client evaluation</small>
-          </div>
-
-          {/* Metric 5: REJECTED */}
-          <div style={{ background: "#fff1f2", border: "1px solid #fecdd3", borderRadius: "14px", padding: "16px 18px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
-            <span style={{ fontSize: "11px", fontWeight: 800, color: "#9f1239", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
-              ❌ REJECTED
-            </span>
-            <div style={{ display: "flex", alignItems: "baseline", gap: "5px", marginTop: "6px" }}>
-              <b style={{ fontSize: "22px", fontWeight: 900, color: "#e11d48" }}>{rejectedCount}</b>
-              <span style={{ fontSize: "12px", color: "#e11d48", fontWeight: 700 }}>Unsuccessful</span>
-            </div>
-            <small style={{ fontSize: "11px", color: "#f43f5e", display: "block", marginTop: "4px", fontWeight: 600 }}>Need re-assessment</small>
-          </div>
-
-          {/* Metric 6: ABSENT / RESCHEDULED */}
-          <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "14px", padding: "16px 18px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
-            <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
-              🚫 ABSENT / RESCHEDULED
-            </span>
-            <div style={{ display: "flex", alignItems: "baseline", gap: "5px", marginTop: "6px" }}>
-              <b style={{ fontSize: "22px", fontWeight: 900, color: "#475569" }}>{absentCount}</b>
-              <span style={{ fontSize: "12px", color: "#475569", fontWeight: 700 }}>Pending</span>
-            </div>
-            <small style={{ fontSize: "11px", color: "#64748b", display: "block", marginTop: "4px" }}>Did not attend drive</small>
-          </div>
-        </div>
       </div>
-
       {/* COMPLETE CANDIDATE PAYMENT DEPOSITS & FINANCIAL RECEIPTS MODAL */}
       {showPaymentModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.65)", backdropFilter: "blur(5px)", display: "grid", placeItems: "center", zIndex: 9999, padding: "20px", overflowY: "auto" }}>
+        <div role="dialog" aria-modal="true" aria-label="Candidate Payment Deposits & Financial Receipts" className="app-modal-overlay payment-modal-overlay master-modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.65)", backdropFilter: "blur(5px)", display: "grid", placeItems: "center", zIndex: 9999, padding: "20px", overflowY: "auto" }}>
           <div
-            className="modal-responsive-card"
+            className="modal-responsive-card payment-modal-card master-modal-card master-modal-panel"
             style={{
               background: "#ffffff",
               borderRadius: "20px",
@@ -3630,7 +3276,7 @@ export function AgentProfileDetail({
             }}
           >
             {/* Modal Header */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid #f1f5f9", paddingBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
+            <div className="payment-modal-header master-modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid #f1f5f9", paddingBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <span style={{ fontSize: "20px" }}>💰</span>
@@ -3643,9 +3289,9 @@ export function AgentProfileDetail({
                 </p>
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <div className="payment-modal-header-actions" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 {activeModalCandidate && (
-                  <button
+                  <button data-action-ui="secondary" data-action-size="normal" className="master-modal-secondary"
                     type="button"
                     onClick={() => {
                       if (activeModalCandidate.payments.length > 0) {
@@ -3689,7 +3335,7 @@ export function AgentProfileDetail({
                   </button>
                 )}
 
-                <button
+                <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog" className="master-modal-close"
                   type="button"
                   onClick={() => {
                     setShowPaymentModal(false);
@@ -3704,6 +3350,7 @@ export function AgentProfileDetail({
 
             {/* Stage Guidance Banner */}
             <div
+              className="payment-modal-guidance master-modal-panel"
               style={{
                 background: "#f5f3ff",
                 border: "1px solid #ddd6fe",
@@ -3725,10 +3372,10 @@ export function AgentProfileDetail({
             {/* 2-Column Grid: Left Form & Right Financial Ledger */}
             <div className="modal-2col-grid">
               {/* LEFT COLUMN: Payment Form */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              <div className="payment-modal-form-column" style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
                 {/* Candidate Selection / Identity Card */}
                 {paymentCandidate ? (
-                  <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "12px 14px" }}>
+                  <div className="payment-modal-target master-modal-panel" style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "12px 14px" }}>
                     <small style={{ fontSize: "10.5px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
                       TARGET CANDIDATE
                     </small>
@@ -3775,7 +3422,7 @@ export function AgentProfileDetail({
                   </div>
                 )}
 
-                <form onSubmit={handleRecordCandidatePayment} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                <form className="payment-modal-form" onSubmit={handleRecordCandidatePayment} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
                   <input type="hidden" name="candidateId" value={activeModalCandidate?.candidateId || ""} />
                   <input type="hidden" name="fileId" value={activeModalCandidate?.fileId || ""} />
 
@@ -3804,7 +3451,7 @@ export function AgentProfileDetail({
                   </div>
 
                   {/* Deposit Amount (BDT) & Payment Method */}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div className="payment-modal-field-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                     <div>
                       <label style={{ fontSize: "11.5px", fontWeight: 800, color: "var(--muted)", display: "block", marginBottom: "4px" }}>
                         Deposit Amount (BDT) *
@@ -3881,7 +3528,7 @@ export function AgentProfileDetail({
 
                   {/* Attach Bank Slip / Deposit Voucher (Optional) */}
                   <div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                    <div className="payment-upload-meta" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
                       <label style={{ fontSize: "11.5px", fontWeight: 800, color: "var(--muted)", display: "flex", alignItems: "center", gap: "4px" }}>
                         <Paperclip size={13} className="text-indigo-600" /> Attach Bank Slip / Deposit Voucher (Optional)
                       </label>
@@ -3900,7 +3547,7 @@ export function AgentProfileDetail({
                     />
 
                     {paymentReceiptFile ? (
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "#f0fdf4", border: "1px solid #a7f3d0", borderRadius: "10px" }}>
+                      <div className="master-modal-panel" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "#f0fdf4", border: "1px solid #a7f3d0", borderRadius: "10px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                           <FileText size={18} className="text-emerald-600" />
                           <div>
@@ -3911,14 +3558,14 @@ export function AgentProfileDetail({
                           </div>
                         </div>
                         <div style={{ display: "flex", gap: "6px" }}>
-                          <button
+                          <button data-action-ui="secondary" data-action-size="normal"
                             type="button"
                             onClick={() => paymentFileInputRef.current?.click()}
                             style={{ padding: "4px 8px", borderRadius: "4px", background: "#ffffff", border: "1px solid #e2e8f0", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}
                           >
                             Replace
                           </button>
-                          <button
+                          <button data-action-ui="danger" data-action-size="icon" aria-label="Remove attachment" className="master-modal-close"
                             type="button"
                             onClick={() => setPaymentReceiptFile(null)}
                             style={{ padding: "4px 6px", borderRadius: "4px", background: "#fff1f2", color: "#e11d48", border: "none", cursor: "pointer" }}
@@ -3929,6 +3576,7 @@ export function AgentProfileDetail({
                       </div>
                     ) : (
                       <div
+                        className="payment-upload-dropzone master-modal-panel"
                         onClick={() => paymentFileInputRef.current?.click()}
                         style={{
                           border: "1.5px dashed #cbd5e1",
@@ -3942,7 +3590,7 @@ export function AgentProfileDetail({
                         }}
                       >
                         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                          <div style={{ width: "34px", height: "34px", borderRadius: "8px", background: "#f0edff", color: "#7258e8", display: "grid", placeItems: "center" }}>
+                          <div className="master-modal-accent master-modal-icon" style={{ width: "34px", height: "34px", borderRadius: "8px", background: "#f0edff", color: "#7258e8", display: "grid", placeItems: "center" }}>
                             <UploadCloud size={18} />
                           </div>
                           <div>
@@ -3950,7 +3598,7 @@ export function AgentProfileDetail({
                             <small style={{ fontSize: "10.5px", color: "var(--muted)" }}>Optional physical scan attachment for candidate dossier</small>
                           </div>
                         </div>
-                        <button
+                        <button data-action-ui="secondary" data-action-size="normal"
                           type="button"
                           style={{
                             padding: "6px 12px",
@@ -3969,7 +3617,8 @@ export function AgentProfileDetail({
                   </div>
 
                   {/* Submit Button */}
-                  <button
+                  <button data-action-ui="success" data-action-size="normal"
+                    className="payment-modal-submit master-modal-primary"
                     type="submit"
                     disabled={savingPayment}
                     style={{
@@ -3995,7 +3644,7 @@ export function AgentProfileDetail({
               </div>
 
               {/* RIGHT COLUMN: Financial Ledger */}
-              <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "14px", padding: "18px", display: "flex", flexDirection: "column", gap: "14px" }}>
+              <div className="payment-modal-ledger master-modal-panel" style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "14px", padding: "18px", display: "flex", flexDirection: "column", gap: "14px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                   <Layers size={15} style={{ color: "var(--muted)" }} />
                   <span style={{ fontSize: "12px", fontWeight: 900, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
@@ -4006,6 +3655,7 @@ export function AgentProfileDetail({
                 {/* Balance Big Banner */}
                 {activeModalCandidate && (
                   <div
+                    className="payment-modal-balance master-modal-panel"
                     style={{
                       background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)",
                       border: "1px solid #bbf7d0",
@@ -4030,24 +3680,25 @@ export function AgentProfileDetail({
                             Due: {formatTk(activeModalCandidate.dueAmount)}
                           </span>
                         ) : (
-                          <span style={{ fontWeight: 800, color: "#7c3aed", background: "#f5f3ff", padding: "1px 6px", borderRadius: "4px", border: "1px solid #ddd6fe" }}>
+                          <span className="master-modal-accent" style={{ fontWeight: 800, color: "#7c3aed", background: "#f5f3ff", padding: "1px 6px", borderRadius: "4px", border: "1px solid #ddd6fe" }}>
                             ● Advance Extra: + {formatTk(activeModalCandidate.advanceAmount)} BDT
                           </span>
                         )}
                       </div>
                     </div>
 
-                    <div style={{ width: "42px", height: "42px", borderRadius: "12px", background: "#bbf7d0", color: "#15803d", display: "grid", placeItems: "center", fontSize: "20px", fontWeight: 900 }}>
+                    <div className="master-modal-icon" style={{ width: "42px", height: "42px", borderRadius: "12px", background: "#bbf7d0", color: "#15803d", display: "grid", placeItems: "center", fontSize: "20px", fontWeight: 900 }}>
                       $
                     </div>
                   </div>
                 )}
 
                 {/* List of Previous Receipts */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "320px", overflowY: "auto" }}>
+                <div className="payment-receipt-list" style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "320px", overflowY: "auto" }}>
                   {activeModalCandidate && activeModalCandidate.payments.length > 0 ? (
                     activeModalCandidate.payments.map((p, pIdx) => (
                       <div
+                        className="payment-receipt-row master-modal-panel"
                         key={p.id || pIdx}
                         style={{
                           display: "flex",
@@ -4062,7 +3713,7 @@ export function AgentProfileDetail({
                         <div>
                           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                             <b style={{ fontSize: "12.5px", color: "var(--ink)" }}>{p.type}</b>
-                            <button
+                            <button data-action-ui="neutral" data-action-size="compact" className="master-modal-secondary"
                               type="button"
                               onClick={() => openPrintReceipt(p, activeModalCandidate)}
                               style={{
@@ -4106,16 +3757,16 @@ export function AgentProfileDetail({
 
       {/* 7. LINK / ASSIGN CANDIDATE MODAL */}
       {showAssignModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", backdropFilter: "blur(4px)", display: "grid", placeItems: "center", zIndex: 9999, padding: "20px" }}>
-          <div style={{ background: "#fff", borderRadius: "16px", maxWidth: "600px", width: "100%", padding: "24px", maxHeight: "85vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+        <div role="dialog" aria-modal="true" aria-label="👤 Link Candidate to" className="master-modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", backdropFilter: "blur(4px)", display: "grid", placeItems: "center", zIndex: 9999, padding: "20px" }}>
+          <div className="master-modal-card master-modal-inline-card master-modal-panel" style={{ background: "#fff", borderRadius: "16px", maxWidth: "600px", width: "100%", padding: "24px", maxHeight: "85vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}>
+            <div className="master-modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
               <div>
                 <h3 style={{ fontSize: "16px", fontWeight: 800, margin: 0, color: "var(--ink)" }}>
                   👤 Link Candidate to {agentData.name}
                 </h3>
                 <small style={{ fontSize: "11px", color: "var(--muted)" }}>Search unassigned or available candidates</small>
               </div>
-              <button type="button" onClick={() => setShowAssignModal(false)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--muted)" }}>
+              <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog" className="master-modal-close" type="button" onClick={() => setShowAssignModal(false)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--muted)" }}>
                 <X size={18} />
               </button>
             </div>
@@ -4132,7 +3783,7 @@ export function AgentProfileDetail({
 
             <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
               {availableToAssign.map((cand) => (
-                <div
+                <div className="master-modal-panel"
                   key={cand.id}
                   style={{
                     display: "flex",
@@ -4150,7 +3801,7 @@ export function AgentProfileDetail({
                       PP: {cand.passportNo || "N/A"} · 📞 {cand.phone} · Trade: {cand.profession}
                     </small>
                   </div>
-                  <button
+                  <button data-action-ui="primary" data-action-size="normal" className="master-modal-primary"
                     type="button"
                     disabled={submitting}
                     onClick={() => handleAssignCandidate(cand)}
@@ -4181,9 +3832,9 @@ export function AgentProfileDetail({
 
       {/* 8. EDIT AGENT PROFILE MODAL */}
       {showEditModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", backdropFilter: "blur(4px)", display: "grid", placeItems: "center", zIndex: 9999, padding: "20px" }}>
-          <div style={{ background: "#fff", borderRadius: "16px", maxWidth: "580px", maxHeight: "92vh", overflowY: "auto", width: "100%", padding: "24px", boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+        <div role="dialog" aria-modal="true" aria-label="✏️ Edit Agent Profile" className="master-modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", backdropFilter: "blur(4px)", display: "grid", placeItems: "center", zIndex: 9999, padding: "20px" }}>
+          <div className="master-modal-card master-modal-inline-card master-modal-panel" style={{ background: "#fff", borderRadius: "16px", maxWidth: "580px", maxHeight: "92vh", overflowY: "auto", width: "100%", padding: "24px", boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}>
+            <div className="master-modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <div>
                 <h3 style={{ fontSize: "16px", fontWeight: 800, margin: 0, color: "var(--ink)" }}>
                   ✏️ Edit Agent Profile
@@ -4192,7 +3843,7 @@ export function AgentProfileDetail({
                   Update agent partner details, agreement deed &amp; portal login.
                 </p>
               </div>
-              <button type="button" onClick={() => setShowEditModal(false)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--muted)" }}>
+              <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog" className="master-modal-close" type="button" onClick={() => setShowEditModal(false)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--muted)" }}>
                 <X size={18} />
               </button>
             </div>
@@ -4361,7 +4012,7 @@ export function AgentProfileDetail({
               </div>
 
               {/* 🔐 AGENT PORTAL SELF-SERVICE LOGIN */}
-              <div
+              <div className="master-modal-panel"
                 style={{
                   background: "linear-gradient(135deg, #f8f7ff 0%, #f5f3ff 100%)",
                   border: "1px solid #ddd6fe",
@@ -4385,7 +4036,7 @@ export function AgentProfileDetail({
                       </span>
                     </div>
                   </div>
-                  <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "12px", fontWeight: 700, color: "#7258e8" }}>
+                  <label className="master-modal-accent" style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "12px", fontWeight: 700, color: "#7258e8" }}>
                     <input
                       type="checkbox"
                       name="enablePortalLogin"
@@ -4427,7 +4078,7 @@ export function AgentProfileDetail({
                         <label style={{ fontSize: "11.5px", fontWeight: 700, color: "var(--ink)" }}>
                           Reset Password
                         </label>
-                        <button
+                        <button data-action-ui="secondary" data-action-size="normal" className="master-modal-accent"
                           type="button"
                           onClick={() => {
                             const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$";
@@ -4473,10 +4124,10 @@ export function AgentProfileDetail({
               </div>
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "8px" }}>
-                <button type="button" onClick={() => setShowEditModal(false)} style={{ padding: "8px 14px", borderRadius: "8px", background: "#f1f5f9", border: "none", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>
+                <button data-action-ui="neutral" data-action-size="normal" type="button" onClick={() => setShowEditModal(false)} style={{ padding: "8px 14px", borderRadius: "8px", background: "#f1f5f9", border: "none", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>
                   Cancel
                 </button>
-                <button type="submit" disabled={submitting} style={{ padding: "8px 18px", borderRadius: "8px", background: "#7258e8", color: "#fff", border: "none", fontSize: "12px", fontWeight: 800, cursor: "pointer" }}>
+                <button data-action-ui="primary" data-action-size="normal" className="master-modal-primary" type="submit" disabled={submitting} style={{ padding: "8px 18px", borderRadius: "8px", background: "#7258e8", color: "#fff", border: "none", fontSize: "12px", fontWeight: 800, cursor: "pointer" }}>
                   {submitting ? "Saving..." : "Save Changes"}
                 </button>
               </div>
@@ -4487,9 +4138,9 @@ export function AgentProfileDetail({
 
       {/* 9. CANDIDATE NOTE MODAL (VIEW & ADD) */}
       {noteCandidate && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.65)", backdropFilter: "blur(5px)", display: "grid", placeItems: "center", zIndex: 9999, padding: "20px", overflowY: "auto" }}>
-          <div style={{ background: "#fff", borderRadius: "18px", maxWidth: "560px", width: "100%", padding: "24px 26px", boxShadow: "0 20px 45px rgba(0,0,0,0.22)", maxHeight: "90vh", overflowY: "auto", display: "flex", flexDirection: "column", gap: "16px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid #f1f5f9", paddingBottom: "12px" }}>
+        <div role="dialog" aria-modal="true" aria-label="📝 Candidate Notes & Price Remarks" className="master-modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.65)", backdropFilter: "blur(5px)", display: "grid", placeItems: "center", zIndex: 9999, padding: "20px", overflowY: "auto" }}>
+          <div className="master-modal-card master-modal-inline-card master-modal-panel" style={{ background: "#fff", borderRadius: "18px", maxWidth: "560px", width: "100%", padding: "24px 26px", boxShadow: "0 20px 45px rgba(0,0,0,0.22)", maxHeight: "90vh", overflowY: "auto", display: "flex", flexDirection: "column", gap: "16px" }}>
+            <div className="master-modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid #f1f5f9", paddingBottom: "12px" }}>
               <div>
                 <h3 style={{ fontSize: "16px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
                   <span>📝</span> Candidate Notes &amp; Price Remarks
@@ -4506,7 +4157,7 @@ export function AgentProfileDetail({
                   </span>
                 </div>
               </div>
-              <button type="button" onClick={() => setNoteCandidate(null)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--muted)" }}>
+              <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog" className="master-modal-close" type="button" onClick={() => setNoteCandidate(null)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--muted)" }}>
                 <X size={18} />
               </button>
             </div>
@@ -4519,7 +4170,7 @@ export function AgentProfileDetail({
               <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "200px", overflowY: "auto" }}>
                 {noteCandidate.notes && noteCandidate.notes.length > 0 ? (
                   noteCandidate.notes.map((n) => (
-                    <div
+                    <div className="master-modal-panel"
                       key={n.id}
                       style={{
                         padding: "10px 12px",
@@ -4540,7 +4191,7 @@ export function AgentProfileDetail({
                             </span>
                           )}
                         </div>
-                        <button
+                        <button data-action-ui="danger" data-action-size="icon" className="master-modal-danger"
                           type="button"
                           onClick={() => handleDeleteCandidateNote(n.id)}
                           title="Delete note"
@@ -4593,10 +4244,10 @@ export function AgentProfileDetail({
               </div>
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "4px" }}>
-                <button type="button" onClick={() => setNoteCandidate(null)} style={{ padding: "8px 14px", borderRadius: "8px", background: "#f1f5f9", border: "none", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>
+                <button data-action-ui="neutral" data-action-size="normal" type="button" onClick={() => setNoteCandidate(null)} style={{ padding: "8px 14px", borderRadius: "8px", background: "#f1f5f9", border: "none", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>
                   Cancel
                 </button>
-                <button type="submit" disabled={savingNote} style={{ padding: "8px 18px", borderRadius: "8px", background: "#7258e8", color: "#fff", border: "none", fontSize: "12px", fontWeight: 800, cursor: "pointer" }}>
+                <button data-action-ui="primary" data-action-size="normal" className="master-modal-primary" type="submit" disabled={savingNote} style={{ padding: "8px 18px", borderRadius: "8px", background: "#7258e8", color: "#fff", border: "none", fontSize: "12px", fontWeight: 800, cursor: "pointer" }}>
                   {savingNote ? "Saving..." : "Save Note"}
                 </button>
               </div>
@@ -4607,19 +4258,19 @@ export function AgentProfileDetail({
 
       {/* 9.5 CANDIDATE HOLD MODAL */}
       {holdCandidate && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", backdropFilter: "blur(4px)", display: "grid", placeItems: "center", zIndex: 9999, padding: "20px" }}>
-          <div style={{ background: "#ffffff", borderRadius: "16px", maxWidth: "480px", width: "100%", padding: "24px", boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid #f1f5f9", paddingBottom: "12px" }}>
+        <div role="dialog" aria-modal="true" aria-label="Place Candidate on Hold" className="master-modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", backdropFilter: "blur(4px)", display: "grid", placeItems: "center", zIndex: 9999, padding: "20px" }}>
+          <div className="master-modal-card master-modal-inline-card master-modal-panel" style={{ background: "#ffffff", borderRadius: "16px", maxWidth: "480px", width: "100%", padding: "24px", boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}>
+            <div className="master-modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid #f1f5f9", paddingBottom: "12px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <span style={{ fontSize: "20px" }}>⏸️</span>
                 <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "var(--ink)" }}>Place Candidate on Hold</h3>
               </div>
-              <button type="button" onClick={() => setHoldCandidate(null)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--muted)" }}>
+              <button data-action-ui="warning" data-action-size="icon" aria-label="Close dialog" className="master-modal-close" type="button" onClick={() => setHoldCandidate(null)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--muted)" }}>
                 <X size={18} />
               </button>
             </div>
 
-            <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "10px", padding: "12px", marginBottom: "16px" }}>
+            <div className="master-modal-panel" style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "10px", padding: "12px", marginBottom: "16px" }}>
               <div style={{ fontWeight: 800, fontSize: "13px", color: "#92400e" }}>{holdCandidate.fullName}</div>
               <div style={{ fontSize: "11.5px", color: "#b45309", marginTop: "2px" }}>
                 Passport: <b>{holdCandidate.passportNumber || "N/A"}</b> · File: <b>{holdCandidate.fileNo}</b> · Stage: <b>{holdCandidate.currentStage || "Passport"}</b>
@@ -4674,14 +4325,14 @@ export function AgentProfileDetail({
               </div>
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "6px" }}>
-                <button
+                <button data-action-ui="warning" data-action-size="normal"
                   type="button"
                   onClick={() => setHoldCandidate(null)}
                   style={{ padding: "8px 14px", borderRadius: "8px", background: "#f1f5f9", border: "none", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}
                 >
                   Cancel
                 </button>
-                <button
+                <button data-action-ui="warning" data-action-size="normal" className="master-modal-primary"
                   type="submit"
                   disabled={savingHold}
                   style={{ padding: "8px 20px", borderRadius: "8px", background: "#d97706", color: "#fff", border: "none", fontSize: "12px", fontWeight: 800, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}
@@ -4696,19 +4347,19 @@ export function AgentProfileDetail({
 
       {/* 9.6 CANDIDATE RELEASE HOLD MODAL */}
       {releaseCandidate && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", backdropFilter: "blur(4px)", display: "grid", placeItems: "center", zIndex: 9999, padding: "20px" }}>
-          <div style={{ background: "#ffffff", borderRadius: "16px", maxWidth: "480px", width: "100%", padding: "24px", boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid #f1f5f9", paddingBottom: "12px" }}>
+        <div role="dialog" aria-modal="true" aria-label="Release Candidate From Hold" className="master-modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", backdropFilter: "blur(4px)", display: "grid", placeItems: "center", zIndex: 9999, padding: "20px" }}>
+          <div className="master-modal-card master-modal-inline-card master-modal-panel" style={{ background: "#ffffff", borderRadius: "16px", maxWidth: "480px", width: "100%", padding: "24px", boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}>
+            <div className="master-modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid #f1f5f9", paddingBottom: "12px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <span style={{ fontSize: "20px" }}>▶️</span>
                 <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "var(--ink)" }}>Release Candidate From Hold</h3>
               </div>
-              <button type="button" onClick={() => setReleaseCandidate(null)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--muted)" }}>
+              <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog" className="master-modal-close" type="button" onClick={() => setReleaseCandidate(null)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--muted)" }}>
                 <X size={18} />
               </button>
             </div>
 
-            <div style={{ background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "10px", padding: "12px", marginBottom: "16px" }}>
+            <div className="master-modal-panel" style={{ background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "10px", padding: "12px", marginBottom: "16px" }}>
               <div style={{ fontWeight: 800, fontSize: "13px", color: "#065f46" }}>{releaseCandidate.fullName}</div>
               <div style={{ fontSize: "11.5px", color: "#047857", marginTop: "2px" }}>
                 Passport: <b>{releaseCandidate.passportNumber || "N/A"}</b> · File: <b>{releaseCandidate.fileNo}</b>
@@ -4736,14 +4387,14 @@ export function AgentProfileDetail({
               </div>
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "6px" }}>
-                <button
+                <button data-action-ui="neutral" data-action-size="normal"
                   type="button"
                   onClick={() => setReleaseCandidate(null)}
                   style={{ padding: "8px 14px", borderRadius: "8px", background: "#f1f5f9", border: "none", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}
                 >
                   Cancel
                 </button>
-                <button
+                <button data-action-ui="primary" data-action-size="normal" className="master-modal-primary"
                   type="submit"
                   disabled={savingRelease}
                   style={{ padding: "8px 20px", borderRadius: "8px", background: "#059669", color: "#fff", border: "none", fontSize: "12px", fontWeight: 800, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}
@@ -4762,6 +4413,431 @@ export function AgentProfileDetail({
           receipt={activeReceipt}
           onClose={() => setActiveReceipt(null)}
         />
+      )}
+
+      {/* 11. AGENT ADMINISTRATIVE NOTE MODAL */}
+      {showAgentNoteModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Add Administrative Note"
+          className="master-modal-overlay"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15,23,42,0.65)",
+            backdropFilter: "blur(5px)",
+            display: "grid",
+            placeItems: "center",
+            zIndex: 9999,
+            padding: "20px",
+            overflowY: "auto",
+          }}
+        >
+          <div
+            className="master-modal-card master-modal-inline-card master-modal-panel"
+            style={{
+              background: "#fff",
+              borderRadius: "18px",
+              maxWidth: "520px",
+              width: "100%",
+              padding: "24px 26px",
+              boxShadow: "0 20px 45px rgba(0,0,0,0.22)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "16px",
+            }}
+          >
+            <div
+              className="master-modal-header"
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                borderBottom: "1px solid #f1f5f9",
+                paddingBottom: "12px",
+              }}
+            >
+              <div>
+                <h3
+                  style={{
+                    fontSize: "16px",
+                    fontWeight: 800,
+                    margin: 0,
+                    color: "var(--ink)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <span>📝</span> Add Administrative Note
+                </h3>
+                <small style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px", display: "block" }}>
+                  Internal remarks, SLA terms &amp; agreements for <b>{agentData.name}</b>
+                </small>
+              </div>
+              <button
+                data-action-ui="neutral"
+                data-action-size="icon"
+                aria-label="Close dialog"
+                className="master-modal-close"
+                type="button"
+                onClick={() => setShowAgentNoteModal(false)}
+                style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--muted)" }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddAgentNote} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              <div>
+                <label style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", display: "block", marginBottom: "4px" }}>
+                  Note Title / Subject *
+                </label>
+                <input
+                  type="text"
+                  name="title"
+                  placeholder="e.g. Agreed Deployment Terms & SLA"
+                  required
+                  style={{
+                    width: "100%",
+                    height: "38px",
+                    padding: "0 12px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--line)",
+                    fontSize: "13px",
+                    outline: "none",
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", display: "block", marginBottom: "4px" }}>
+                  Category / Tag
+                </label>
+                <select
+                  name="tag"
+                  defaultValue="General"
+                  style={{
+                    width: "100%",
+                    height: "38px",
+                    padding: "0 10px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--line)",
+                    fontSize: "12.5px",
+                    outline: "none",
+                    background: "#fafafd",
+                  }}
+                >
+                  <option value="General">General Remark</option>
+                  <option value="SLA">Terms &amp; SLA</option>
+                  <option value="Commission">Commission Agreement</option>
+                  <option value="Settlement">Accounts &amp; Settlement</option>
+                  <option value="Warning">Compliance / Warning</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", display: "block", marginBottom: "4px" }}>
+                  Note Details / Content *
+                </label>
+                <textarea
+                  name="content"
+                  rows={4}
+                  required
+                  placeholder="Enter detailed administrative notes, agreement terms, or special instructions..."
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--line)",
+                    fontSize: "12.5px",
+                    outline: "none",
+                    resize: "none",
+                  }}
+                />
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "4px" }}>
+                <button
+                  data-action-ui="neutral"
+                  data-action-size="normal"
+                  type="button"
+                  onClick={() => setShowAgentNoteModal(false)}
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: "8px",
+                    background: "#f1f5f9",
+                    border: "none",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  data-action-ui="primary"
+                  data-action-size="normal"
+                  className="master-modal-primary"
+                  type="submit"
+                  disabled={savingAgentNote}
+                  style={{
+                    padding: "8px 20px",
+                    borderRadius: "8px",
+                    background: "#7258e8",
+                    color: "#fff",
+                    border: "none",
+                    fontSize: "12px",
+                    fontWeight: 800,
+                    cursor: "pointer",
+                  }}
+                >
+                  {savingAgentNote ? "Saving..." : "Save Note"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 12. AGENT DOCUMENT UPLOAD MODAL */}
+      {showDocUploadModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Upload Agency Document"
+          className="master-modal-overlay"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15,23,42,0.65)",
+            backdropFilter: "blur(5px)",
+            display: "grid",
+            placeItems: "center",
+            zIndex: 9999,
+            padding: "20px",
+            overflowY: "auto",
+          }}
+        >
+          <div
+            className="master-modal-card master-modal-inline-card master-modal-panel"
+            style={{
+              background: "#fff",
+              borderRadius: "18px",
+              maxWidth: "520px",
+              width: "100%",
+              padding: "24px 26px",
+              boxShadow: "0 20px 45px rgba(0,0,0,0.22)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "16px",
+            }}
+          >
+            <div
+              className="master-modal-header"
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                borderBottom: "1px solid #f1f5f9",
+                paddingBottom: "12px",
+              }}
+            >
+              <div>
+                <h3
+                  style={{
+                    fontSize: "16px",
+                    fontWeight: 800,
+                    margin: 0,
+                    color: "var(--ink)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <span>📄</span> Upload Agency Document
+                </h3>
+                <small style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px", display: "block" }}>
+                  Upload license scan, contract, MoU or deed for <b>{agentData.name}</b>
+                </small>
+              </div>
+              <button
+                data-action-ui="neutral"
+                data-action-size="icon"
+                aria-label="Close dialog"
+                className="master-modal-close"
+                type="button"
+                onClick={() => {
+                  setShowDocUploadModal(false);
+                  setSelectedFileObj(null);
+                }}
+                style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--muted)" }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleUploadDocument} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              <div>
+                <label style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", display: "block", marginBottom: "4px" }}>
+                  Document Type *
+                </label>
+                <select
+                  name="docType"
+                  defaultValue="Trade License"
+                  style={{
+                    width: "100%",
+                    height: "38px",
+                    padding: "0 10px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--line)",
+                    fontSize: "12.5px",
+                    outline: "none",
+                    background: "#fafafd",
+                  }}
+                >
+                  <option value="Trade License">Trade License</option>
+                  <option value="Agency Agreement Deed">Agency Agreement Deed</option>
+                  <option value="MoU / Contract">MoU / Contract</option>
+                  <option value="Security Cheque Copy">Security Cheque Copy</option>
+                  <option value="Owner NID / Passport">Owner NID / Passport</option>
+                  <option value="Bank Solvency Certificate">Bank Solvency Certificate</option>
+                  <option value="Other Document">Other Document</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", display: "block", marginBottom: "4px" }}>
+                  Document Title / File Name
+                </label>
+                <input
+                  type="text"
+                  name="docName"
+                  placeholder="e.g. Trade_License_Scan.pdf"
+                  defaultValue={selectedFileObj?.name || ""}
+                  key={selectedFileObj?.name || "empty"}
+                  style={{
+                    width: "100%",
+                    height: "38px",
+                    padding: "0 12px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--line)",
+                    fontSize: "13px",
+                    outline: "none",
+                  }}
+                />
+              </div>
+
+              {/* File Picker area */}
+              <div>
+                <label style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", display: "block", marginBottom: "4px" }}>
+                  Attach File (PDF, DOC, PNG, JPG)
+                </label>
+                <div
+                  style={{
+                    border: "2px dashed #cbd5e1",
+                    borderRadius: "10px",
+                    padding: "16px",
+                    textAlign: "center",
+                    background: "#f8fafc",
+                    cursor: "pointer",
+                    position: "relative",
+                  }}
+                >
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          const sizeStr = file.size > 1024 * 1024 ? `${(file.size / (1024 * 1024)).toFixed(1)} MB` : `${(file.size / 1024).toFixed(0)} KB`;
+                          setSelectedFileObj({
+                            name: file.name,
+                            size: sizeStr,
+                            dataUrl: reader.result as string,
+                          });
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      opacity: 0,
+                      cursor: "pointer",
+                      width: "100%",
+                      height: "100%",
+                    }}
+                  />
+                  {selectedFileObj ? (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                      <FileText size={20} className="text-indigo-600" />
+                      <div style={{ textAlign: "left" }}>
+                        <b style={{ fontSize: "12.5px", color: "var(--ink)", display: "block" }}>{selectedFileObj.name}</b>
+                        <small style={{ fontSize: "11px", color: "var(--muted)" }}>{selectedFileObj.size} · Ready to upload</small>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <UploadCloud size={24} style={{ color: "#64748b", margin: "0 auto 6px" }} />
+                      <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--ink)" }}>
+                        Click or drag file here to attach
+                      </div>
+                      <small style={{ fontSize: "11px", color: "var(--muted)" }}>
+                        Supports PDF, Word, JPEG, PNG (up to 10MB)
+                      </small>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "4px" }}>
+                <button
+                  data-action-ui="neutral"
+                  data-action-size="normal"
+                  type="button"
+                  onClick={() => {
+                    setShowDocUploadModal(false);
+                    setSelectedFileObj(null);
+                  }}
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: "8px",
+                    background: "#f1f5f9",
+                    border: "none",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  data-action-ui="primary"
+                  data-action-size="normal"
+                  className="master-modal-primary"
+                  type="submit"
+                  disabled={uploadingDoc}
+                  style={{
+                    padding: "8px 20px",
+                    borderRadius: "8px",
+                    background: "#7258e8",
+                    color: "#fff",
+                    border: "none",
+                    fontSize: "12px",
+                    fontWeight: 800,
+                    cursor: "pointer",
+                  }}
+                >
+                  {uploadingDoc ? "Uploading..." : "Upload Document"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

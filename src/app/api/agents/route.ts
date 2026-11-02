@@ -10,6 +10,7 @@ import { getAgentsData } from "@/server/data/agents";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { requireSuperAdmin } from "@/lib/authorization";
+import { assertPortalEmailAvailable } from "@/lib/agent-portal-account";
 import { uploadAgentProfileImage } from "@/features/agents/profile-image";
 
 const createAgentSchema = z.object({
@@ -93,6 +94,7 @@ async function POSTHandler(request: Request) {
       }
     }
 
+    if (input.enablePortalLogin) await assertPortalEmailAvailable(input.portalEmail || input.email || `${agentCode.toLowerCase()}@agent.orbit.com`);
     const agent = await prisma.agent.create({
       data: {
         code: agentCode,

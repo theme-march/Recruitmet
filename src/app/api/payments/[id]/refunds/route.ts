@@ -1,4 +1,31 @@
 import { withApiAccess } from "@/lib/api-access";
+import { getSession } from "@/lib/session";
+import { AppError, errorResponse } from "@/lib/errors";
+import { refundSchema } from "@/features/payments/schemas";
+import { requestRefund } from "@/features/payments/service";
+
+async function POSTHandler(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession();
+    if (!session) {
+      throw new AppError("UNAUTHORIZED", "Sign in is required.", 401);
+    }
+
+    const { id } = await params;
+    const body = await request.json();
+    const validated = refundSchema.parse(body);
+    const row = await requestRefund(id, validated, session);
+
+    return Response.json(
+      { data: { id: row.id, status: row.status } },
+      { status: 201 }
+    );
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+
 export const POST = withApiAccess("payments/[id]/refunds", POSTHandler);
-import {getSession} from "@/lib/session"; import {AppError,errorResponse} from "@/lib/errors"; import {refundSchema} from "@/features/payments/schemas"; import {requestRefund} from "@/features/payments/service";
-async function POSTHandler(request:Request,{params}:{params:Promise<{id:string}>}){try{const session=await getSession();if(!session)throw new AppError("UNAUTHORIZED","Sign in is required.",401);const{id}=await params,row=await requestRefund(id,refundSchema.parse(await request.json()),session);return Response.json({data:{id:row.id,status:row.status}},{status:201})}catch(error){return errorResponse(error)}}

@@ -4,35 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import { countryModule } from "@/lib/permission-policy";
 import { useAccess } from "@/hooks/use-access";
 import { countryCandidatesQueryOptions } from "@/lib/queries/country-candidates";
-import {
-  ArrowUpRight,
-  Briefcase,
-  Building2,
-  Calendar,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  CreditCard,
-  Download,
-  Eye,
-  FileCheck,
-  FileText,
-  Filter,
-  Globe,
-  GraduationCap,
-  Layers,
-  MapPin,
-  Phone,
-  Plane,
-  RefreshCw,
-  Search,
-  ShieldCheck,
-  Sparkles,
-  User,
-  UserCheck,
-  Users,
-} from "lucide-react";
+import { ChevronRight, Download, Eye, Phone, RefreshCw, Search, UserCheck, X } from "lucide-react";
 import Link from "next/link";
+import { CountryDesignIcon } from "@/components/layout/country-design-icon";
 import { useEffect, useState, useTransition } from "react";
 import { getCountryFlagEmoji } from "@/components/modules/country-management-page";
 
@@ -82,6 +56,12 @@ export function CountryCandidatesListPage({
   const rows = data?.data || [];
   const countryAgents = data?.countryAgents || [];
   const stats = data?.stats;
+  const filteredCountryAgents = countryAgents.filter((agent) => {
+    if (!agentSearch) return true;
+    const query = agentSearch.toLowerCase();
+    return [agent.name, agent.code, agent.contactPerson, agent.phone, agent.address]
+      .some(value => value.toLowerCase().includes(query));
+  });
   const meta = data?.meta || { page, pageSize, total: 0, totalPages: 1 };
   const officers = data?.filters?.officers || [];
   const agents = data?.filters?.agents || [];
@@ -178,1044 +158,348 @@ export function CountryCandidatesListPage({
       return { bg: "#fff7ed", color: "#c2410c", border: "#fed7aa", icon: "📜", label: stage };
     }
     if (s.includes("flight")) {
-      return { bg: "#f0fdfa", color: "#0f766e", border: "#99f6e4", icon: "✈️", label: stage };
+      return { bg: "#e5f8eb", color: "#34c759", border: "transparent", icon: "✈", label: stage };
     }
     return { bg: "#f8fafc", color: "#475569", border: "#e2e8f0", icon: "●", label: stage };
   };
 
   return (
-    <div aria-busy={isFetching} className="country-candidates-page" style={{ maxWidth: "1600px", margin: "0 auto" }}>
-      {/* Top Header & Breadcrumb */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "16px", marginBottom: "20px" }}>
-        <div>
-          <div style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
-            <Link href="/dashboard" style={{ color: "var(--muted)", textDecoration: "none" }}>Dashboard</Link>
-            <span>/</span>
-            <span style={{ color: "var(--purple)", fontWeight: 700 }}>{country} Candidates</span>
-          </div>
-          <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--ink)", display: "flex", alignItems: "center", gap: "10px", margin: 0 }}>
-            <span>{countryFlag}</span>
-            <span>{country} Candidates Processing Master List</span>
-          </h1>
-          <p style={{ fontSize: "13px", color: "var(--muted)", margin: "4px 0 0 0" }}>
-            Manage all candidate files for {country}. Click <b>"Open 360° Profile &amp; Dossier"</b> on any candidate to view all 16 tables and perform full processing.
-          </p>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <button
-            type="button"
-            onClick={() => refetch()}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              background: "#fff",
-              border: "1px solid var(--line)",
-              padding: "9px 15px",
-              borderRadius: "10px",
-              fontSize: "13px",
-              fontWeight: 600,
-              color: "var(--ink)",
-              cursor: "pointer",
-            }}
-          >
-            <RefreshCw size={14} className={isFetching ? "animate-spin text-purple-600" : ""} /> Refresh
-          </button>
-          <button
-            type="button"
-              disabled={!canExport}
-              title={!canExport ? "Export permission is required" : undefined}
-              onClick={() => { if (canExport) handleDownloadCsv(); }}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              background: "#f0edff",
-              border: "1px solid #dcd5fb",
-              padding: "9px 15px",
-              borderRadius: "10px",
-              fontSize: "13px",
-              fontWeight: 700,
-              color: "var(--purple)",
-              cursor: "pointer",
-            }}
-          >
-            <Download size={14} /> Download CSV
-          </button>
+    <div aria-busy={isFetching} className="country-candidates-page country-design-page">
+      <nav className="country-design-breadcrumb" aria-label="Breadcrumb"><Link href="/dashboard">Dashboard</Link> / {country} Candidates</nav>
+      <div className="country-design-heading">
+        <div><h1>{countryFlag} {country} Candidates Processing Master List</h1><p>Manage all candidate files for {country}. Click "Open 360° Profile &amp; Dossier" on any candidate to view all 16 tables and perform full processing.</p></div>
+        <div className="country-design-actions">
+          <button data-action-ui="neutral" data-action-size="normal" type="button" onClick={() => refetch()}><CountryDesignIcon name="Refresh" className={isFetching ? "animate-spin" : undefined} />Refresh</button>
+          <button data-action-ui="neutral" data-action-size="normal" type="button" disabled={!canExport} title={!canExport ? "Export permission is required" : undefined} onClick={() => { if (canExport) handleDownloadCsv(); }}><CountryDesignIcon name="Download" />Download CSV</button>
         </div>
       </div>
-
-      {isError && (
-        <div role="alert" className="form-error" style={{ marginBottom: "16px" }}>
-          {error.message} <button type="button" onClick={() => void refetch()}>Retry</button>
-        </div>
-      )}
-
-      {/* KPI Metrics Summary Cards */}
-      <div
-        className="responsive-kpi-grid"
-        style={{
-          marginBottom: "20px",
-        }}
-      >
-        <div style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "14px", padding: "16px 20px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
-          <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Total {country} Files</div>
-          <div style={{ fontSize: "26px", fontWeight: 900, color: "var(--ink)", marginTop: "4px" }}>{stats?.totalCandidates ?? "—"}</div>
-          <div style={{ fontSize: "11px", color: "#16a34a", fontWeight: 600, marginTop: "2px" }}>Active in pipeline</div>
-        </div>
-
-        <div style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "14px", padding: "16px 20px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
-          <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Medical / Fit State</div>
-          <div style={{ fontSize: "26px", fontWeight: 900, color: "#047857", marginTop: "4px" }}>{stats?.inMedical ?? "—"}</div>
-          <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>Fitness test verified</div>
-        </div>
-
-        <div style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "14px", padding: "16px 20px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
-          <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Visa &amp; MOFA Done</div>
-          <div style={{ fontSize: "26px", fontWeight: 900, color: "#6d28d9", marginTop: "4px" }}>{stats?.inVisa ?? "—"}</div>
-          <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>Stamped &amp; Issued</div>
-        </div>
-
-        <div style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "14px", padding: "16px 20px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
-          <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Manpower Cleared</div>
-          <div style={{ fontSize: "26px", fontWeight: 900, color: "#c2410c", marginTop: "4px" }}>{stats?.inManpower ?? "—"}</div>
-          <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>BMET Smart Card</div>
-        </div>
-
-        <div style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "14px", padding: "16px 20px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
-          <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Flight Booked / Done</div>
-          <div style={{ fontSize: "26px", fontWeight: 900, color: "#0f766e", marginTop: "4px" }}>{stats?.inFlight ?? "—"}</div>
-          <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>Departed or Ready</div>
-        </div>
-
-        <div style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "14px", padding: "16px 20px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
-          <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Total Deposited</div>
-          <div style={{ fontSize: "22px", fontWeight: 900, color: "#15803d", marginTop: "4px" }}>
-            ৳ {stats ? stats.totalDeposited.toLocaleString() : "—"} BDT
-          </div>
-          <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>Cumulative Accounts</div>
-        </div>
+      {isError && <div role="alert" className="form-error">{error.message} <button data-action-ui="neutral" data-action-size="normal" type="button" onClick={() => void refetch()}>Retry</button></div>}
+      <div className="country-design-metrics">
+        {[
+          {label: `Total ${country} Files`, value: stats?.totalCandidates ?? "—", description: "Active in pipeline", icon: "Folder"},
+          {label: "Medical / Fit State", value: stats?.inMedical ?? "—", description: "Fitness test verified", icon: "Medical"},
+          {label: "Visa & MOFA Done", value: stats?.inVisa ?? "—", description: "Stamped & Issued", icon: "Visa"},
+          {label: "Manpower Cleared", value: stats?.inManpower ?? "—", description: "BMET Smart Card", icon: "Manpower"},
+          {label: "Flight Booked / Done", value: stats?.inFlight ?? "—", description: "Departed or Ready", icon: "Flight"},
+          {label: "Total Deposited", value: `৳ ${stats ? stats.totalDeposited.toLocaleString() : "—"} BDT`, description: "Cumulative Accounts", icon: "Wallet"},
+        ].map(metric => <article className={`country-design-metric ${metric.icon === "Wallet" ? "money" : ""}`} key={metric.icon}>
+          <div><span>{metric.label}</span><CountryDesignIcon name={metric.icon as "Folder" | "Medical" | "Visa" | "Manpower" | "Flight" | "Wallet"} /></div><b>{metric.value}</b><p>{metric.description}</p>
+        </article>)}
       </div>
-
-      {/* Main View Switcher: Candidates Master List vs Country Working Agents */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px", marginBottom: "16px" }}>
-        <div className="scrollable-tabs-bar" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <button
-            type="button"
-            onClick={() => startTabTransition(() => setActiveView("candidates"))}
-            style={{
-              padding: "9px 18px",
-              borderRadius: "10px",
-              fontSize: "13px",
-              fontWeight: 800,
-              cursor: "pointer",
-              border: activeView === "candidates" ? "1px solid #7258e8" : "1px solid var(--line)",
-              background: activeView === "candidates" ? "#7258e8" : "#fff",
-              color: activeView === "candidates" ? "#fff" : "var(--ink)",
-              boxShadow: activeView === "candidates" ? "0 2px 6px rgba(114,88,232,0.25)" : "none",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "7px",
-              transition: "all 0.15s ease",
-            }}
-          >
-            <span>📋 {country} Candidates</span>
-            <span
-              style={{
-                fontSize: "11px",
-                background: activeView === "candidates" ? "rgba(255,255,255,0.25)" : "#f1f5f9",
-                color: activeView === "candidates" ? "#fff" : "var(--muted)",
-                padding: "1px 6px",
-                borderRadius: "999px",
-                fontWeight: 800,
-              }}
-            >
-              {data?.stats?.totalCandidates ?? meta.total}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => startTabTransition(() => setActiveView("agents"))}
-            style={{
-              padding: "9px 18px",
-              borderRadius: "10px",
-              fontSize: "13px",
-              fontWeight: 800,
-              cursor: "pointer",
-              border: activeView === "agents" ? "1px solid #7258e8" : "1px solid var(--line)",
-              background: activeView === "agents" ? "#7258e8" : "#fff",
-              color: activeView === "agents" ? "#fff" : "var(--ink)",
-              boxShadow: activeView === "agents" ? "0 2px 6px rgba(114,88,232,0.25)" : "none",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "7px",
-              transition: "all 0.15s ease",
-            }}
-          >
-            <span>🤝 Working Agents for {country}</span>
-            <span
-              style={{
-                fontSize: "11px",
-                background: activeView === "agents" ? "rgba(255,255,255,0.25)" : "#f1f5f9",
-                color: activeView === "agents" ? "#fff" : "var(--muted)",
-                padding: "1px 6px",
-                borderRadius: "999px",
-                fontWeight: 800,
-              }}
-            >
-              {countryAgents.length}
-            </span>
-          </button>
+      <section className="country-design-workspace" aria-label={`${country} candidate workspace`}>
+        <div className="country-design-tabs">
+          <button type="button" aria-pressed={activeView === "candidates"} className={activeView === "candidates" ? "selected" : ""} onClick={() => startTabTransition(() => setActiveView("candidates"))}>{country} Candidates ({stats?.totalCandidates ?? meta.total})</button>
+          <button type="button" aria-pressed={activeView === "agents"} className={`agents-tab ${activeView === "agents" ? "selected" : ""}`} onClick={() => startTabTransition(() => setActiveView("agents"))}>Working Agents for {country} ({countryAgents.length})</button>
+          {activeView === "candidates" && <div className="country-design-source-tabs">
+            <button type="button" aria-pressed={!agentFilter} onClick={() => {setAgentFilter(""); setPage(1);}}>All Files ({stats?.totalCandidates ?? meta.total})</button>
+            <button type="button" aria-pressed={agentFilter === "HAS_AGENT"} onClick={() => {setAgentFilter("HAS_AGENT"); setPage(1);}}>Agent Partner Files Only</button>
+            <button type="button" aria-pressed={agentFilter === "Direct"} onClick={() => {setAgentFilter("Direct"); setPage(1);}}>Direct Office</button>
+          </div>}
         </div>
-
-        {activeView === "candidates" && (
-          <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-            <button
-              type="button"
-              onClick={() => {
-                setAgentFilter("");
-                setPage(1);
-              }}
-              style={{
-                padding: "7px 14px",
-                borderRadius: "8px",
-                fontSize: "11.5px",
-                fontWeight: 700,
-                cursor: "pointer",
-                border: !agentFilter ? "1px solid #7258e8" : "1px solid var(--line)",
-                background: !agentFilter ? "#f5f3ff" : "#fff",
-                color: !agentFilter ? "#7258e8" : "var(--muted)",
-              }}
-            >
-              All Files ({data?.stats?.totalCandidates ?? meta.total})
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setAgentFilter("HAS_AGENT");
-                setPage(1);
-              }}
-              style={{
-                padding: "7px 14px",
-                borderRadius: "8px",
-                fontSize: "11.5px",
-                fontWeight: 700,
-                cursor: "pointer",
-                border: agentFilter === "HAS_AGENT" ? "1px solid #d97706" : "1px solid var(--line)",
-                background: agentFilter === "HAS_AGENT" ? "#fffbeb" : "#fff",
-                color: agentFilter === "HAS_AGENT" ? "#b45309" : "var(--muted)",
-              }}
-            >
-              🤝 Agent Partner Files Only
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setAgentFilter("Direct");
-                setPage(1);
-              }}
-              style={{
-                padding: "7px 14px",
-                borderRadius: "8px",
-                fontSize: "11.5px",
-                fontWeight: 700,
-                cursor: "pointer",
-                border: agentFilter === "Direct" ? "1px solid #059669" : "1px solid var(--line)",
-                background: agentFilter === "Direct" ? "#ecfdf5" : "#fff",
-                color: agentFilter === "Direct" ? "#047857" : "var(--muted)",
-              }}
-            >
-              🏢 Direct Office
-            </button>
+        {activeView === "candidates" && <>
+          <div className="country-design-filters">
+            <div className="country-design-filter-fields">
+              <div className="country-design-search"><CountryDesignIcon name="Search" /><input aria-label="Search country candidates" value={search} onChange={e => {setSearch(e.target.value);setPage(1);}} placeholder="Search by candidate name, ID, passport..." />{search && <button data-action-ui="ghost" data-action-size="icon" type="button" aria-label="Clear search" onClick={() => {setSearch("");setPage(1);}}><X size={12} /></button>}</div>
+              <div className="country-design-select"><select aria-label="Candidate status" value={statusFilter} onChange={e => {setStatusFilter(e.target.value);setPage(1);}}><option value="all">All Statuses</option><option value="ACTIVE">Active Files</option><option value="COMPLETED">Completed</option><option value="HOLD">Hold Files</option><option value="RETURNED">Return Files</option></select><CountryDesignIcon name="ChevronDown" /></div>
+              <div className="country-design-select agent-select"><select aria-label="Agent or source" value={agentFilter} onChange={e => {setAgentFilter(e.target.value);setPage(1);}}><option value="">All Agents / Sources</option><option value="HAS_AGENT">All Agent Partner Files</option><option value="Direct">Direct Office Candidates</option><optgroup label="Registered Agency Partners">{agents.map(ag => <option key={ag.id} value={ag.name}>{ag.name} ({ag.code})</option>)}</optgroup></select><CountryDesignIcon name="ChevronDown" /></div>
+              {(search || stageFilter !== "all" || statusFilter !== "all" || officerFilter || agentFilter) && <button data-action-ui="neutral" data-action-size="normal" className="country-design-clear" type="button" onClick={handleClear}>Clear Filters</button>}
+            </div>
+            <label className="country-design-page-size">Per Page:<span className="country-design-select"><select aria-label="Candidates per page" value={pageSize} onChange={e => {setPageSize(Number(e.target.value));setPage(1);}}>{[10,20,50,100].map(size => <option value={size} key={size}>{size}</option>)}</select><CountryDesignIcon name="ChevronDown" /></span></label>
           </div>
-        )}
-      </div>
-
-      {/* 1. CANDIDATES MASTER LIST VIEW */}
-      {activeView === "candidates" && (
-        <>
-          {/* Filter Toolbar */}
-          <div
-            style={{
-              background: "#fff",
-              border: "1px solid var(--line)",
-              borderRadius: "14px",
-              padding: "16px 20px",
-              marginBottom: "16px",
-              display: "flex",
-              alignItems: "center",
-              flexWrap: "wrap",
-              gap: "12px",
-            }}
-          >
-            <div style={{ flex: "1 1 280px", position: "relative" }}>
-              <Search
-                size={16}
-                style={{
-                  position: "absolute",
-                  left: "12px",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  color: "var(--muted)",
-                }}
-              />
-              <input
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-                placeholder="Search by candidate name, candidate ID, passport number, phone..."
-                style={{
-                  width: "100%",
-                  padding: "9px 12px 9px 36px",
-                  borderRadius: "10px",
-                  border: "1px solid var(--line)",
-                  fontSize: "13px",
-                  background: "#fafafd",
-                  outline: "none",
-                }}
-              />
-            </div>
-
-            <div style={{ minWidth: "150px" }}>
-              <select
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value);
-                  setPage(1);
-                }}
-                style={{
-                  width: "100%",
-                  padding: "9px 12px",
-                  borderRadius: "10px",
-                  border: "1px solid var(--line)",
-                  fontSize: "13px",
-                  background: "#fafafd",
-                  color: "var(--ink)",
-                  outline: "none",
-                  fontWeight: 600,
-                }}
-              >
-                <option value="all">⚡ All Statuses</option>
-                <option value="ACTIVE">Active Files</option>
-                <option value="COMPLETED">Completed</option>
-                <option value="HOLD">Hold Files</option>
-                <option value="RETURNED">Return Files</option>
-              </select>
-            </div>
-
-            {/* Agent Filter */}
-            <div style={{ minWidth: "170px" }}>
-              <select
-                value={agentFilter}
-                onChange={(e) => {
-                  setAgentFilter(e.target.value);
-                  setPage(1);
-                }}
-                style={{
-                  width: "100%",
-                  padding: "9px 12px",
-                  borderRadius: "10px",
-                  border: "1px solid var(--line)",
-                  fontSize: "13px",
-                  background: "#fafafd",
-                  color: "var(--ink)",
-                  outline: "none",
-                  fontWeight: 600,
-                }}
-              >
-                <option value="">👥 All Agents / Sources</option>
-                <option value="HAS_AGENT">🤝 All Agent Partner Files</option>
-                <option value="Direct">🏢 Direct Office Candidates</option>
-                <optgroup label="── Registered Agency Partners ──">
-                  {agents.map((ag) => (
-                    <option key={ag.id} value={ag.name}>
-                      🤝 {ag.name} ({ag.code})
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
-            </div>
-
-            {(search || stageFilter !== "all" || statusFilter !== "all" || officerFilter || agentFilter) && (
-              <button
-                type="button"
-                onClick={handleClear}
-                style={{
-                  padding: "8px 14px",
-                  background: "#fef2f2",
-                  border: "1px solid #fecaca",
-                  color: "#dc2626",
-                  borderRadius: "9px",
-                  fontSize: "12px",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                Clear Filters
-              </button>
-            )}
+          <div className="country-design-count">Showing {meta.total ? (meta.page - 1) * meta.pageSize + 1 : 0}–{Math.min(meta.page * meta.pageSize, meta.total)} of {meta.total} Total {country} Candidates
+            {agentFilter && <span className="country-design-filter-tag">Filtered by: {agentFilter === "HAS_AGENT" ? "Agent Partner Files" : agentFilter === "Direct" ? "Direct Office Candidates" : agentFilter}<button data-action-ui="danger" data-action-size="icon" type="button" aria-label="Remove agent filter" onClick={() => {setAgentFilter("");setPage(1);}}>×</button></span>}
           </div>
-
-          {/* Candidates List Table Card */}
-          <div
-            style={{
-              background: "#fff",
-              border: "1px solid var(--line)",
-              borderRadius: "16px",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
-              overflow: "hidden",
-            }}
-          >
-            {/* Table Header toolbar */}
-            <div
-              style={{
-                padding: "14px 20px",
-                borderBottom: "1px solid var(--line)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                background: "#fafafd",
-                flexWrap: "wrap",
-                gap: "10px",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-                <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--ink)" }}>
-                  Showing <b>{meta.total ? (meta.page - 1) * meta.pageSize + 1 : 0}</b>–
-                  <b>{Math.min(meta.page * meta.pageSize, meta.total)}</b> of <b>{meta.total}</b> Total {country} Candidates
-                </div>
-
-                {agentFilter && (
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      fontSize: "11px",
-                      fontWeight: 800,
-                      background: "#f0edff",
-                      color: "#7258e8",
-                      padding: "3px 10px",
-                      borderRadius: "6px",
-                      border: "1px solid #dcd5fb",
-                    }}
-                  >
-                    Filtered by: {agentFilter === "HAS_AGENT" ? "Agent Partner Files" : agentFilter === "Direct" ? "Direct Office Candidates" : agentFilter}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAgentFilter("");
-                        setPage(1);
-                      }}
-                      title="Remove agent filter"
-                      style={{ border: "none", background: "none", color: "#7258e8", cursor: "pointer", fontWeight: 900, fontSize: "13px", padding: 0 }}
-                    >
-                      ×
-                    </button>
-                  </span>
-                )}
-              </div>
-
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "var(--muted)" }}>
-                <span>Per Page:</span>
-                <select
-                  value={pageSize}
-                  onChange={(e) => {
-                    setPageSize(Number(e.target.value));
-                    setPage(1);
-                  }}
-                  style={{
-                    padding: "4px 8px",
-                    borderRadius: "6px",
-                    border: "1px solid var(--line)",
-                    fontSize: "12px",
-                    background: "#fff",
-                    outline: "none",
-                  }}
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Candidates Table */}
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
-                <thead>
-                  <tr style={{ background: "#f8fafc", borderBottom: "1px solid var(--line)", color: "var(--muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    <th style={{ padding: "12px 14px", width: "40px" }}>SL</th>
-                    <th style={{ padding: "12px 14px", width: "130px" }}>Actions</th>
-                    <th style={{ padding: "12px 14px" }}>Client Information</th>
-                    <th style={{ padding: "12px 14px" }}>Passport</th>
-                    <th style={{ padding: "12px 14px" }}>Profession &amp; Sponsor</th>
-                    <th style={{ padding: "12px 14px" }}>Agent / Source</th>
-                    <th style={{ padding: "12px 14px" }}>Current Stage</th>
-                    <th style={{ padding: "12px 14px" }}>Financial Ledger</th>
-                    <th style={{ padding: "12px 14px" }}>Officer &amp; Branch</th>
-                    <th style={{ padding: "12px 14px" }}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {isLoading ? (
-                    <tr>
-                      <td colSpan={10} style={{ padding: "40px", textAlign: "center", color: "var(--muted)" }}>
-                        Loading {country} candidates...
-                      </td>
-                    </tr>
-                  ) : isError && !data ? (
-                    <tr><td colSpan={10} style={{ padding: "40px", textAlign: "center", color: "var(--muted)" }}>Candidate data is unavailable. Use Retry above.</td></tr>
-                  ) : !rows.length ? (
-                    <tr>
-                      <td colSpan={10} style={{ padding: "40px", textAlign: "center", color: "var(--muted)" }}>
-                        No {country} candidates found matching current filters.
-                      </td>
-                    </tr>
-                  ) : (
-                    rows.map((row, idx) => {
-                      const isHold = row.status === "HOLD";
-                      const isCompleted = row.status === "COMPLETED";
-
-                      return (
-                        <tr
-                          key={row.id}
-                          style={{
-                            borderBottom: "1px solid var(--line)",
-                            background: isHold ? "#fffbeb" : "#fff",
-                            transition: "background 0.15s ease",
-                          }}
-                          onMouseEnter={(e) => (e.currentTarget.style.background = isHold ? "#fef3c7" : "#fcfaff")}
-                          onMouseLeave={(e) => (e.currentTarget.style.background = isHold ? "#fffbeb" : "#fff")}
-                        >
-                          <td style={{ padding: "12px 14px", color: "var(--muted)", fontWeight: 600 }}>
-                            {(meta.page - 1) * meta.pageSize + idx + 1}
-                          </td>
-
-                          <td style={{ padding: "12px 14px" }}>
-                            <Link
-                              prefetch={true}
-                              href={`/file/${row.id}`}
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "6px",
-                                padding: "6px 12px",
-                                borderRadius: "8px",
-                                background: "#7258e8",
-                                color: "#fff",
-                                fontSize: "11px",
-                                fontWeight: 700,
-                                textDecoration: "none",
-                                boxShadow: "0 2px 4px rgba(114,88,232,0.25)",
-                              }}
-                            >
-                              <Eye size={12} /> Open Dossier ➔
-                            </Link>
-                          </td>
-
-                          <td style={{ padding: "12px 14px" }}>
-                            <Link
-                              prefetch={true}
-                              href={`/file/${row.id}`}
-                              style={{ fontWeight: 800, color: "var(--ink)", textDecoration: "none" }}
-                            >
-                              {row.name}
-                            </Link>
-                            <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>
-                              <span style={{ color: "#7258e8", fontWeight: 700 }}>{row.candidateNo}</span> · 📞 {row.phone}
-                            </div>
-                          </td>
-
-                          <td style={{ padding: "12px 14px" }}>
-                            <div style={{ fontWeight: 700, color: "var(--ink)" }}>{row.passportNumber}</div>
-                            <div style={{ fontSize: "11px", color: "var(--muted)" }}>{row.district}</div>
-                          </td>
-
-                          <td style={{ padding: "12px 14px" }}>
-                            <div style={{ fontWeight: 600, color: "var(--ink)" }}>{row.profession}</div>
-                            <div style={{ fontSize: "11px", color: "var(--muted)", display: "flex", alignItems: "center", gap: "4px" }}>
-                              <Building2 size={10} /> {row.company}
-                            </div>
-                          </td>
-
-                          <td style={{ padding: "12px 14px" }}>
-                            <span
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "4px",
-                                padding: "3px 8px",
-                                borderRadius: "6px",
-                                fontSize: "11px",
-                                fontWeight: 700,
-                                background: row.agent && !/direct/i.test(row.agent) ? "#fffbeb" : "#f1f5f9",
-                                color: row.agent && !/direct/i.test(row.agent) ? "#d97706" : "var(--muted)",
-                                border: row.agent && !/direct/i.test(row.agent) ? "1px solid #fde68a" : "1px solid var(--line)",
-                              }}
-                            >
-                              {row.agent && !/direct/i.test(row.agent) ? `🤝 ${row.agent}` : "🏢 Direct Office"}
-                            </span>
-                          </td>
-
-                          <td style={{ padding: "12px 14px" }}>
-                            <span
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "4px",
-                                padding: "4px 8px",
-                                borderRadius: "6px",
-                                fontSize: "11px",
-                                fontWeight: 800,
-                                background: "#f5f3ff",
-                                color: "#6d28d9",
-                                border: "1px solid #ddd6fe",
-                              }}
-                            >
-                              <CheckCircle2 size={11} /> {row.currentStage}
-                            </span>
-                          </td>
-
-                          <td style={{ padding: "12px 14px" }}>
-                            <div style={{ fontWeight: 800, color: "#166534" }}>৳ {row.totalPaid.toLocaleString()} BDT</div>
-                            {row.balanceDue > 0 && (
-                              <div style={{ fontSize: "10px", color: "#dc2626", fontWeight: 700 }}>
-                                Due: ৳ {row.balanceDue.toLocaleString()}
-                              </div>
-                            )}
-                          </td>
-
-                          <td style={{ padding: "12px 14px" }}>
-                            <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--ink)" }}>{row.officerName}</div>
-                            <div style={{ fontSize: "10px", color: "var(--muted)" }}>{row.officeName}</div>
-                          </td>
-
-                          <td style={{ padding: "12px 14px" }}>
-                            <span
-                              style={{
-                                display: "inline-block",
-                                padding: "3px 8px",
-                                borderRadius: "6px",
-                                fontSize: "10.5px",
-                                fontWeight: 800,
-                                background: isHold ? "#fee2e2" : isCompleted ? "#dcfce7" : "#e0e7ff",
-                                color: isHold ? "#991b1b" : isCompleted ? "#166534" : "#3730a3",
-                              }}
-                            >
-                              {row.status}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination Footer */}
-            <div
-              style={{
-                padding: "14px 20px",
-                borderTop: "1px solid var(--line)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                background: "#fafafd",
-                flexWrap: "wrap",
-                gap: "10px",
-              }}
-            >
-              <div style={{ fontSize: "12px", color: "var(--muted)" }}>
-                Page <b>{meta.page}</b> of <b>{meta.totalPages}</b>
-              </div>
-
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <button
-                  type="button"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "4px",
-                    padding: "6px 12px",
-                    borderRadius: "8px",
-                    border: "1px solid var(--line)",
-                    background: page <= 1 ? "#f1f5f9" : "#fff",
-                    color: page <= 1 ? "#94a3b8" : "var(--ink)",
-                    cursor: page <= 1 ? "not-allowed" : "pointer",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                  }}
-                >
-                  <ChevronLeft size={14} /> Previous
-                </button>
-
-                <span style={{ fontSize: "12px", fontWeight: 700, padding: "0 8px" }}>
-                  {meta.page}
-                </span>
-
-                <button
-                  type="button"
-                  disabled={page >= meta.totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "4px",
-                    padding: "6px 12px",
-                    borderRadius: "8px",
-                    border: "1px solid var(--line)",
-                    background: page >= meta.totalPages ? "#f1f5f9" : "#fff",
-                    color: page >= meta.totalPages ? "#94a3b8" : "var(--ink)",
-                    cursor: page >= meta.totalPages ? "not-allowed" : "pointer",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                  }}
-                >
-                  Next <ChevronRight size={14} />
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* 2. WORKING AGENTS LIST VIEW */}
-      {activeView === "agents" && (
-        <div
-          style={{
-            background: "#fff",
-            border: "1px solid var(--line)",
-            borderRadius: "16px",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
-            overflow: "hidden",
-          }}
-        >
-          {/* Agent Table Toolbar */}
-          <div
-            style={{
-              padding: "16px 20px",
-              borderBottom: "1px solid var(--line)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              background: "#fafafd",
-              flexWrap: "wrap",
-              gap: "12px",
-            }}
-          >
-            <div>
-              <div style={{ fontSize: "14px", fontWeight: 800, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
-                <span>🤝</span>
-                <span>Active Recruitment Agents for {country}</span>
-                <span
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: 800,
-                    background: "#f0edff",
-                    color: "#7258e8",
-                    padding: "2px 8px",
-                    borderRadius: "6px",
-                    border: "1px solid #dcd5fb",
-                  }}
-                >
-                  {countryAgents.length} Sources
-                </span>
-              </div>
-              <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "2px" }}>
-                List of all agency partners, sourcing brokers, and direct desks supplying candidate files for {country}.
-              </div>
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-              <div style={{ position: "relative", minWidth: "260px" }}>
-                <Search
-                  size={15}
-                  style={{
-                    position: "absolute",
-                    left: "12px",
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    color: "var(--muted)",
-                  }}
-                />
-                <input
-                  value={agentSearch}
-                  onChange={(e) => setAgentSearch(e.target.value)}
-                  placeholder="Search agent name, code, phone, location..."
-                  style={{
-                    width: "100%",
-                    padding: "8px 12px 8px 34px",
-                    borderRadius: "10px",
-                    border: "1px solid var(--line)",
-                    fontSize: "12.5px",
-                    background: "#fff",
-                    outline: "none",
-                  }}
-                />
-              </div>
-
-              {agentSearch && (
-                <button
-                  type="button"
-                  onClick={() => setAgentSearch("")}
-                  style={{
-                    padding: "7px 12px",
-                    background: "#f1f5f9",
-                    border: "1px solid var(--line)",
-                    borderRadius: "8px",
-                    fontSize: "12px",
-                    fontWeight: 700,
-                    color: "var(--muted)",
-                    cursor: "pointer",
-                  }}
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Agents Table */}
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
-              <thead>
-                <tr style={{ background: "#f8fafc", borderBottom: "1px solid var(--line)", color: "var(--muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                  <th style={{ padding: "14px 16px", width: "50px" }}>SL</th>
-                  <th style={{ padding: "14px 16px" }}>Agent &amp; Agency Details</th>
-                  <th style={{ padding: "14px 16px" }}>Contact &amp; Location</th>
-                  <th style={{ padding: "14px 16px", textAlign: "center" }}>Supplied Candidates</th>
-                  <th style={{ padding: "14px 16px" }}>Pipeline Processing</th>
-                  <th style={{ padding: "14px 16px" }}>Total Deposited Volume</th>
-                  <th style={{ padding: "14px 16px", textAlign: "center" }}>Status</th>
-                  <th style={{ padding: "14px 16px", textAlign: "center" }}>Actions</th>
-                </tr>
-              </thead>
+          <div className="desktop-country-candidates-table country-design-table">
+            <table><colgroup>{[62,120,180,120,190,170,150,150,150,108].map((width,i) => <col key={i} style={{width}} />)}</colgroup>
+              <thead><tr>{["SL","Actions","Client Information","Passport","Profession & Sponsor","Agent / Source","Current Stage","Financial Ledger","Officer & Branch","Status"].map(label => <th key={label}>{label}</th>)}</tr></thead>
               <tbody>
-                {countryAgents
-                  .filter((a) => {
-                    if (!agentSearch) return true;
-                    const q = agentSearch.toLowerCase();
-                    return (
-                      a.name.toLowerCase().includes(q) ||
-                      a.code.toLowerCase().includes(q) ||
-                      a.contactPerson.toLowerCase().includes(q) ||
-                      a.phone.toLowerCase().includes(q) ||
-                      a.address.toLowerCase().includes(q)
-                    );
-                  })
-                  .map((ag, idx) => {
-                    const isDirect = /direct/i.test(ag.name);
-                    return (
-                      <tr
-                        key={ag.id}
-                        style={{
-                          borderBottom: "1px solid var(--line)",
-                          transition: "background 0.15s ease",
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = "#fcfaff")}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                      >
-                        <td style={{ padding: "14px 16px", color: "var(--muted)", fontWeight: 600 }}>
-                          {idx + 1}
-                        </td>
-
-                        <td style={{ padding: "14px 16px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                            <div
-                              style={{
-                                width: "36px",
-                                height: "36px",
-                                borderRadius: "50%",
-                                background: isDirect ? "#ecfdf5" : "#f0edff",
-                                color: isDirect ? "#047857" : "#7258e8",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontWeight: 800,
-                                fontSize: "12px",
-                                flexShrink: 0,
-                                border: `1px solid ${isDirect ? "#a7f3d0" : "#e0d9fc"}`,
-                              }}
-                            >
-                              {isDirect ? "🏢" : ag.name.slice(0, 2).toUpperCase()}
-                            </div>
-                            <div>
-                              <div style={{ fontWeight: 800, color: "var(--ink)", fontSize: "13.5px" }}>
-                                {ag.name}
-                              </div>
-                              <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px", display: "flex", alignItems: "center", gap: "6px" }}>
-                                <span style={{ fontWeight: 700, padding: "1px 6px", borderRadius: "4px", background: isDirect ? "#ecfdf5" : "#f3e8ff", color: isDirect ? "#065f46" : "#7c3aed" }}>
-                                  {ag.code}
-                                </span>
-                                <span>·</span>
-                                <span>👤 Contact: <b>{ag.contactPerson}</b></span>
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-
-                        <td style={{ padding: "14px 16px" }}>
-                          <div style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--ink)" }}>
-                            📞 {ag.phone}
-                          </div>
-                          <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>
-                            📍 {ag.address}
-                          </div>
-                        </td>
-
-                        <td style={{ padding: "14px 16px", textAlign: "center" }}>
-                          <span
-                            style={{
-                              display: "inline-block",
-                              padding: "4px 12px",
-                              borderRadius: "999px",
-                              background: "#eff6ff",
-                              color: "#1d4ed8",
-                              fontWeight: 800,
-                              fontSize: "13px",
-                              border: "1px solid #bfdbfe",
-                            }}
-                          >
-                            {ag.totalCandidates} Files
-                          </span>
-                        </td>
-
-                        <td style={{ padding: "14px 16px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                            <span
-                              style={{
-                                fontSize: "11px",
-                                fontWeight: 700,
-                                padding: "2px 8px",
-                                borderRadius: "6px",
-                                background: "#fffbeb",
-                                color: "#b45309",
-                                border: "1px solid #fde68a",
-                              }}
-                            >
-                              ⚡ {ag.activeCount} Active
-                            </span>
-                            {ag.completedCount > 0 && (
-                              <span
-                                style={{
-                                  fontSize: "11px",
-                                  fontWeight: 700,
-                                  padding: "2px 8px",
-                                  borderRadius: "6px",
-                                  background: "#ecfdf5",
-                                  color: "#047857",
-                                  border: "1px solid #a7f3d0",
-                                }}
-                              >
-                                ✈️ {ag.completedCount} Flight/Done
-                              </span>
-                            )}
-                          </div>
-                        </td>
-
-                        <td style={{ padding: "14px 16px" }}>
-                          <div style={{ fontWeight: 800, color: "#059669", fontSize: "13.5px" }}>
-                            ৳ {ag.totalPaid.toLocaleString()} BDT
-                          </div>
-                          <div style={{ fontSize: "10.5px", color: "var(--muted)" }}>
-                            Paid by candidate files
-                          </div>
-                        </td>
-
-                        <td style={{ padding: "14px 16px", textAlign: "center" }}>
-                          <span
-                            style={{
-                              padding: "3px 8px",
-                              borderRadius: "6px",
-                              fontSize: "11px",
-                              fontWeight: 800,
-                              background: "#ecfdf5",
-                              color: "#047857",
-                              border: "1px solid #a7f3d0",
-                            }}
-                          >
-                            {ag.status}
-                          </span>
-                        </td>
-
-                        <td style={{ padding: "14px 16px", textAlign: "center" }}>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                startTabTransition(() => {
-                                  setActiveView("candidates");
-                                  setAgentFilter(ag.name);
-                                  setPage(1);
-                                });
-                              }}
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "4px",
-                                padding: "6px 12px",
-                                borderRadius: "8px",
-                                background: "#7258e8",
-                                color: "#fff",
-                                fontSize: "11.5px",
-                                fontWeight: 700,
-                                border: "none",
-                                cursor: "pointer",
-                                boxShadow: "0 2px 4px rgba(114,88,232,0.25)",
-                              }}
-                              title={`View candidates submitted by ${ag.name}`}
-                            >
-                              <Search size={12} /> View Candidates
-                            </button>
-
-                            {!isDirect && ag.id.startsWith("cm") && (
-                              <Link
-                                href={`/module/office-vendor?tab=agents&agentId=${ag.id}`}
-                                style={{
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: "4px",
-                                  padding: "6px 10px",
-                                  borderRadius: "8px",
-                                  background: "#f1f5f9",
-                                  color: "#475569",
-                                  fontSize: "11.5px",
-                                  fontWeight: 700,
-                                  textDecoration: "none",
-                                  border: "1px solid var(--line)",
-                                }}
-                                title="Open Agent Profile"
-                              >
-                                <UserCheck size={12} /> Profile
-                              </Link>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-
-                {!countryAgents.length && (
-                  <tr>
-                    <td colSpan={8} style={{ padding: "40px", textAlign: "center", color: "var(--muted)" }}>
-                      {isLoading ? "Loading agents…" : isError && !data ? "Agent data is unavailable. Use Retry above." : `No agents currently registered for ${country}.`}
-                    </td>
-                  </tr>
-                )}
+                {isLoading ? <tr><td colSpan={10} className="country-design-empty">Loading {country} candidates...</td></tr> : isError && !data ? <tr><td colSpan={10} className="country-design-empty">Candidate data is unavailable. Use Retry above.</td></tr> : !rows.length ? <tr><td colSpan={10} className="country-design-empty">No {country} candidates found matching current filters.</td></tr> : rows.map((row,idx) => {
+                  const stageBadge = getStageBadge(row.currentStage);
+                  return <tr key={row.id}>
+                    <td className="country-design-serial">{(meta.page - 1) * meta.pageSize + idx + 1}</td>
+                    <td><Link data-action-ui="secondary" data-action-size="compact" prefetch={true} href={`/file/${row.id}`} className="country-design-dossier">Open Dossier →</Link></td>
+                    <td><div className="country-design-cell client"><Link prefetch={true} href={`/file/${row.id}`}>{row.name}</Link><span className="country-design-candidate-id">{row.candidateNo}</span><small>{row.phone}</small></div></td>
+                    <td><div className="country-design-cell"><b>{row.passportNumber}</b><small>{row.district}</small></div></td>
+                    <td><div className="country-design-cell"><b>{row.profession}</b><small>{row.company}</small></div></td>
+                    <td><div className="country-design-agent"><CountryDesignIcon name={(["AgentOrange","AgentPurple","AgentGreen"] as const)[idx % 3]} /><span>{row.agent && !/direct/i.test(row.agent) ? row.agent : "Direct Office"}</span></div></td>
+                    <td><span className="country-design-stage" style={{background:stageBadge.bg,color:stageBadge.color}}>{stageBadge.icon} {row.currentStage}</span></td>
+                    <td><div className="country-design-cell financial"><b>৳ {row.totalPaid.toLocaleString()} BDT</b>{row.balanceDue > 0 && <span className="country-design-due">Due: ৳ {row.balanceDue.toLocaleString()}</span>}</div></td>
+                    <td><div className="country-design-cell officer"><b>{row.officerName}</b><small>{row.officeName}</small></div></td>
+                    <td><span className={`country-design-status ${row.status.toLowerCase()}`}>{row.status}</span></td>
+                  </tr>;
+                })}
               </tbody>
             </table>
           </div>
+            {/* Mobile Candidate Stream View (Stitch Mobile Card Architecture) */}
+            <div className="mobile-country-candidates-stream">
+              {isLoading ? (
+                <div style={{ padding: "32px 16px", textAlign: "center", color: "var(--muted)" }}>
+                  <RefreshCw size={24} className="animate-spin text-purple-600" style={{ margin: "0 auto 8px" }} />
+                  <p style={{ margin: 0, fontWeight: 700, fontSize: "13px" }}>Loading {country} candidates...</p>
+                </div>
+              ) : isError && !data ? (
+                <div style={{ padding: "32px 16px", textAlign: "center", color: "var(--muted)" }}>
+                  <p style={{ margin: 0, fontWeight: 700, fontSize: "13px" }}>Candidate data is unavailable. Use Retry above.</p>
+                </div>
+              ) : !rows.length ? (
+                <div style={{ padding: "32px 16px", textAlign: "center", color: "var(--muted)" }}>
+                  <p style={{ margin: 0, fontWeight: 700, fontSize: "13px" }}>No {country} candidates found matching current filters.</p>
+                </div>
+              ) : (
+                rows.map((row) => {
+                  const stageBadge = getStageBadge(row.currentStage);
+                  const isHold = row.status === "HOLD";
+                  const isCompleted = row.status === "COMPLETED";
+
+                  return (
+                    <div key={row.id} className="country-candidate-card">
+                      {/* Top Row: Avatar/Initials, Candidate Name, ID, Trade, Status */}
+                      <div className="country-cand-card-top">
+                        <div className="country-cand-avatar-wrap">
+                          <div className="country-cand-avatar">
+                            {row.name.slice(0, 2).toUpperCase()}
+                          </div>
+                          <div className="country-cand-name-block">
+                            <Link href={`/file/${row.id}`} className="country-cand-name">
+                              {row.name}
+                            </Link>
+                            <div className="country-cand-sub-row">
+                              <span className="country-cand-id-pill">{row.candidateNo}</span>
+                              <span className="country-cand-trade">• {row.profession}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <span
+                          className="country-cand-status-badge"
+                          style={{
+                            background: isHold ? "#fee2e2" : isCompleted ? "#dcfce7" : "#e0e7ff",
+                            color: isHold ? "#991b1b" : isCompleted ? "#166534" : "#3730a3",
+                            border: `1px solid ${isHold ? "#fecaca" : isCompleted ? "#bbf7d0" : "#c7d2fe"}`,
+                          }}
+                        >
+                          {row.status}
+                        </span>
+                      </div>
+
+                      {/* 2-Column Info Grid: Contact/District & Passport/Sponsor */}
+                      <div className="country-cand-info-grid">
+                        <div className="country-cand-grid-cell">
+                          <span className="country-cand-grid-label">Contact &amp; District</span>
+                          <span className="country-cand-grid-val">📞 {row.phone}</span>
+                          <span className="country-cand-grid-sub">📍 {row.district || "Direct Intake"}</span>
+                        </div>
+                        <div className="country-cand-grid-cell">
+                          <span className="country-cand-grid-label">Passport &amp; Sponsor</span>
+                          <span className="country-cand-grid-val">📘 {row.passportNumber}</span>
+                          <span className="country-cand-grid-sub">🏢 {row.company || "Awaiting Kafeel"}</span>
+                        </div>
+                      </div>
+
+                      {/* Pipeline Stage & Financial Ledger Strip */}
+                      <div className="country-cand-strip">
+                        <span
+                          className="country-cand-stage"
+                          style={{
+                            background: stageBadge.bg,
+                            color: stageBadge.color,
+                            border: `1px solid ${stageBadge.border}`,
+                          }}
+                        >
+                          <span>{stageBadge.icon}</span> {row.currentStage}
+                        </span>
+
+                        <div className="country-cand-finance">
+                          <span>৳ {row.totalPaid.toLocaleString()}</span>
+                          {row.balanceDue > 0 && (
+                            <span className="country-cand-finance-due">
+                              (Due: ৳ {row.balanceDue.toLocaleString()})
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Footer: Source/Agent & Open Dossier Action Button */}
+                      <div className="country-cand-footer">
+                        <span
+                          className="country-cand-source"
+                          style={{
+                            background: row.agent && !/direct/i.test(row.agent) ? "#fffbeb" : "#f1f5f9",
+                            color: row.agent && !/direct/i.test(row.agent) ? "#d97706" : "var(--muted)",
+                            border: `1px solid ${row.agent && !/direct/i.test(row.agent) ? "#fde68a" : "var(--line)"}`,
+                          }}
+                        >
+                          {row.agent && !/direct/i.test(row.agent) ? `🤝 ${row.agent}` : "🏢 Direct Office"}
+                        </span>
+
+                        <Link data-action-ui="secondary" data-action-size="normal"
+                          prefetch={true}
+                          href={`/file/${row.id}`}
+                          className="country-cand-open-btn"
+                        >
+                          <Eye size={13} />
+                          <span>Open Dossier</span>
+                          <ChevronRight size={13} />
+                        </Link>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+          <div className="country-design-pagination"><span>{meta.total} Total {country} Candidates</span><div>
+            <button data-action-ui="neutral" data-action-size="normal" type="button" disabled={page <= 1} onClick={() => setPage(p => Math.max(1,p - 1))}>← Previous</button>
+            <span className="country-design-page-indicator">Page {meta.page} of {meta.totalPages}</span>
+            <button data-action-ui="neutral" data-action-size="normal" type="button" disabled={page >= meta.totalPages} onClick={() => setPage(p => p + 1)}>Next →</button>
+          </div></div>
+        </>}
+      {activeView === "agents" && (
+        <div className="country-agents-results-panel country-design-agents-panel" aria-label={`Active Recruitment Agents for ${country}`}>
+          <div className="country-design-filters">
+            <div className="country-design-filter-fields">
+              <div className="country-design-search"><CountryDesignIcon name="Search" />
+                <input aria-label="Search country agents" value={agentSearch} onChange={event => setAgentSearch(event.target.value)} placeholder="Search agent name, code, phone, location..." />
+                {agentSearch && <button data-action-ui="ghost" data-action-size="icon" type="button" aria-label="Clear agent search" onClick={() => setAgentSearch("")}><X size={12} /></button>}
+              </div>
+            </div>
+            <p className="country-design-agent-description">Agency partners, sourcing brokers and direct desks supplying candidate files for {country}.</p>
+          </div>
+          <div className="country-design-count">Showing {filteredCountryAgents.length ? 1 : 0}–{filteredCountryAgents.length} of {countryAgents.length} Total {country} Working Agents</div>
+          <div className="desktop-country-agents-table country-design-table country-design-agents-table">
+            <table>
+              <colgroup>{[62,300,210,130,160,180,90,208].map((width,index) => <col key={index} style={{width}} />)}</colgroup>
+              <thead><tr>{["SL","Agent & Agency Details","Contact & Location","Supplied Candidates","Pipeline Processing","Total Deposited Volume","Status","Actions"].map(label => <th key={label}>{label}</th>)}</tr></thead>
+              <tbody>
+                {filteredCountryAgents.map((ag,index) => {
+                  const isDirect = /direct/i.test(ag.name);
+                  return <tr key={ag.id}>
+                    <td className="country-design-serial">{index + 1}</td>
+                    <td><div className="country-design-agent-identity">
+                      <span className="country-design-agent-avatar">{isDirect ? "🏢" : ag.name.slice(0,2).toUpperCase()}</span>
+                      <div className="country-design-cell client"><b>{ag.name}</b><span className="country-design-candidate-id">{ag.code}</span><small>Contact: {ag.contactPerson}</small></div>
+                    </div></td>
+                    <td><div className="country-design-cell"><b>{ag.phone}</b><small>{ag.address}</small></div></td>
+                    <td><span className="country-design-candidate-id country-design-file-count">{ag.totalCandidates} Files</span></td>
+                    <td><div className="country-design-cell"><span className="country-design-stage country-design-agent-active">⚡ {ag.activeCount} Active</span>{ag.completedCount > 0 && <span className="country-design-stage country-design-agent-completed">✈ {ag.completedCount} Flight/Done</span>}</div></td>
+                    <td><div className="country-design-cell financial"><b>৳ {ag.totalPaid.toLocaleString()} BDT</b><small>Paid by candidate files</small></div></td>
+                    <td><span className="country-design-status">{ag.status}</span></td>
+                    <td><div className="country-design-agent-actions">
+                      <button data-action-ui="secondary" data-action-size="compact" type="button" className="country-design-dossier" title={`View candidates submitted by ${ag.name}`} onClick={() => {startTabTransition(() => {setActiveView("candidates");setAgentFilter(ag.name);setPage(1);});}}>View Candidates →</button>
+                      {!isDirect && ag.id.startsWith("cm") && <Link data-action-ui="secondary" data-action-size="compact" href={`/module/office-vendor?tab=agents&agentId=${ag.id}`} className="country-design-dossier country-design-agent-profile" title="Open Agent Profile">Profile</Link>}
+                    </div></td>
+                  </tr>;
+                })}
+                {!filteredCountryAgents.length && <tr><td colSpan={8} className="country-design-empty">{isLoading ? "Loading agents…" : isError && !data ? "Agent data is unavailable. Use Retry above." : countryAgents.length ? "No agents found matching current search." : `No agents currently registered for ${country}.`}</td></tr>}
+              </tbody>
+            </table>
+          </div>
+          {/* Mobile Country Agents Stream View */}
+          <div className="mobile-country-agents-stream">
+            {filteredCountryAgents
+              .map((ag) => {
+                const isDirect = /direct/i.test(ag.name);
+                return (
+                  <div key={ag.id} className="country-agent-mobile-card">
+                    <div className="country-cand-card-top">
+                      <div className="country-cand-avatar-wrap">
+                        <div
+                          className="country-cand-avatar"
+                          style={{
+                            background: isDirect ? "#ecfdf5" : "#f0edff",
+                            color: isDirect ? "#047857" : "#7258e8",
+                            borderColor: isDirect ? "#a7f3d0" : "#ddd6fe",
+                          }}
+                        >
+                          {isDirect ? "🏢" : ag.name.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="country-cand-name-block">
+                          <span className="country-cand-name">{ag.name}</span>
+                          <div className="country-cand-sub-row">
+                            <span className="country-cand-id-pill">{ag.code}</span>
+                            <span className="country-cand-trade">• Contact: {ag.contactPerson}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <span
+                        className="country-cand-status-badge"
+                        style={{
+                          background: "#ecfdf5",
+                          color: "#047857",
+                          border: "1px solid #a7f3d0",
+                        }}
+                      >
+                        {ag.status}
+                      </span>
+                    </div>
+
+                    <div className="country-cand-info-grid">
+                      <div className="country-cand-grid-cell">
+                        <span className="country-cand-grid-label">Contact Phone</span>
+                        <span className="country-cand-grid-val">📞 {ag.phone}</span>
+                        <span className="country-cand-grid-sub">📍 {ag.address}</span>
+                      </div>
+                      <div className="country-cand-grid-cell">
+                        <span className="country-cand-grid-label">Candidates Volume</span>
+                        <span className="country-cand-grid-val">👥 {ag.totalCandidates} Files</span>
+                        <span className="country-cand-grid-sub">৳ {ag.totalPaid.toLocaleString()} Paid</span>
+                      </div>
+                    </div>
+
+                    <div className="country-cand-footer">
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <span style={{ fontSize: "11px", fontWeight: 700, padding: "2px 7px", borderRadius: "5px", background: "#fffbeb", color: "#b45309", border: "1px solid #fde68a" }}>
+                          ⚡ {ag.activeCount} Active
+                        </span>
+                        {ag.completedCount > 0 && (
+                          <span style={{ fontSize: "11px", fontWeight: 700, padding: "2px 7px", borderRadius: "5px", background: "#ecfdf5", color: "#047857", border: "1px solid #a7f3d0" }}>
+                            ✈️ {ag.completedCount} Flight
+                          </span>
+                        )}
+                      </div>
+
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <button data-action-ui="secondary" data-action-size="normal"
+                          type="button"
+                          onClick={() => {
+                            startTabTransition(() => {
+                              setActiveView("candidates");
+                              setAgentFilter(ag.name);
+                              setPage(1);
+                            });
+                          }}
+                          className="country-cand-open-btn"
+                        >
+                          <Search size={12} /> View Files
+                        </button>
+                        {!isDirect && ag.id.startsWith("cm") && (
+                          <Link data-action-ui="secondary" data-action-size="normal"
+                            href={`/module/office-vendor?tab=agents&agentId=${ag.id}`}
+                            className="country-cand-open-btn"
+                            style={{ background: "#f1f5f9", color: "#475569", border: "1px solid var(--line)", boxShadow: "none" }}
+                          >
+                            <UserCheck size={12} /> Profile
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+            {!filteredCountryAgents.length && (
+              <div style={{ padding: "32px 16px", textAlign: "center", color: "var(--muted)" }}>
+                <p style={{ margin: 0, fontWeight: 700, fontSize: "13px" }}>
+                  {isLoading ? "Loading agents…" : isError && !data ? "Agent data is unavailable. Use Retry above." : (countryAgents.length ? "No agents found matching current search." : `No agents currently registered for ${country}.`)}
+                </p>
+              </div>
+            )}
+          </div>
+          <div className="country-design-pagination"><span>{filteredCountryAgents.length} Total {country} Working Agents</span><span>{countryAgents.length} Sources</span></div>
         </div>
       )}
+      </section>
     </div>
   );
 }

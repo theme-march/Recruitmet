@@ -1,26 +1,21 @@
 "use client";
+import { CountryDesignIcon } from "@/components/layout/country-design-icon";
 import { usePaymentRequest } from "@/hooks/use-payment-request";
 
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertCircle,
-  Building2,
-  Calendar,
   CheckCircle2,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   CreditCard,
   DollarSign,
   Download,
   Eye,
   FileText,
-  Filter,
   Layers,
   Paperclip,
   Plus,
   Printer,
-  RefreshCcw,
   Search,
   Sparkles,
   UploadCloud,
@@ -259,430 +254,120 @@ export function PaymentCollectionPage() {
   }
 
   return (
-    <div className="collection-page" style={{ maxWidth: "1600px", margin: "0 auto" }}>
-      {/* Top Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px", flexWrap: "wrap", gap: "12px" }}>
+    <div className="collection-page country-design-page payment-design-page">
+      <div className="country-design-breadcrumb">Dashboard / Payment Collection</div>
+      <div className="country-design-heading">
         <div>
-          <div className="breadcrumb" style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-            Dashboard / Payment Collection
-          </div>
-          <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--ink)", margin: "4px 0" }}>Payment Collection</h1>
-          <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0 }}>Track candidate financial deposits, installment records, and payment stages.</p>
+          <h1>Payment Collection</h1>
+          <p>Track candidate financial deposits, installment records, and payment stages.</p>
         </div>
-
-        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-          <button
-            onClick={download}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "9px 16px",
-              borderRadius: "10px",
-              background: "#f0edff",
-              border: "1px solid #dcd5fb",
-              color: "#7258e8",
-              fontSize: "12px",
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-          >
-            <Download size={15} /> Download CSV
-          </button>
+        <div className="country-design-actions">
+          <button data-action-ui="neutral" data-action-size="normal" type="button" onClick={download}><CountryDesignIcon name="Download" /> Download CSV</button>
         </div>
       </div>
 
-      {/* Dynamic Summary Cards */}
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-          gap: "14px",
-          marginBottom: "18px",
-        }}
-      >
-        <div style={cardStyle}>
-          <div style={{ ...iconStyle, background: "#eff6ff", color: "#3b82f6" }}>
-            <UsersRound size={20} />
-          </div>
-          <div>
-            <small style={labelStyle}>Candidates In Process</small>
-            <strong style={valueStyle}>{summary.totalCandidates}</strong>
-            <span style={{ fontSize: "11px", color: "#3b82f6", fontWeight: 700 }}>Active files</span>
-          </div>
+      <section className="country-design-metrics payment-design-metrics">
+        <div className="country-design-metric">
+          <div><span>Candidates In Process</span><UsersRound size={16} color="#007aff" /></div>
+          <b>{summary.totalCandidates}</b><p>Active files</p>
         </div>
-
-        <div style={cardStyle}>
-          <div style={{ ...iconStyle, background: "#ecfdf5", color: "#10b981" }}>
-            <Wallet size={20} />
-          </div>
-          <div>
-            <small style={labelStyle}>Total Collected</small>
-            <strong style={valueStyle}>{money(summary.totalCollected)}</strong>
-            <span style={{ fontSize: "11px", color: "#10b981", fontWeight: 700 }}>Deposits received</span>
-          </div>
+        <div className="country-design-metric money">
+          <div><span>Total Collected</span><CountryDesignIcon name="Wallet" /></div>
+          <b>{money(summary.totalCollected)}</b><p>Deposits received</p>
         </div>
+        <div className="country-design-metric money">
+          <div><span>Outstanding Due</span><DollarSign size={16} color="#6c4dff" /></div>
+          <b>{money(summary.totalDue)}</b><p>Adv: + {money(summary.totalAdvance)}</p>
+        </div>
+        <div className="country-design-metric">
+          <div><span>Deposits Active</span><CheckCircle2 size={16} color="#34c759" /></div>
+          <b>{summary.paidCount}</b><p>Paid candidate files</p>
+        </div>
+        <div className="country-design-metric">
+          <div><span>Pending / Due</span><AlertCircle size={16} color="#ff9500" /></div>
+          <b>{summary.pendingCount}</b><p>Awaiting 1st deposit</p>
+        </div>
+      </section>
 
-        <div style={cardStyle}>
-          <div style={{ ...iconStyle, background: "#f5f3ff", color: "#7c3aed" }}>
-            <DollarSign size={20} />
-          </div>
-          <div>
-            <small style={labelStyle}>Outstanding Due</small>
-            <strong style={valueStyle}>{money(summary.totalDue)}</strong>
-            <span style={{ fontSize: "11px", color: "#7c3aed", fontWeight: 700 }}>
-              Adv: + {money(summary.totalAdvance)}
+      <section className="payment-results-section country-design-workspace payment-design-workspace">
+        <div className="country-design-filters payment-design-filters">
+          <form className="country-design-filter-fields payment-design-filter-fields" onSubmit={applySearch}>
+            <label className="country-design-search payment-design-search">
+              <CountryDesignIcon name="Search" />
+              <input value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search candidate payments" placeholder="Name, phone, passport or file no..." />
+            </label>
+            <span className="country-design-select">
+              <select aria-label="Target country" value={country} onChange={(e) => setCountry(e.target.value)}>
+                <option value="">All Countries</option>
+                {result.data?.filters.countries.map((item) => <option key={item} value={item}>{item}</option>)}
+              </select>
+              <CountryDesignIcon name="ChevronDown" />
             </span>
-          </div>
-        </div>
-
-        <div style={cardStyle}>
-          <div style={{ ...iconStyle, background: "#f0fdf4", color: "#059669" }}>
-            <CheckCircle2 size={20} />
-          </div>
-          <div>
-            <small style={labelStyle}>Deposits Active</small>
-            <strong style={valueStyle}>{summary.paidCount}</strong>
-            <span style={{ fontSize: "11px", color: "#059669", fontWeight: 700 }}>Paid candidate files</span>
-          </div>
-        </div>
-
-        <div style={cardStyle}>
-          <div style={{ ...iconStyle, background: "#fffbeb", color: "#f59e0b" }}>
-            <AlertCircle size={20} />
-          </div>
-          <div>
-            <small style={labelStyle}>Pending / Due</small>
-            <strong style={valueStyle}>{summary.pendingCount}</strong>
-            <span style={{ fontSize: "11px", color: "#f59e0b", fontWeight: 700 }}>Awaiting 1st deposit</span>
-          </div>
-        </div>
-      </section>
-
-      {/* Filters Section */}
-      <section style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "16px", padding: "18px 22px", marginBottom: "18px", boxShadow: "var(--shadow)" }}>
-        <form onSubmit={applySearch} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px", alignItems: "flex-end" }}>
-          <label style={filterLabelStyle}>
-            Search Candidate
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Name, phone, passport or file no..."
-              style={inputStyle}
-            />
+            <span className="country-design-select">
+              <select aria-label="Payment status" value={status} onChange={(e) => setStatus(e.target.value)}>
+                <option value="">All Statuses</option>
+                {result.data?.filters.statuses.map((item) => <option key={item} value={item}>{item}</option>)}
+              </select>
+              <CountryDesignIcon name="ChevronDown" />
+            </span>
+            <button data-action-ui="primary" data-action-size="normal" className="payment-design-filter-action" type="submit">Apply</button>
+            <button data-action-ui="neutral" data-action-size="normal" className="payment-design-filter-action" type="button" onClick={clearFilters}>Clear</button>
+          </form>
+          <label className="country-design-page-size">
+            Per Page:
+            <span className="country-design-select">
+              <select aria-label="Payment accounts per page" value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}>
+                <option value="10">10</option><option value="20">20</option><option value="50">50</option>
+              </select>
+              <CountryDesignIcon name="ChevronDown" />
+            </span>
           </label>
-
-          <label style={filterLabelStyle}>
-            Target Country
-            <select value={country} onChange={(e) => setCountry(e.target.value)} style={inputStyle}>
-              <option value="">All Countries</option>
-              {result.data?.filters.countries.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label style={filterLabelStyle}>
-            Payment Status
-            <select value={status} onChange={(e) => setStatus(e.target.value)} style={inputStyle}>
-              <option value="">All Statuses</option>
-              {result.data?.filters.statuses.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div style={{ display: "flex", gap: "8px" }}>
-            <button
-              type="submit"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "0 20px",
-                height: "40px",
-                borderRadius: "10px",
-                background: "#7258e8",
-                color: "#fff",
-                border: "none",
-                fontSize: "12px",
-                fontWeight: 700,
-                cursor: "pointer",
-                boxShadow: "0 2px 6px rgba(114,88,232,0.25)",
-              }}
-            >
-              <Search size={15} /> Apply
-            </button>
-            <button
-              type="button"
-              onClick={clearFilters}
-              style={{
-                padding: "0 16px",
-                height: "40px",
-                borderRadius: "10px",
-                background: "#f1f5f9",
-                border: "1px solid var(--line)",
-                color: "var(--muted)",
-                fontSize: "12px",
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              Clear
-            </button>
-          </div>
-        </form>
-      </section>
-
-      {/* Main Table Section */}
-      <section
-        style={{
-          background: "#fff",
-          border: "1px solid var(--line)",
-          borderRadius: "16px",
-          padding: "18px 22px",
-          boxShadow: "var(--shadow)",
-          position: "relative",
-          minHeight: "380px",
-        }}
-      >
-        {result.isFetching && (
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              height: "3px",
-              background: "linear-gradient(90deg, #7258e8, #a855f7, #7258e8)",
-              backgroundSize: "200% 100%",
-              animation: "loading-bar 1s infinite linear",
-              borderTopLeftRadius: "16px",
-              borderTopRightRadius: "16px",
-              zIndex: 10,
-            }}
-          />
-        )}
-
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", flexWrap: "wrap", gap: "10px" }}>
-          <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 600 }}>
-            Showing <b>{meta.total ? (page - 1) * pageSize + 1 : 0}</b> to <b>{Math.min(page * pageSize, meta.total)}</b> of <b>{meta.total}</b> candidate accounts
-          </span>
-
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 600 }}>Rows per page:</span>
-            <select
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(Number(e.target.value));
-                setPage(1);
-              }}
-              style={{
-                height: "32px",
-                padding: "0 8px",
-                borderRadius: "8px",
-                border: "1px solid var(--line)",
-                fontSize: "12px",
-                fontWeight: 700,
-                background: "#fafafd",
-              }}
-            >
-              <option value="10">10</option>
-              <option value="20">20</option>
-              <option value="50">50</option>
-            </select>
-          </div>
         </div>
+        {result.isFetching && <div className="payment-design-loading" role="status" aria-label="Loading payment accounts" />}
+        <div className="country-design-count">
+          Showing {meta.total ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, meta.total)} of {meta.total} candidate accounts
+        </div>
+        {result.isError && <div className="payment-design-error" role="alert">Payment collection could not be loaded.</div>}
 
-        {result.isError && <div className="form-error">Payment collection could not be loaded.</div>}
-
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
+        <div className="desktop-payment-table country-design-table payment-design-table">
+          <table>
+            <colgroup>{[50, 245, 130, 120, 145, 90, 145, 140, 120, 155].map((width, index) => <col key={index} style={{ width }} />)}</colgroup>
             <thead>
-              <tr style={{ background: "#f8fafc", borderBottom: "1px solid var(--line)", color: "var(--muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                <th style={{ padding: "12px 14px", width: "50px" }}>SL</th>
-                <th style={{ padding: "12px 14px" }}>Client Information</th>
-                <th style={{ padding: "12px 14px" }}>Processing Stage</th>
-                <th style={{ padding: "12px 14px" }}>Payment Status</th>
-                <th style={{ padding: "12px 14px" }}>Paid (BDT)</th>
-                <th style={{ padding: "12px 14px" }}>Refunded</th>
-                <th style={{ padding: "12px 14px" }}>Net Paid</th>
-                <th style={{ padding: "12px 14px" }}>Employer / Company</th>
-                <th style={{ padding: "12px 14px" }}>Profession</th>
-                <th style={{ padding: "12px 14px" }}>Actions</th>
-              </tr>
+              <tr>{["SL", "Client Information", "Processing Stage", "Payment Status", "Paid (BDT)", "Refunded", "Net Paid", "Employer / Company", "Profession", "Actions"].map((heading) => <th key={heading} scope="col">{heading}</th>)}</tr>
             </thead>
             <tbody style={{ opacity: result.isFetching ? 0.75 : 1, transition: "opacity 0.15s ease" }}>
               {rows.map((row, index) => {
                 const isExpanded = expanded === row.id;
+                const due = row.dueAmount ?? Math.max(0, (row.totalPackage || 350000) - row.paid);
+                const advance = row.advanceAmount ?? Math.max(0, row.paid - (row.totalPackage || 350000));
+                const paymentTone = row.advanceAmount && row.advanceAmount > 0 ? "advance" : row.paymentStatus === "PAID" ? "paid" : row.paymentStatus === "PARTIAL" ? "partial" : "pending";
                 return (
                   <Fragment key={row.id}>
-                    <tr
-                      style={{
-                        borderBottom: isExpanded ? "none" : "1px solid var(--line)",
-                        transition: "background 0.15s ease",
-                        background: isExpanded ? "#faf9ff" : "transparent",
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isExpanded) e.currentTarget.style.background = "#fcfaff";
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isExpanded) e.currentTarget.style.background = "transparent";
-                      }}
-                    >
-                      <td style={{ padding: "12px 14px", color: "var(--muted)", fontWeight: 600 }}>
-                        {(page - 1) * pageSize + index + 1}
-                      </td>
-
-                      <td style={{ padding: "12px 14px" }}>
-                        <div style={{ fontWeight: 800, color: "var(--ink)", fontSize: "13px" }}>{row.name}</div>
-                        <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>
-                          Phone: <b>{row.phone}</b> · Country: <b>{row.country}</b>
-                        </div>
-                        <div style={{ fontSize: "11px", color: "#7258e8", marginTop: "1px" }}>
-                          File: <Link prefetch={true} href={`/file/${row.id}`} style={{ fontWeight: 700, textDecoration: "underline" }}>{row.fileNo}</Link> · PP: {row.passport}
+                    <tr className={isExpanded ? "payment-design-expanded" : undefined}>
+                      <td className="country-design-serial">{(page - 1) * pageSize + index + 1}</td>
+                      <td>
+                        <div className="country-design-cell client payment-design-client">
+                          <b>{row.name}</b>
+                          <small>{row.phone} · {row.country}</small>
+                          <Link prefetch={true} href={`/file/${row.id}`} className="country-design-candidate-id">{row.fileNo}</Link>
+                          <small>PP: {row.passport}</small>
                         </div>
                       </td>
-
-                      <td style={{ padding: "12px 14px" }}>
-                        <span
-                          style={{
-                            display: "inline-block",
-                            padding: "3px 8px",
-                            borderRadius: "6px",
-                            fontSize: "11px",
-                            fontWeight: 800,
-                            background: "#f0edff",
-                            color: "#7258e8",
-                            border: "1px solid #dcd5fb",
-                          }}
-                        >
-                          {row.currentStage}
-                        </span>
-                      </td>
-
-                      <td style={{ padding: "12px 14px", verticalAlign: "middle" }}>
-                        <span
-                          style={{
-                            display: "inline-block",
-                            padding: "3px 8px",
-                            borderRadius: "6px",
-                            fontSize: "11px",
-                            fontWeight: 800,
-                            background:
-                              row.advanceAmount && row.advanceAmount > 0
-                                ? "#f5f3ff"
-                                : row.paymentStatus === "PAID"
-                                ? "#ecfdf5"
-                                : row.paymentStatus === "PARTIAL"
-                                ? "#eff6ff"
-                                : "#fffbeb",
-                            color:
-                              row.advanceAmount && row.advanceAmount > 0
-                                ? "#7c3aed"
-                                : row.paymentStatus === "PAID"
-                                ? "#059669"
-                                : row.paymentStatus === "PARTIAL"
-                                ? "#2563eb"
-                                : "#d97706",
-                            border: `1px solid ${
-                              row.advanceAmount && row.advanceAmount > 0
-                                ? "#ddd6fe"
-                                : row.paymentStatus === "PAID"
-                                ? "#a7f3d0"
-                                : row.paymentStatus === "PARTIAL"
-                                ? "#bfdbfe"
-                                : "#fde68a"
-                            }`,
-                          }}
-                        >
-                          {row.advanceAmount && row.advanceAmount > 0 ? "ADVANCE" : row.paymentStatus}
-                        </span>
-                      </td>
-
-                      <td style={{ padding: "12px 14px", verticalAlign: "middle" }}>
-                        <div style={{ fontWeight: 800, color: "#059669", fontSize: "13px" }}>
-                          {money(row.paid)}
-                        </div>
-                        {(row.dueAmount ?? Math.max(0, (row.totalPackage || 350000) - row.paid)) > 0 ? (
-                          <span
-                            style={{
-                              display: "inline-block",
-                              marginTop: "2px",
-                              fontSize: "10px",
-                              fontWeight: 800,
-                              padding: "1px 5px",
-                              borderRadius: "4px",
-                              background: "#fff1f2",
-                              color: "#e11d48",
-                              border: "1px solid #fecdd3",
-                            }}
-                          >
-                            Due: ৳ {(row.dueAmount ?? Math.max(0, (row.totalPackage || 350000) - row.paid)).toLocaleString()}
-                          </span>
-                        ) : (row.advanceAmount ?? Math.max(0, row.paid - (row.totalPackage || 350000))) > 0 ? (
-                          <span
-                            style={{
-                              display: "inline-block",
-                              marginTop: "2px",
-                              fontSize: "10px",
-                              fontWeight: 800,
-                              padding: "1px 5px",
-                              borderRadius: "4px",
-                              background: "#f5f3ff",
-                              color: "#7c3aed",
-                              border: "1px solid #ddd6fe",
-                            }}
-                          >
-                            + ৳ {(row.advanceAmount ?? Math.max(0, row.paid - (row.totalPackage || 350000))).toLocaleString()} Adv
-                          </span>
-                        ) : (
-                          <span
-                            style={{
-                              display: "inline-block",
-                              marginTop: "2px",
-                              fontSize: "10px",
-                              fontWeight: 800,
-                              padding: "1px 5px",
-                              borderRadius: "4px",
-                              background: "#ecfdf5",
-                              color: "#059669",
-                              border: "1px solid #a7f3d0",
-                            }}
-                          >
-                            ✓ Fully Paid
-                          </span>
-                        )}
-                      </td>
-
-                      <td style={{ padding: "12px 14px", color: row.refunded ? "#ef4444" : "var(--muted)", fontWeight: 600, verticalAlign: "middle" }}>
-                        {money(row.refunded)}
-                      </td>
-
-                      <td style={{ padding: "12px 14px", fontWeight: 800, color: "var(--ink)", verticalAlign: "middle" }}>
-                        <div>{money(row.netPaid)}</div>
-                        <div style={{ fontSize: "10px", color: "var(--muted)", fontWeight: 600, marginTop: "2px" }}>
-                          Pkg: ৳ {(row.totalPackage || 350000).toLocaleString()}
+                      <td><span className={`country-design-stage payment-design-stage ${/flight/i.test(row.currentStage) ? "flight" : ""}`}>{row.currentStage}</span></td>
+                      <td><span className={`country-design-status payment-design-status ${paymentTone}`}>{row.advanceAmount && row.advanceAmount > 0 ? "ADVANCE" : row.paymentStatus}</span></td>
+                      <td>
+                        <div className="country-design-cell financial payment-design-financial">
+                          <b>{money(row.paid)}</b>
+                          {due > 0 ? <span className="country-design-due">Due: ৳ {due.toLocaleString()}</span> : advance > 0 ? <span className="country-design-due payment-design-advance">+ ৳ {advance.toLocaleString()} Adv</span> : <span className="country-design-status">✓ Fully Paid</span>}
                         </div>
                       </td>
-
-                      <td style={{ padding: "12px 14px", color: "var(--ink)", fontWeight: 600 }}>
-                        {row.company}
-                      </td>
-
-                      <td style={{ padding: "12px 14px", color: "var(--muted)", fontWeight: 600 }}>
-                        {row.profession}
-                      </td>
-
-                      <td style={{ padding: "12px 14px" }}>
-                        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                          <button
-                            type="button"
-                            onClick={() => {
+                      <td><span className={`payment-design-refunded ${row.refunded ? "has-refund" : ""}`}>{money(row.refunded)}</span></td>
+                      <td><div className="country-design-cell financial"><b>{money(row.netPaid)}</b><small>Pkg: ৳ {(row.totalPackage || 350000).toLocaleString()}</small></div></td>
+                      <td><div className="country-design-cell"><b>{row.company}</b></div></td>
+                      <td><div className="country-design-cell"><b>{row.profession}</b></div></td>
+                      <td>
+                        <div className="payment-design-row-actions">
+                          <button data-action-ui="success" data-action-size="compact" type="button" className="country-design-dossier" onClick={() => {
                               setSelectedFile(row);
                               setPaymentType(row.paid > 0 ? "Second Payment (Visa Fee)" : "First Payment Deposit");
                               setCollectAmount(row.paid > 0 ? 150000 : 50000);
@@ -690,48 +375,11 @@ export function PaymentCollectionPage() {
                               setReferenceNo(`REC-${Math.floor(100000 + Math.random() * 900000)}`);
                               setNotes("");
                               setPaymentReceiptFile(null);
-                            }}
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px",
-                              padding: "5px 10px",
-                              borderRadius: "7px",
-                              background: "#7258e8",
-                              color: "#fff",
-                              fontSize: "11px",
-                              fontWeight: 700,
-                              border: "none",
-                              cursor: "pointer",
-                              boxShadow: "0 2px 4px rgba(114,88,232,0.2)",
-                            }}
-                          >
-                            <Plus size={12} /> Collect
-                          </button>
-
-                          <Link
-                            prefetch={true}
-                            href={`/file/${row.id}`}
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px",
-                              padding: "5px 8px",
-                              borderRadius: "7px",
-                              background: "#f1f5f9",
-                              border: "1px solid var(--line)",
-                              color: "var(--ink)",
-                              fontSize: "11px",
-                              fontWeight: 700,
-                              textDecoration: "none",
-                            }}
-                          >
-                            <Eye size={12} /> Dossier
-                          </Link>
+                            }}>+ Collect</button>
+                          <Link data-action-ui="secondary" data-action-size="compact" prefetch={true} href={`/file/${row.id}`} className="country-design-dossier payment-design-dossier">Dossier →</Link>
                         </div>
                       </td>
                     </tr>
-
                     {/* Detailed info expander */}
                     {isExpanded && (
                       <tr style={{ background: "#faf9ff", borderBottom: "1px solid var(--line)" }}>
@@ -750,57 +398,191 @@ export function PaymentCollectionPage() {
                   </Fragment>
                 );
               })}
-
-              {!rows.length && !result.isFetching && (
-                <tr>
-                  <td colSpan={10} style={{ padding: "40px", textAlign: "center", color: "var(--muted)" }}>
-                    No payment collection records match the filter criteria.
-                  </td>
-                </tr>
-              )}
+              {!rows.length && !result.isFetching && <tr><td colSpan={10} className="country-design-empty">No payment collection records match the filter criteria.</td></tr>}
             </tbody>
           </table>
         </div>
 
-        {/* Pagination */}
-        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "8px", marginTop: "16px" }}>
-          <button
-            disabled={page <= 1}
-            onClick={() => setPage(page - 1)}
-            style={{
-              padding: "6px 12px",
-              borderRadius: "8px",
-              border: "1px solid var(--line)",
-              background: page <= 1 ? "#fafafd" : "#fff",
-              color: page <= 1 ? "var(--muted)" : "var(--ink)",
-              cursor: page <= 1 ? "not-allowed" : "pointer",
-            }}
-          >
-            <ChevronLeft size={16} />
-          </button>
-          <span style={{ fontSize: "12px", fontWeight: 700, padding: "0 8px" }}>
-            Page {page} of {meta.totalPages}
-          </span>
-          <button
-            disabled={page >= meta.totalPages}
-            onClick={() => setPage(page + 1)}
-            style={{
-              padding: "6px 12px",
-              borderRadius: "8px",
-              border: "1px solid var(--line)",
-              background: page >= meta.totalPages ? "#fafafd" : "#fff",
-              color: page >= meta.totalPages ? "var(--muted)" : "var(--ink)",
-              cursor: page >= meta.totalPages ? "not-allowed" : "pointer",
-            }}
-          >
-            <ChevronRight size={16} />
-          </button>
+        {/* Stitch Payment Collection Mobile Stream */}
+        <div className="mobile-payment-stream">
+          {rows.map((row) => (
+            <div key={row.id} className="payment-mobile-card">
+              {/* Top Row: Candidate Name, Phone, Country, Status Badge */}
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" }}>
+                <div>
+                  <h3 style={{ fontSize: "14px", fontWeight: 800, color: "var(--ink)", margin: 0 }}>
+                    {row.name}
+                  </h3>
+                  <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span>{row.phone}</span>
+                    <span>•</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "3px" }}>
+                      <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#10b981" }} />
+                      {row.country}
+                    </span>
+                  </div>
+                </div>
+
+                <span
+                  style={{
+                    display: "inline-block",
+                    padding: "3px 8px",
+                    borderRadius: "6px",
+                    fontSize: "10.5px",
+                    fontWeight: 800,
+                    textTransform: "uppercase",
+                    background:
+                      row.advanceAmount && row.advanceAmount > 0
+                        ? "#f5f3ff"
+                        : row.paymentStatus === "PAID"
+                        ? "#ecfdf5"
+                        : row.paymentStatus === "PARTIAL"
+                        ? "#eff6ff"
+                        : "#fffbeb",
+                    color:
+                      row.advanceAmount && row.advanceAmount > 0
+                        ? "#7c3aed"
+                        : row.paymentStatus === "PAID"
+                        ? "#059669"
+                        : row.paymentStatus === "PARTIAL"
+                        ? "#2563eb"
+                        : "#d97706",
+                    border: `1px solid ${
+                      row.advanceAmount && row.advanceAmount > 0
+                        ? "#ddd6fe"
+                        : row.paymentStatus === "PAID"
+                        ? "#a7f3d0"
+                        : row.paymentStatus === "PARTIAL"
+                        ? "#bfdbfe"
+                        : "#fde68a"
+                    }`,
+                  }}
+                >
+                  {row.advanceAmount && row.advanceAmount > 0 ? "ADVANCE" : row.paymentStatus}
+                </span>
+              </div>
+
+              {/* Secondary Candidate Meta: File, Stage, Employer, Profession */}
+              <div className="payment-mobile-meta-grid">
+                <div>
+                  <span style={{ fontSize: "9.5px", color: "var(--muted)", fontWeight: 700, textTransform: "uppercase", display: "block" }}>
+                    File Reference
+                  </span>
+                  <Link prefetch={true} href={`/file/${row.id}`} style={{ fontSize: "12px", fontWeight: 800, color: "#7258e8", textDecoration: "underline" }}>
+                    {row.fileNo}
+                  </Link>
+                </div>
+                <div>
+                  <span style={{ fontSize: "9.5px", color: "var(--muted)", fontWeight: 700, textTransform: "uppercase", display: "block" }}>
+                    Stage
+                  </span>
+                  <span style={{ display: "inline-block", padding: "2px 6px", borderRadius: "4px", fontSize: "10px", fontWeight: 800, background: "#dbeafe", color: "#1e40af" }}>
+                    {row.currentStage}
+                  </span>
+                </div>
+                <div style={{ gridColumn: "1 / -1", borderTop: "1px dashed #e2e8f0", paddingTop: "5px", display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
+                  <span style={{ color: "var(--muted)" }}>{row.company}</span>
+                  <span style={{ fontWeight: 700, color: "var(--ink)" }}>{row.profession}</span>
+                </div>
+              </div>
+
+              {/* Financial Snapshot Box */}
+              <div className="payment-mobile-snapshot">
+                <div>
+                  <span style={{ fontSize: "9.5px", fontWeight: 700, color: "#166534", textTransform: "uppercase", display: "block" }}>
+                    Net Paid (BDT)
+                  </span>
+                  <div style={{ fontSize: "15px", fontWeight: 900, color: "#15803d" }}>
+                    {money(row.paid)}
+                  </div>
+                  {(row.dueAmount ?? Math.max(0, (row.totalPackage || 350000) - row.paid)) > 0 ? (
+                    <span style={{ fontSize: "10px", color: "#dc2626", fontWeight: 700 }}>
+                      Due: ৳ {(row.dueAmount ?? Math.max(0, (row.totalPackage || 350000) - row.paid)).toLocaleString()}
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: "10px", color: "#7c3aed", fontWeight: 700 }}>
+                      + ৳ {(row.advanceAmount ?? Math.max(0, row.paid - (row.totalPackage || 350000))).toLocaleString()} Adv
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ textAlign: "right" }}>
+                  <span style={{ fontSize: "9.5px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", display: "block" }}>
+                    Package
+                  </span>
+                  <div style={{ fontSize: "12px", fontWeight: 800, color: "var(--ink)" }}>
+                    ৳ {(row.totalPackage || 350000).toLocaleString()}
+                  </div>
+                  {row.refunded > 0 && (
+                    <span style={{ fontSize: "10px", color: "#ef4444", fontWeight: 700 }}>
+                      Ref: {money(row.refunded)}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Mobile Actions: Collect & Dossier */}
+              <div className="payment-mobile-actions">
+                <button data-action-ui="success" data-action-size="normal"
+                  type="button"
+                  onClick={() => {
+                    setSelectedFile(row);
+                    setPaymentType(row.paid > 0 ? "Second Payment (Visa Fee)" : "First Payment Deposit");
+                    setCollectAmount(row.paid > 0 ? 150000 : 50000);
+                    setPaymentMethod("Cash at Office");
+                    setReferenceNo(`REC-${Math.floor(100000 + Math.random() * 900000)}`);
+                    setNotes("");
+                    setPaymentReceiptFile(null);
+                  }}
+                  style={{
+                    background: "#7258e8",
+                    color: "#ffffff",
+                    border: "none",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    boxShadow: "0 2px 6px rgba(114, 88, 232, 0.25)",
+                  }}
+                >
+                  <Plus size={14} /> Collect
+                </button>
+
+                <Link
+                  prefetch={true}
+                  href={`/file/${row.id}`}
+                  style={{
+                    background: "#f1f5f9",
+                    color: "var(--ink)",
+                    border: "1px solid var(--line)",
+                    fontWeight: 700,
+                  }}
+                >
+                  <Eye size={14} /> Dossier
+                </Link>
+              </div>
+            </div>
+          ))}
+
+          {!rows.length && !result.isFetching && (
+            <div style={{ padding: "30px 16px", textAlign: "center", color: "var(--muted)", background: "#ffffff", borderRadius: "12px", border: "1px solid var(--line)" }}>
+              No payment collection records match the filter criteria.
+            </div>
+          )}
+        </div>
+
+        <div className="country-design-pagination">
+          <span>{meta.total} Total Candidate Accounts</span>
+          <div>
+            <button data-action-ui="neutral" data-action-size="normal" type="button" disabled={page <= 1} onClick={() => setPage(page - 1)}>← Previous</button>
+            <span className="country-design-page-indicator">Page {page} of {meta.totalPages}</span>
+            <button data-action-ui="neutral" data-action-size="normal" type="button" disabled={page >= meta.totalPages} onClick={() => setPage(page + 1)}>Next →</button>
+          </div>
         </div>
       </section>
 
       {/* Unified Candidate Payment Deposits & Financial Receipts Modal (2-Column Agent Pay Design) */}
       {selectedFile && (
-        <div
+        <div role="dialog" aria-modal="true" aria-label="Candidate Payment Deposits & Financial Receipts"
+          className="app-modal-overlay payment-modal-overlay master-modal-overlay"
           style={{
             position: "fixed",
             inset: 0,
@@ -815,7 +597,7 @@ export function PaymentCollectionPage() {
           onClick={() => !savingPayment && setSelectedFile(null)}
         >
           <div
-            className="modal-responsive-card"
+            className="modal-responsive-card payment-modal-card master-modal-card master-modal-panel"
             style={{
               background: "#ffffff",
               borderRadius: "20px",
@@ -833,6 +615,7 @@ export function PaymentCollectionPage() {
           >
             {/* Modal Header */}
             <div
+              className="payment-modal-header master-modal-header"
               style={{
                 display: "flex",
                 justifyContent: "space-between",
@@ -855,8 +638,8 @@ export function PaymentCollectionPage() {
                 </p>
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <button
+              <div className="payment-modal-header-actions" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <button data-action-ui="neutral" data-action-size="normal" className="master-modal-secondary"
                   type="button"
                   onClick={() => {
                     if (selectedFile.payments && selectedFile.payments.length > 0) {
@@ -894,7 +677,7 @@ export function PaymentCollectionPage() {
                   <Printer size={13} /> Print Money Receipt
                 </button>
 
-                <button
+                <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog" className="master-modal-close"
                   type="button"
                   onClick={() => !savingPayment && setSelectedFile(null)}
                   style={{
@@ -916,6 +699,7 @@ export function PaymentCollectionPage() {
 
             {/* Stage Guidance Banner */}
             <div
+              className="payment-modal-guidance master-modal-panel"
               style={{
                 background: "#f5f3ff",
                 border: "1px solid #ddd6fe",
@@ -937,9 +721,9 @@ export function PaymentCollectionPage() {
             {/* 2-Column Grid: Left Form & Right Financial Ledger */}
             <div className="modal-2col-grid">
               {/* LEFT COLUMN: Payment Form */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              <div className="payment-modal-form-column" style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
                 {/* Target Candidate Card */}
-                <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "12px 14px" }}>
+                <div className="payment-modal-target master-modal-panel" style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "12px 14px" }}>
                   <small style={{ fontSize: "10.5px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
                     TARGET CANDIDATE
                   </small>
@@ -956,7 +740,7 @@ export function PaymentCollectionPage() {
                   </div>
                 </div>
 
-                <form onSubmit={handleSavePayment} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                <form className="payment-modal-form" onSubmit={handleSavePayment} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
                   {/* Payment Title / Purpose */}
                   <div>
                     <label style={{ fontSize: "11.5px", fontWeight: 800, color: "var(--muted)", display: "block", marginBottom: "4px" }}>
@@ -982,7 +766,7 @@ export function PaymentCollectionPage() {
                   </div>
 
                   {/* Deposit Amount (BDT) & Payment Method */}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div className="payment-modal-field-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                     <div>
                       <label style={{ fontSize: "11.5px", fontWeight: 800, color: "var(--muted)", display: "block", marginBottom: "4px" }}>
                         Deposit Amount (BDT) *
@@ -1059,7 +843,7 @@ export function PaymentCollectionPage() {
 
                   {/* Attach Bank Slip / Deposit Voucher (Optional) */}
                   <div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                    <div className="payment-upload-meta" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
                       <label style={{ fontSize: "11.5px", fontWeight: 800, color: "var(--muted)", display: "flex", alignItems: "center", gap: "4px" }}>
                         <Paperclip size={13} className="text-indigo-600" /> Attach Bank Slip / Deposit Voucher (Optional)
                       </label>
@@ -1078,7 +862,7 @@ export function PaymentCollectionPage() {
                     />
 
                     {paymentReceiptFile ? (
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "#f0fdf4", border: "1px solid #a7f3d0", borderRadius: "10px" }}>
+                      <div className="master-modal-panel" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "#f0fdf4", border: "1px solid #a7f3d0", borderRadius: "10px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                           <FileText size={18} className="text-emerald-600" />
                           <div>
@@ -1089,14 +873,14 @@ export function PaymentCollectionPage() {
                           </div>
                         </div>
                         <div style={{ display: "flex", gap: "6px" }}>
-                          <button
+                          <button data-action-ui="secondary" data-action-size="normal"
                             type="button"
                             onClick={() => paymentFileInputRef.current?.click()}
                             style={{ padding: "4px 8px", borderRadius: "4px", background: "#ffffff", border: "1px solid #e2e8f0", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}
                           >
                             Replace
                           </button>
-                          <button
+                          <button data-action-ui="danger" data-action-size="icon" aria-label="Remove attachment" className="master-modal-close"
                             type="button"
                             onClick={() => setPaymentReceiptFile(null)}
                             style={{ padding: "4px 6px", borderRadius: "4px", background: "#fff1f2", color: "#e11d48", border: "none", cursor: "pointer" }}
@@ -1107,6 +891,7 @@ export function PaymentCollectionPage() {
                       </div>
                     ) : (
                       <div
+                        className="payment-upload-dropzone master-modal-panel"
                         onClick={() => paymentFileInputRef.current?.click()}
                         style={{
                           border: "1.5px dashed #cbd5e1",
@@ -1120,7 +905,7 @@ export function PaymentCollectionPage() {
                         }}
                       >
                         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                          <div style={{ width: "34px", height: "34px", borderRadius: "8px", background: "#f0edff", color: "#7258e8", display: "grid", placeItems: "center" }}>
+                          <div className="master-modal-accent master-modal-icon" style={{ width: "34px", height: "34px", borderRadius: "8px", background: "#f0edff", color: "#7258e8", display: "grid", placeItems: "center" }}>
                             <UploadCloud size={18} />
                           </div>
                           <div>
@@ -1128,7 +913,7 @@ export function PaymentCollectionPage() {
                             <small style={{ fontSize: "10.5px", color: "var(--muted)" }}>Optional physical scan attachment for candidate dossier</small>
                           </div>
                         </div>
-                        <button
+                        <button data-action-ui="secondary" data-action-size="normal"
                           type="button"
                           style={{
                             padding: "6px 12px",
@@ -1169,7 +954,8 @@ export function PaymentCollectionPage() {
                   </div>
 
                   {/* Submit Button */}
-                  <button
+                  <button data-action-ui="success" data-action-size="normal"
+                    className="payment-modal-submit master-modal-primary"
                     type="submit"
                     disabled={savingPayment}
                     style={{
@@ -1200,7 +986,7 @@ export function PaymentCollectionPage() {
               </div>
 
               {/* RIGHT COLUMN: Financial Ledger */}
-              <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "14px", padding: "18px", display: "flex", flexDirection: "column", gap: "14px" }}>
+              <div className="payment-modal-ledger master-modal-panel" style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "14px", padding: "18px", display: "flex", flexDirection: "column", gap: "14px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                   <Layers size={15} style={{ color: "var(--muted)" }} />
                   <span style={{ fontSize: "12px", fontWeight: 900, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
@@ -1210,6 +996,7 @@ export function PaymentCollectionPage() {
 
                 {/* Balance Big Banner */}
                 <div
+                  className="payment-modal-balance master-modal-panel"
                   style={{
                     background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)",
                     border: "1px solid #bbf7d0",
@@ -1234,7 +1021,7 @@ export function PaymentCollectionPage() {
                           Due: ৳ {(selectedFile.dueAmount ?? Math.max(0, (selectedFile.totalPackage || (/dubai/i.test(selectedFile.country) ? 300000 : 350000)) - selectedFile.paid)).toLocaleString()}
                         </span>
                       ) : (selectedFile.advanceAmount ?? Math.max(0, selectedFile.paid - (selectedFile.totalPackage || (/dubai/i.test(selectedFile.country) ? 300000 : 350000)))) > 0 ? (
-                        <span style={{ fontWeight: 800, color: "#7c3aed", background: "#f5f3ff", padding: "1px 6px", borderRadius: "4px", border: "1px solid #ddd6fe" }}>
+                        <span className="master-modal-accent" style={{ fontWeight: 800, color: "#7c3aed", background: "#f5f3ff", padding: "1px 6px", borderRadius: "4px", border: "1px solid #ddd6fe" }}>
                           ● Advance Extra: + ৳ {(selectedFile.advanceAmount ?? Math.max(0, selectedFile.paid - (selectedFile.totalPackage || (/dubai/i.test(selectedFile.country) ? 300000 : 350000)))).toLocaleString()} BDT
                         </span>
                       ) : (
@@ -1245,16 +1032,17 @@ export function PaymentCollectionPage() {
                     </div>
                   </div>
 
-                  <div style={{ width: "42px", height: "42px", borderRadius: "12px", background: "#bbf7d0", color: "#15803d", display: "grid", placeItems: "center", fontSize: "20px", fontWeight: 900 }}>
+                  <div className="master-modal-icon" style={{ width: "42px", height: "42px", borderRadius: "12px", background: "#bbf7d0", color: "#15803d", display: "grid", placeItems: "center", fontSize: "20px", fontWeight: 900 }}>
                     $
                   </div>
                 </div>
 
                 {/* List of Previous Receipts */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "320px", overflowY: "auto" }}>
+                <div className="payment-receipt-list" style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "320px", overflowY: "auto" }}>
                   {selectedFile.payments && selectedFile.payments.length > 0 ? (
                     selectedFile.payments.map((p, pIdx) => (
                       <div
+                        className="payment-receipt-row master-modal-panel"
                         key={p.id || pIdx}
                         style={{
                           display: "flex",
@@ -1269,7 +1057,7 @@ export function PaymentCollectionPage() {
                         <div>
                           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                             <b style={{ fontSize: "12.5px", color: "var(--ink)" }}>{p.type || `Payment #${pIdx + 1}`}</b>
-                            <button
+                            <button data-action-ui="neutral" data-action-size="compact" className="master-modal-secondary"
                               type="button"
                               onClick={() => openPrintReceipt(p, selectedFile)}
                               style={{
@@ -1321,63 +1109,6 @@ export function PaymentCollectionPage() {
     </div>
   );
 }
-
-const cardStyle: React.CSSProperties = {
-  background: "#fff",
-  border: "1px solid var(--line)",
-  borderRadius: "14px",
-  padding: "16px 18px",
-  display: "flex",
-  alignItems: "center",
-  gap: "14px",
-  boxShadow: "var(--shadow)",
-};
-
-const iconStyle: React.CSSProperties = {
-  width: "42px",
-  height: "42px",
-  borderRadius: "12px",
-  display: "grid",
-  placeItems: "center",
-  flexShrink: 0,
-};
-
-const labelStyle: React.CSSProperties = {
-  fontSize: "11px",
-  color: "var(--muted)",
-  fontWeight: 700,
-  textTransform: "uppercase",
-  letterSpacing: "0.3px",
-  display: "block",
-};
-
-const valueStyle: React.CSSProperties = {
-  fontSize: "20px",
-  fontWeight: 800,
-  color: "var(--ink)",
-  display: "block",
-  margin: "2px 0",
-};
-
-const filterLabelStyle: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "6px",
-  fontSize: "12px",
-  fontWeight: 700,
-  color: "var(--ink)",
-};
-
-const inputStyle: React.CSSProperties = {
-  height: "40px",
-  padding: "0 12px",
-  borderRadius: "10px",
-  border: "1px solid var(--line)",
-  background: "#fafafd",
-  fontSize: "13px",
-  color: "var(--ink)",
-  outline: "none",
-};
 
 const money = (value: number) => `৳ ${Number(value || 0).toLocaleString()}`;
 const date = (value: string | null) => (value ? new Date(value).toLocaleDateString("en-GB") : "—");

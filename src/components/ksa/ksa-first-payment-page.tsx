@@ -300,7 +300,7 @@ export function KsaFirstPaymentPage({
             />
           </div>
           <div className="first-payment-actions">
-            <button
+            <button data-action-ui="primary" data-action-size="normal"
               onClick={() => {
                 setApplied(filters);
                 setPage(1);
@@ -308,7 +308,7 @@ export function KsaFirstPaymentPage({
             >
               Apply
             </button>
-            <button
+            <button data-action-ui="neutral" data-action-size="normal"
               onClick={() => {
                 setFilters(blank);
                 setApplied(blank);
@@ -326,7 +326,7 @@ export function KsaFirstPaymentPage({
           </div>
         )}
         <div className="first-payment-toolbar">
-          <button onClick={download}>
+          <button data-action-ui="neutral" data-action-size="normal" onClick={download}>
             <Download size={16} />
             Download
           </button>
@@ -423,11 +423,11 @@ export function KsaFirstPaymentPage({
           </table>
         </div>
         <div className="ksa-pagination">
-          <button disabled={page <= 1} onClick={() => setPage(page - 1)}>
+          <button data-action-ui="secondary" data-action-size="icon" disabled={page <= 1} onClick={() => setPage(page - 1)}>
             <ChevronLeft size={16} />
           </button>
           <b>{page}</b>
-          <button
+          <button data-action-ui="secondary" data-action-size="icon"
             disabled={page >= meta.totalPages}
             onClick={() => setPage(page + 1)}
           >

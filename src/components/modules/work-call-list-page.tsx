@@ -259,13 +259,13 @@ export function WorkCallListPage() {
       <div className="page-head compact" style={{ marginBottom: "16px" }}>
         <div>
           <div className="breadcrumb" style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-            Call Center / Work Call List
+            Office Operations / Work Call List
           </div>
           <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--ink)", margin: "4px 0" }}>Work Call List</h1>
           <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0 }}>Search, filter and manage every recruitment lead across call operations.</p>
         </div>
         <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-          <button
+          <button data-action-ui="secondary" data-action-size="normal"
             onClick={downloadSample}
             style={{
               display: "inline-flex",
@@ -283,7 +283,7 @@ export function WorkCallListPage() {
           >
             <FileDown size={15} /> Sample CSV
           </button>
-          <button
+          <button data-action-ui="secondary" data-action-size="normal"
             disabled={importing}
             onClick={() => uploadRef.current?.click()}
             style={{
@@ -304,7 +304,7 @@ export function WorkCallListPage() {
           </button>
           <input ref={uploadRef} hidden type="file" accept=".csv,text/csv" onChange={(event) => void importCsv(event.target.files?.[0])} />
 
-          <Link
+          <Link data-action-ui="neutral" data-action-size="normal"
             prefetch={true}
             href={moduleItemPath("call-center", "Registration & Interviews")}
             style={{
@@ -324,7 +324,7 @@ export function WorkCallListPage() {
             <CalendarDays size={15} /> Interviews
           </Link>
 
-          <Link
+          <Link data-action-ui="primary" data-action-size="normal"
             prefetch={true}
             href={moduleItemPath("call-center", "Create Candidate")}
             style={{
@@ -370,7 +370,7 @@ export function WorkCallListPage() {
                 : "Not Interested";
 
             return (
-              <button
+              <button  
                 key={label}
                 type="button"
                 onClick={() => {
@@ -433,7 +433,7 @@ export function WorkCallListPage() {
         </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid var(--line)", paddingTop: "12px" }}>
-          <button
+          <button data-action-ui="neutral" data-action-size="normal"
             onClick={clear}
             style={{
               padding: "8px 18px",
@@ -448,7 +448,7 @@ export function WorkCallListPage() {
           >
             Clear Filters
           </button>
-          <button
+          <button data-action-ui="primary" data-action-size="normal"
             onClick={apply}
             style={{
               padding: "8px 22px",
@@ -528,7 +528,7 @@ export function WorkCallListPage() {
             />
           </form>
 
-          <button
+          <button data-action-ui="neutral" data-action-size="normal"
             onClick={downloadRows}
             style={{
               display: "inline-flex",
@@ -579,7 +579,7 @@ export function WorkCallListPage() {
                       <span>{(meta.page - 1) * meta.pageSize + index + 1}</span>
                     </td>
                     <td style={{ padding: "12px 14px" }}>
-                      <button
+                      <button data-action-ui="secondary" data-action-size="compact"
                         className="lead-detail-btn"
                         onClick={() => setSelectedLead(row)}
                         style={{
@@ -673,9 +673,9 @@ export function WorkCallListPage() {
               <option value="25">25 / page</option>
               <option value="50">50 / page</option>
             </select>
-            <button disabled={page <= 1} onClick={() => setPage(page - 1)}><ChevronLeft size={16} /></button>
-            <button className="current">{page}</button>
-            <button disabled={page >= meta.totalPages} onClick={() => setPage(page + 1)}><ChevronRight size={16} /></button>
+            <button data-action-ui="secondary" data-action-size="icon" disabled={page <= 1} onClick={() => setPage(page - 1)}><ChevronLeft size={16} /></button>
+            <button data-action-ui="secondary" data-action-size="normal" className="current">{page}</button>
+            <button data-action-ui="secondary" data-action-size="icon" disabled={page >= meta.totalPages} onClick={() => setPage(page + 1)}><ChevronRight size={16} /></button>
           </div>
         </div>
       </section>
@@ -798,9 +798,9 @@ function LeadDetailsModal({ lead, schedules, onUpdate, onClose }: { lead: WorkCa
   }
 
   return (
-    <div className="lead-modal-overlay" onClick={onClose}>
-      <div className="lead-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="lead-modal-header">
+    <div role="dialog" aria-modal="true" aria-label="⚡ Quick Status & Interview Update" className="lead-modal-overlay master-modal-overlay" onClick={onClose}>
+      <div className="lead-modal master-modal-card" onClick={(e) => e.stopPropagation()}>
+        <div className="lead-modal-header master-modal-header">
           <div>
             <div className="lead-badge-row">
               <span className="lead-no-tag">{lead.leadNo}</span>
@@ -811,17 +811,17 @@ function LeadDetailsModal({ lead, schedules, onUpdate, onClose }: { lead: WorkCa
             <p>Created on {dateFormatted(lead.createdAt)} · Assigned to <b>{lead.executive}</b></p>
           </div>
           <div className="lead-modal-actions">
-            <button
+            <button data-action-ui="primary" data-action-size="normal"
               type="button"
-              className="button success"
+              className="button success master-modal-primary"
               disabled={converting}
               onClick={handleConvertInModal}
               style={{ background: "#059669", color: "#ffffff", border: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}
             >
               <Sparkles size={15} /> {converting ? "Converting..." : "Convert to File"}
             </button>
-            <a href={phoneHref} className="lead-call-btn"><Phone size={15} /> Call Now</a>
-            <button className="lead-close-btn" onClick={onClose}><X size={20} /></button>
+            <a data-action-ui="secondary" data-action-size="normal" href={phoneHref} className="lead-call-btn"><Phone size={15} /> Call Now</a>
+            <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog" className="lead-close-btn master-modal-close" onClick={onClose}><X size={20} /></button>
           </div>
         </div>
 
@@ -882,7 +882,7 @@ function LeadDetailsModal({ lead, schedules, onUpdate, onClose }: { lead: WorkCa
               </label>
             </div>
             <div className="lead-edit-actions">
-              <button type="submit" disabled={saving} className="button primary">
+              <button data-action-ui="primary" data-action-size="normal" type="submit" disabled={saving} className="button primary master-modal-primary">
                 {saving ? "Saving..." : "Save & Update Lead Status"}
               </button>
             </div>
@@ -963,9 +963,9 @@ function LeadDetailsModal({ lead, schedules, onUpdate, onClose }: { lead: WorkCa
           </div>
         </div>
 
-        <div className="lead-modal-footer">
-          <button className="button secondary" onClick={onClose}>Close</button>
-          <a href={phoneHref} className="button primary"><Phone size={15} /> Direct Call ({lead.phone})</a>
+        <div className="lead-modal-footer master-modal-footer">
+          <button data-action-ui="neutral" data-action-size="normal" className="button secondary" onClick={onClose}>Close</button>
+          <a data-action-ui="primary" data-action-size="normal" href={phoneHref} className="button primary"><Phone size={15} /> Direct Call ({lead.phone})</a>
         </div>
       </div>
     </div>

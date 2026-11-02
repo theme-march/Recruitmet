@@ -1,0 +1,122 @@
+/* Candidate registration uses the country master list's typography and palette. */
+.candidate-create-design-page .country-design-actions a,
+.candidate-create-design-page .work-call-form :is(button, .candidate-create-section-header > a, .work-form-actions > a) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 17px;
+  background: #ebebed;
+  color: #1d1d1f;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  text-decoration: none;
+  box-shadow: none;
+  cursor: pointer;
+}
+.candidate-create-design-page .work-call-form { gap: 24px; min-width: 0; }
+.candidate-create-design-page .work-form-section {
+  padding: 20px;
+  min-width: 0;
+  border: 1px solid #e5e5ea;
+  border-radius: 18px;
+  background: white;
+  box-shadow: none;
+}
+.candidate-create-design-page .work-form-section h2 {
+  margin: 0 0 18px;
+  padding: 0 0 14px;
+  border-bottom: 1px solid #e5e5ea;
+  color: #1d1d1f;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+}
+.candidate-create-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e5e5ea;
+}
+.candidate-create-section-header.is-collapsed { margin: 0; padding: 0; border: 0; }
+.candidate-create-section-header > div:first-child { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; }
+.candidate-create-section-header > div:last-child { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.candidate-create-section-icon { display: grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0; border-radius: 10px; background: #eaf2ff; color: #007aff; }
+.candidate-create-design-page .candidate-create-section-header h2 { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; border: 0; margin: 0; padding: 0; }
+.candidate-create-section-header h2 > span { border-radius: 8px; padding: 3px 7px; background: #f2f2f7; color: #8e8e93; font-size: 10px; line-height: 12px; font-weight: 500; }
+.candidate-create-section-header p { margin: 5px 0 0; color: #6b6b73; font-size: 12px; line-height: 18px; }
+.candidate-create-interview > div:last-child:not(.candidate-create-section-header) { display: grid; gap: 18px; }
+.candidate-create-schedule { display: grid; gap: 10px; padding: 16px; border: 1px solid #e5e5ea; border-radius: 12px; background: #fafafb; min-width: 0; }
+.candidate-create-schedule > div { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+.candidate-create-schedule label { display: inline-flex; align-items: center; gap: 6px; color: #1d1d1f; font-size: 12px; font-weight: 600; }
+.candidate-create-design-page .work-call-form .candidate-create-schedule label { flex-direction: row; }
+.candidate-create-schedule label svg { color: #007aff !important; }
+.candidate-create-schedule span { color: #8e8e93; font-size: 11px; line-height: 16px; }
+.candidate-create-design-page .work-form-grid { gap: 18px 20px; }
+.candidate-create-design-page .work-call-form :is(label, .dynamic-field, .comment-group) { min-width: 0; }
+.candidate-create-design-page .work-call-form label { display: flex; flex-direction: column; gap: 8px; }
+.candidate-create-design-page .work-call-form :is(label > span, .dynamic-field > span, .comment-group > span) { color: #6b6b73; font-size: 12px; line-height: 16px; font-weight: 500; }
+.candidate-create-design-page .work-call-form sup { color: #ff3b30; }
+.candidate-create-design-page .work-call-form :is(input:not([type="file"]), select, textarea) {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid #e5e5ea;
+  border-radius: 10px;
+  background: white;
+  color: #1d1d1f;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  outline: none;
+  box-shadow: none;
+}
+.candidate-create-design-page .work-call-form :is(input, textarea)::placeholder { color: #8e8e93; opacity: 1; }
+.candidate-create-design-page .work-call-form :is(input[readonly], select:disabled) { background: #f5f5f7; color: #8e8e93; }
+.candidate-create-design-page .work-call-form :is(input, select, textarea):focus-visible { border-color: #007aff; outline: 2px solid #007aff; outline-offset: 2px; }
+.candidate-create-design-page .work-call-form label:has(> select[name="countrySelect"]) { grid-column: 1 / -1; }
+.candidate-create-design-page .work-call-form label > small { font-size: 11px; line-height: 16px; color: #8e8e93; }
+.candidate-create-design-page .dynamic-field { display: flex; flex-direction: column; gap: 8px; }
+.candidate-create-design-page .dynamic-field > button { align-self: flex-start; width: auto; }
+.candidate-create-photo { margin-bottom: 18px; }
+.candidate-create-photo > div { padding: 16px !important; gap: 14px !important; background: #fafafb !important; border-color: #e5e5ea !important; border-radius: 12px !important; }
+.candidate-create-photo > div > div:first-child { width: 64px !important; height: 64px !important; border: 0 !important; border-radius: 14px !important; background: #eaf2ff !important; color: #007aff !important; box-shadow: none !important; font-size: 20px !important; font-weight: 600 !important; }
+.candidate-create-design-page .candidate-create-photo button { height: 30px !important; min-height: 30px !important; padding: 0 12px !important; border: 0 !important; border-radius: 8px !important; background: #eaf2ff !important; color: #007aff !important; box-shadow: none !important; font-weight: 500 !important; }
+.candidate-create-design-page .candidate-create-photo button:has(.lucide-trash-2) { background: #fff2f0 !important; color: #ff3b30 !important; }
+.candidate-create-autofill, .candidate-create-agent-notice { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 8px; background: #e5f8eb; color: #248a3d; font-size: 11px; line-height: 16px; font-weight: 500; }
+.candidate-create-agent-notice { margin-top: 12px; }
+.candidate-create-agent-notice svg { flex-shrink: 0; }
+.candidate-create-design-page .comment-grid { gap: 20px; }
+.candidate-create-design-page .work-call-form textarea { min-height: 96px; height: auto; padding: 12px; line-height: 18px; resize: vertical; }
+.candidate-create-design-page .comment-group > button { align-self: flex-start; }
+.candidate-create-design-page .work-form-actions { position: sticky; bottom: 16px; z-index: 10; display: flex; justify-content: flex-end; gap: 8px; margin: 0; padding: 14px 20px; border: 1px solid #e5e5ea; border-radius: 18px; background: #f2f2f7; box-shadow: none; }
+.candidate-create-design-page .work-call-form button[type="submit"] { background: #007aff; color: white; }
+.candidate-create-design-page .work-call-form button:disabled { opacity: .6; cursor: not-allowed; }
+@media (max-width: 768px) {
+  .main main .candidate-create-design-page .work-call-form { gap: 16px; }
+  .main main .candidate-create-design-page .work-form-section { padding: 16px !important; border: 1px solid #e5e5ea !important; border-radius: 18px !important; box-shadow: none !important; }
+  .main main .candidate-create-design-page .work-form-section h2 { font-size: 14px !important; line-height: 20px !important; font-weight: 600 !important; }
+  .main main .candidate-create-design-page :is(.work-form-grid, .comment-grid) { grid-template-columns: minmax(0, 1fr); gap: 16px; padding: 0 !important; border: 0 !important; background: transparent !important; box-shadow: none !important; }
+  .candidate-create-section-header { align-items: flex-start; }
+  .candidate-create-section-header > div:first-child { flex-basis: 100%; align-items: flex-start; }
+  .main main .candidate-create-design-page .work-call-form :is(input:not([type="file"]), select, textarea) { min-height: 44px !important; height: 44px !important; padding: 0 12px !important; border: 1px solid #e5e5ea !important; border-radius: 10px !important; background: white !important; font-size: 13px !important; box-shadow: none !important; }
+  .main main .candidate-create-design-page .work-call-form :is(input[readonly], select:disabled) { background: #f5f5f7 !important; }
+  .main main .candidate-create-design-page .work-call-form textarea { height: auto !important; min-height: 96px !important; padding: 12px !important; }
+  .main main .candidate-create-design-page .work-call-form :is(button, .candidate-create-section-header > a, .work-form-actions > a),
+  .main main .candidate-create-design-page .country-design-actions a { min-height: 36px !important; height: auto !important; padding: 8px 12px !important; border: 0 !important; border-radius: 18px !important; background: #ebebed !important; color: #1d1d1f !important; font-size: 12px !important; font-weight: 500 !important; box-shadow: none !important; }
+  .main main .candidate-create-design-page .work-call-form button[type="submit"] { background: #007aff !important; color: white !important; }
+  .main main .candidate-create-design-page .work-form-actions { bottom: 68px !important; padding: 12px !important; margin-bottom: 74px !important; border: 1px solid #e5e5ea !important; box-shadow: none !important; }
+  .main main .candidate-create-design-page .candidate-create-photo > div { padding: 12px !important; align-items: flex-start !important; flex-wrap: wrap; }
+  .main main .candidate-create-design-page .candidate-create-photo button { background: #eaf2ff !important; color: #007aff !important; }
+  .candidate-create-schedule { padding: 12px; }
+}

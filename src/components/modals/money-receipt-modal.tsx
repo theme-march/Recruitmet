@@ -60,19 +60,19 @@ export function MoneyReceiptModal({
   const balanceRemaining = Math.max(0, totalPackage - totalPaid);
 
   return (
-    <div className="receipt-modal-overlay" onClick={onClose}>
-      <div className="receipt-modal-container" onClick={(e) => e.stopPropagation()}>
+    <div role="dialog" aria-modal="true" aria-label="ORBIT OVERSEAS RECRUITMENT" className="receipt-modal-overlay master-modal-overlay" onClick={onClose}>
+      <div className="receipt-modal-container master-modal-card" onClick={(e) => e.stopPropagation()}>
         {/* Action bar (Hidden when printing) */}
-        <div className="receipt-modal-actions no-print">
+        <div className="receipt-modal-actions no-print master-modal-header">
           <div className="flex items-center gap-2">
             <ShieldCheck size={18} className="text-emerald-600" />
             <span className="text-sm font-bold text-slate-700">Official Money Receipt Generator</span>
           </div>
           <div className="flex items-center gap-2">
-            <button className="button primary sm" onClick={handlePrint}>
+            <button data-action-ui="neutral" data-action-size="compact" className="button primary sm master-modal-secondary" onClick={handlePrint}>
               <Printer size={15} /> Print / Save PDF
             </button>
-            <button className="receipt-close-btn" onClick={onClose}>
+            <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog" className="receipt-close-btn master-modal-close" onClick={onClose}>
               <X size={18} />
             </button>
           </div>

@@ -11,10 +11,8 @@ import {
   Calendar,
   Camera,
   Check,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  CircleDot,
   Clock,
   Copy,
   CreditCard,
@@ -29,7 +27,6 @@ import {
   Globe,
   GraduationCap,
   History,
-  Layers,
   LayoutGrid,
   Mail,
   MapPin,
@@ -37,7 +34,6 @@ import {
   MessageSquare,
   Paperclip,
   Phone,
-  PhoneCall,
   Plane,
   Play,
   Plus,
@@ -49,7 +45,6 @@ import {
   ShieldAlert,
   ShieldCheck,
   Sparkles,
-  Table,
   UploadCloud,
   User,
   UserCheck,
@@ -67,6 +62,7 @@ import {
   MASTER_STAGES,
   getStageIcon,
   getDefaultStagesForCountry,
+  getCountryFlagEmoji,
 } from "@/lib/country-pipeline";
 import { parseStageDescription } from "@/components/modules/country-pipeline-detail";
 
@@ -364,13 +360,13 @@ function FileUploadField({
             </div>
           </div>
           <div className="file-actions-row">
-            <button type="button" className="btn-file-view" onClick={onPreview}>
+            <button data-action-ui="secondary" data-action-size="compact" type="button" className="btn-file-view" onClick={onPreview}>
               <Eye size={14} /> View File
             </button>
-            <button type="button" className="btn-file-change" onClick={() => inputRef.current?.click()}>
+            <button data-action-ui="secondary" data-action-size="compact" type="button" className="btn-file-change" onClick={() => inputRef.current?.click()}>
               Replace
             </button>
-            <button type="button" className="btn-file-remove" onClick={onRemove} title="Remove File">
+            <button data-action-ui="danger" data-action-size="icon" type="button" className="btn-file-remove" onClick={onRemove} title="Remove File">
               <X size={14} />
             </button>
           </div>
@@ -385,7 +381,7 @@ function FileUploadField({
               <strong>Click to upload or drag &amp; drop document scan</strong>
               <span>Optional physical scan attachment for candidate dossier</span>
             </div>
-            <span className="btn-browse-file">Browse File</span>
+            <span data-action-ui="secondary" data-action-size="normal" className="btn-browse-file">Browse File</span>
           </div>
         </div>
       )}
@@ -430,6 +426,7 @@ export function FileProcessingWorkspace({
   
   // Modals state
   const [saving, setSaving] = useState(false);
+  const [profilePhotoFailed, setProfilePhotoFailed] = useState(false);
   const [showHoldModal, setShowHoldModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [showEditBioModal, setShowEditBioModal] = useState(false);
@@ -529,6 +526,9 @@ export function FileProcessingWorkspace({
   });
 
   const file = query.data;
+  useEffect(() => {
+    setProfilePhotoFailed(false);
+  }, [file?.candidate.photo, file?.candidate.updatedAt]);
   const canEditFile = allows("files", "edit") || allows(countryModule(file?.country ?? ""), "edit");
   const stages = useMemo(() => {
     if (!file) return otherStages;
@@ -793,8 +793,8 @@ export function FileProcessingWorkspace({
     return (
       <div className="p-8 text-center bg-rose-50 border border-rose-200 rounded-xl m-8">
         <p className="text-rose-600 font-bold mb-4">Could not load candidate processing file record.</p>
-        <Link href="/module/call-center/work-call-list" className="button primary sm">
-          <ArrowLeft size={14} /> Back to Call Center Leads
+        <Link data-action-ui="neutral" data-action-size="compact" href="/module/call-center/work-call-list" className="button primary sm">
+          <ArrowLeft size={14} /> Back to Office Operations Leads
         </Link>
       </div>
     );
@@ -825,8 +825,52 @@ export function FileProcessingWorkspace({
     toast.success(`Copied Candidate ID ${file.candidate.candidateNo} to clipboard!`);
   };
 
+  const stageNavigation = (
+    <div className="stage-nav-bar bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between mt-4">
+                  <div>
+                    {prevStage ? (
+                      <button data-action-ui="neutral" data-action-size="normal"
+                        type="button"
+                        onClick={() => setActiveTab(prevStage.id)}
+                        className="stage-nav-btn prev"
+                        title={`Go back to ${prevStage.label}`}
+                      >
+                        <ChevronLeft size={16} /> Previous: {prevStage.label}
+                      </button>
+                    ) : (
+                      <span className="text-xs text-slate-400 font-semibold px-2">Initial Milestone</span>
+                    )}
+                  </div>
+
+                  <div className="pipeline-stage-nav-active hidden sm:flex items-center gap-2 text-xs font-semibold text-slate-500">
+                    <span>Active: <b className="text-slate-800">{stages[activeStageIndex]?.label || activeTab}</b></span>
+                    <span>·</span>
+                    <span>Step {activeStageIndex + 1} of {stages.length}</span>
+                    {activeTab === "Flight" && <small>Final Departure Milestone</small>}
+                  </div>
+
+                  <div>
+                    {nextStage ? (
+                      <button data-action-ui="neutral" data-action-size="normal"
+                        type="button"
+                        onClick={() => setActiveTab(nextStage.id)}
+                        className="stage-nav-btn next"
+                        title={`Proceed to ${nextStage.label}`}
+                      >
+                        Next: {nextStage.label} <ChevronRight size={16} />
+                      </button>
+                    ) : (
+                      <span className="text-xs text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                        {activeTab === "Flight" ? "Final Step" : <><Check size={13} /> Final Departure Milestone</>}
+                      </span>
+                    )}
+                  </div>
+                </div>
+  );
+
   return (
-    <div className="file-workspace-page">
+    <div className={`file-workspace-page workspace-design-page ${mainView === "pipeline" ? "pipeline-design-page" : ""}`}>
+      <div className="pipeline-breadcrumb">DASHBOARD / CANDIDATES / {file.candidate.candidateNo}</div>
       {/* 1. HERO CANDIDATE 360 COMMAND BAR */}
       <div className="candidate-hero-card">
         <div className="hero-top-row">
@@ -841,11 +885,12 @@ export function FileProcessingWorkspace({
               onClick={() => setShowEditBioModal(true)}
               title="Click to edit candidate profile bio & photo"
             >
-              {file.candidate.photo ? (
+              {file.candidate.photo && !profilePhotoFailed ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={`/api/candidates/${file.candidate.id}/photo?v=${file.candidate.updatedAt ? new Date(file.candidate.updatedAt).getTime() : Date.now()}`}
                   alt={file.candidate.fullName}
+                  onError={() => setProfilePhotoFailed(true)}
                   style={{ width: "100%", height: "100%", objectFit: "cover" }}
                 />
               ) : (
@@ -870,31 +915,14 @@ export function FileProcessingWorkspace({
             <div className="hero-name-section">
               <h1>
                 <span>{file.candidate.fullName}</span>
-                <CheckCircle2 size={20} className="text-emerald-600 shrink-0" />
-                <span
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border ${
-                    file.status === "ACTIVE"
-                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                      : file.status === "HOLD"
-                      ? "bg-amber-50 text-amber-700 border-amber-200"
-                      : "bg-rose-50 text-rose-700 border-rose-200"
-                  }`}
-                >
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      file.status === "ACTIVE"
-                        ? "bg-emerald-500 animate-pulse"
-                        : file.status === "HOLD"
-                        ? "bg-amber-500"
-                        : "bg-rose-500"
-                    }`}
-                  />
-                  {file.status}
+                <span className={`pipeline-file-status status-${file.status.toLowerCase()}`}>
+                  {file.status === "COMPLETED" && "✓ "}{file.status}
                 </span>
+
               </h1>
 
               <div className="hero-badges-row">
-                <button
+                <button data-action-ui="secondary" data-action-size="compact"
                   type="button"
                   onClick={copyCandidateId}
                   className="badge-file flex items-center gap-1.5 hover:bg-slate-800 transition-colors cursor-pointer"
@@ -904,13 +932,13 @@ export function FileProcessingWorkspace({
                   <Copy size={11} className="opacity-70" />
                 </button>
                 <span className="badge-file bg-slate-100 text-slate-800 border border-slate-200 font-semibold">
-                  FILE: {file.fileNo}
+                  {file.fileNo}
                 </span>
                 <span className="badge-country">
-                  {isDubai ? "🇦🇪" : "🇸🇦"} {file.country}
+                  {getCountryFlagEmoji(undefined, file.country)} {file.country}
                 </span>
                 <span className="badge-current-stage">
-                  <CircleDot size={12} className="animate-pulse" />
+                  <span aria-hidden="true">{file.currentStage === "Flight" ? "✈" : "●"}</span>
                   Stage: <b>{file.currentStage}</b>
                 </span>
                 {file.agent && file.agent !== "Direct" && file.agent !== "Direct Office" ? (
@@ -920,11 +948,11 @@ export function FileProcessingWorkspace({
                     style={{ background: "#f5f3ff", color: "#6d28d9", borderColor: "#ddd6fe", textDecoration: "none", fontWeight: 700 }}
                     title="Click to view Agent Partner Profile"
                   >
-                    🤝 {file.agentRecord?.name || file.agent}
+                    {file.agentRecord?.name || file.agent}
                   </Link>
                 ) : (
                   <span className="badge-country">
-                    🏢 Direct Office
+                    Direct Office
                   </span>
                 )}
               </div>
@@ -933,27 +961,27 @@ export function FileProcessingWorkspace({
 
           {/* Smart Quick Action Toolbar */}
           <div className="hero-actions">
-            <a
+            <a data-action-ui="secondary" data-action-size="normal"
               href={`tel:${phoneClean}`}
               className="profile-btn profile-btn-emerald-solid"
               title="Call Candidate Phone"
             >
-              <Phone size={14} /> Call Candidate
+              📞 Call Candidate
             </a>
 
             {phoneClean && (
-              <a
+              <a data-action-ui="secondary" data-action-size="normal"
                 href={`https://wa.me/${phoneClean.startsWith("+") ? phoneClean.slice(1) : phoneClean}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="profile-btn profile-btn-emerald"
                 title="Open WhatsApp Chat"
               >
-                <MessageCircle size={14} /> WhatsApp
+                💬 WhatsApp
               </a>
             )}
 
-            <button
+            <button data-action-ui="secondary" data-action-size="normal"
               type="button"
               className="profile-btn profile-btn-blue"
               onClick={() =>
@@ -978,30 +1006,30 @@ export function FileProcessingWorkspace({
               }
               title="Print Official Money Receipt"
             >
-              <Printer size={14} /> Print Receipt
+              🖨 Print Receipt
             </button>
 
-            <button
+            <button data-action-ui="secondary" data-action-size="normal"
               type="button"
               onClick={() => setShowEditBioModal(true)}
               className="profile-btn profile-btn-neutral"
               title="Edit Candidate Registration Details & Profile Photo"
             >
-              <User size={14} /> Edit Profile
+              ✏ Edit Profile
             </button>
 
             {file.agent && file.agent !== "Direct" && file.agent !== "Direct Office" && (
-              <Link
+              <Link data-action-ui="secondary" data-action-size="normal"
                 href={file.agentRecord?.id ? `/agents/${file.agentRecord.id}` : `/module/agents/agent-list?q=${encodeURIComponent(file.agent)}`}
                 className="profile-btn profile-btn-purple"
                 title="Open Agent Partner Profile"
               >
-                <Users size={14} /> Agent Profile ➔
+                Agent Profile →
               </Link>
             )}
 
             {file.status === "HOLD" ? (
-              <button
+              <button data-action-ui="success" data-action-size="normal"
                 type="button"
                 className="profile-btn profile-btn-emerald"
                 disabled={!canEditFile || (!allows("exceptions", "hold") && !allows("exceptions", "reprocess"))}
@@ -1011,25 +1039,25 @@ export function FileProcessingWorkspace({
                 <Play size={14} /> Release Hold
               </button>
             ) : (
-              <button
+              <button data-action-ui="warning" data-action-size="normal"
                 type="button"
                 className="profile-btn profile-btn-amber"
                 disabled={!canEditFile || !allows("exceptions", "hold")}
                 onClick={() => setShowHoldModal(true)}
                 title="Put File On Hold"
               >
-                <Clock size={14} /> Hold File
+                ⏸ Hold File
               </button>
             )}
 
-            <button
+            <button data-action-ui="danger" data-action-size="normal"
               type="button"
               className="profile-btn profile-btn-rose"
               disabled={!canEditFile || !allows("exceptions", "return")}
               onClick={() => setShowReturnModal(true)}
               title="Process Candidate File Return & Refund"
             >
-              <CreditCard size={14} /> Return &amp; Refund
+              ↩ Return &amp; Refund
             </button>
           </div>
         </div>
@@ -1048,7 +1076,7 @@ export function FileProcessingWorkspace({
                   {file.candidate.passportNo || file.passport?.passportNumber || "Not recorded"}
                 </span>
                 {(attachedFiles["passport"] || file.passport?.passportNumber) && (
-                  <button
+                  <button data-action-ui="secondary" data-action-size="icon"
                     type="button"
                     onClick={() =>
                       setActiveDoc({
@@ -1140,37 +1168,51 @@ export function FileProcessingWorkspace({
             <div className="vital-body">
               <span className="vital-label">Branch Office</span>
               <span className="vital-value">
-                {typeof file.candidate.office === "object" ? file.candidate.office?.name : (file.office?.name || "Dhaka Head Office")}
+                {typeof file.candidate.office === "object" ? (file.candidate.office?.name || "—") : (file.office?.name || "Dhaka Head Office")}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Candidate Progress Bar Strip */}
-        <div className="candidate-progress-strip">
-          <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
-            <Sparkles size={14} className="text-indigo-600" />
-            <span>
-              Stage {currentStageStep} of {stages.length}: <b className="text-indigo-700">{file.currentStage}</b>
-            </span>
-            <span className="text-slate-400">·</span>
-            <span className="text-emerald-700 font-semibold">
-              {completedCount} of {stages.length} Milestones Done ({progressPercent}%)
-            </span>
-          </div>
 
-          <div className="progress-track-wrap">
-            <div className="progress-track-bar">
-              <div
-                className="progress-track-fill"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-            <span className="text-xs font-bold font-mono text-slate-600">{progressPercent}%</span>
-          </div>
-        </div>
       </div>
 
+      <section className="pipeline-progress-card" aria-label="Recruitment Workflow Progress">
+        <div className="pipeline-progress-header">
+          <div>
+            <h2>Stage {currentStageStep} of {stages.length}: {file.currentStage}</h2>
+            <p>Recruitment Workflow Progress</p>
+          </div>
+          <span className="pipeline-progress-summary">
+            ✓ {completedCount} of {stages.length} Milestones Done ({progressPercent}%)
+          </span>
+        </div>
+        <div className="pipeline-progress-track" role="progressbar" aria-label="Workflow completion"
+          aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent}>
+          <div style={{ width: `${progressPercent}%` }} />
+        </div>
+        <div className="pipeline-steps">
+          {stages.map((stage) => {
+            const completed = isStageCompleted(stage.id);
+            const selected = stage.id === activeTab;
+            const current = stage.id === file.currentStage;
+            return (
+              <button key={stage.id} type="button" aria-pressed={selected}
+                className={`pipeline-step ${completed ? "completed" : ""} ${selected ? "selected" : ""}`}
+                onClick={() => { setActiveTab(stage.id); setMainView("pipeline"); }}>
+                <span className="pipeline-step-top">
+                  <span>STEP {stage.stepNo}</span>
+                  <span className="pipeline-step-marker">
+                    {selected && stage.id === "Flight" ? "✈" : completed ? "✓" : stage.stepNo}
+                  </span>
+                </span>
+                <strong>{stage.label}</strong>
+                <small>{completed ? "✓ Completed" : current ? "● In Progress" : stage.subtitle}</small>
+              </button>
+            );
+          })}
+        </div>
+      </section>
       {/* 2. 360° WORKSPACE MAIN NAVIGATION SEGMENTED TABS */}
       <div className="workspace-view-tabs">
         <button
@@ -1178,7 +1220,7 @@ export function FileProcessingWorkspace({
           className={`view-tab-btn ${mainView === "pipeline" ? "active" : ""}`}
           onClick={() => setMainView("pipeline")}
         >
-          <Layers size={16} /> Workflow Pipeline
+          <span className="pipeline-tab-symbol">{activeStageIndex+1}</span> Workflow Pipeline
           <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${mainView === "pipeline" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"}`}>
             Step {stages.findIndex((s) => s.id === activeTab) + 1}/{stages.length}
           </span>
@@ -1188,7 +1230,7 @@ export function FileProcessingWorkspace({
           className={`view-tab-btn ${mainView === "dossier" ? "active" : ""}`}
           onClick={() => setMainView("dossier")}
         >
-          <Table size={16} /> 360° Master Dossier
+          <span className="pipeline-tab-symbol">📋</span> 360° Master Dossier
           <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${mainView === "dossier" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"}`}>
             16 Tables
           </span>
@@ -1198,7 +1240,7 @@ export function FileProcessingWorkspace({
           className={`view-tab-btn ${mainView === "ledger" ? "active" : ""}`}
           onClick={() => setMainView("ledger")}
         >
-          <CreditCard size={16} /> Financial Ledger
+          <span className="pipeline-tab-symbol">৳</span> Financial Ledger
           <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${mainView === "ledger" ? "bg-white/20 text-white" : "bg-emerald-50 text-emerald-700 border border-emerald-200"}`}>
             ৳ {totalPaid.toLocaleString()} Paid
           </span>
@@ -1208,7 +1250,7 @@ export function FileProcessingWorkspace({
           className={`view-tab-btn ${mainView === "timeline" ? "active" : ""}`}
           onClick={() => setMainView("timeline")}
         >
-          <History size={16} /> Activity &amp; Notes
+          <span className="pipeline-tab-symbol">🗒</span> Activity &amp; Notes
           {file.candidate.calls?.length ? (
             <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${mainView === "timeline" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"}`}>
               {file.candidate.calls.length} Logs
@@ -1220,37 +1262,6 @@ export function FileProcessingWorkspace({
       {/* 3. MAIN CONTENT BODY BASED ON SELECTED VIEW */}
       {mainView === "pipeline" && (
         <>
-          {/* Streamlined Connected Progression Stepper */}
-          <div className="stepper-card-v2">
-            <div className="stepper-track-v2">
-              {stages.map((st, index) => {
-                const isCompleted = isStageCompleted(st.id);
-                const isCurrent = st.id === file.currentStage;
-                const isSelected = st.id === activeTab;
-                const Icon = st.icon;
-
-                return (
-                  <div
-                    key={st.id}
-                    className={`step-node-v2 ${isSelected ? "selected" : isCompleted ? "completed" : isCurrent ? "current" : "pending"}`}
-                    onClick={() => setActiveTab(st.id)}
-                  >
-                    <div className="step-node-circle">
-                      {isCompleted ? <Check size={14} /> : isSelected ? <Icon size={14} /> : st.stepNo}
-                    </div>
-                    <div className="step-node-content">
-                      <span className="step-node-num">Step {st.stepNo}</span>
-                      <strong className="step-node-title">{st.label}</strong>
-                      <small className="text-[10px] text-slate-400 font-medium">
-                        {isCompleted ? "✓ Completed" : isCurrent && !isSelected ? "● In Progress" : st.subtitle}
-                      </small>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
             {/* Two-Column Layout: Active Stage Form (Left) & Sticky Widgets (Right) */}
             <div className="file-main-grid">
               <div className="file-content-area">
@@ -1262,7 +1273,7 @@ export function FileProcessingWorkspace({
                         <h2>📘 1. Passport Entry &amp; Verification</h2>
                         <p>Verify candidate original passport, validity, and bio data accuracy.</p>
                       </div>
-                      <button
+                      <button data-action-ui="secondary" data-action-size="normal"
                         type="button"
                         className="payment-receipt-btn"
                         onClick={() =>
@@ -1361,7 +1372,7 @@ export function FileProcessingWorkspace({
                         />
                       </div>
                       <div className="form-actions">
-                        <button type="submit" disabled={saving} className="primary-action-btn">
+                        <button data-action-ui="primary" data-action-size="normal" type="submit" disabled={saving} className="primary-action-btn">
                           {saving ? "Saving..." : isStageCompleted("Passport Entry") ? "💾 Update Passport Information" : "💾 Save Passport Details"}
                         </button>
                       </div>
@@ -1377,7 +1388,7 @@ export function FileProcessingWorkspace({
                         <h2>🏥 2. GCC GAMCA Medical Checkup &amp; Biometrics</h2>
                         <p>Record GCC medical examination center slip, 10-finger biometrics, photo collection, and Fit/Unfit status.</p>
                       </div>
-                      <button
+                      <button data-action-ui="secondary" data-action-size="normal"
                         type="button"
                         className="payment-receipt-btn"
                         onClick={() =>
@@ -1480,7 +1491,7 @@ export function FileProcessingWorkspace({
                         />
                       </div>
                       <div className="form-actions">
-                        <button type="submit" disabled={saving} className="primary-action-btn">
+                        <button data-action-ui="primary" data-action-size="normal" type="submit" disabled={saving} className="primary-action-btn">
                           {saving ? "Saving..." : isStageCompleted("Medical") ? "💾 Update Medical Information" : "💾 Save Medical Information"}
                         </button>
                       </div>
@@ -1496,7 +1507,7 @@ export function FileProcessingWorkspace({
                         <h2>🛡️ 3. Police Clearance Certificate (PCC)</h2>
                         <p>Record Police Clearance application tracking, 180-day validity counter, and issuance.</p>
                       </div>
-                      <button
+                      <button data-action-ui="neutral" data-action-size="normal"
                         type="button"
                         className="payment-receipt-btn"
                         onClick={() =>
@@ -1600,7 +1611,7 @@ export function FileProcessingWorkspace({
                         />
                       </div>
                       <div className="form-actions">
-                        <button type="submit" disabled={saving} className="primary-action-btn">
+                        <button data-action-ui="primary" data-action-size="normal" type="submit" disabled={saving} className="primary-action-btn">
                           {saving ? "Saving..." : isStageCompleted("Police Clearance") ? "💾 Update Police Clearance" : "💾 Save Police Clearance"}
                         </button>
                       </div>
@@ -1616,7 +1627,7 @@ export function FileProcessingWorkspace({
                         <h2>💰 Candidate Payment Deposits &amp; Financial Receipts</h2>
                         <p>Record candidate payment installments with custom titles, optional deposit vouchers, and printable receipts.</p>
                       </div>
-                      <button
+                      <button data-action-ui="secondary" data-action-size="normal"
                         type="button"
                         className="payment-receipt-btn"
                         onClick={() =>
@@ -1720,7 +1731,7 @@ export function FileProcessingWorkspace({
                       </div>
 
                       <div className="form-actions">
-                        <button type="submit" disabled={saving} className="primary-action-btn">
+                        <button data-action-ui="primary" data-action-size="normal" type="submit" disabled={saving} className="primary-action-btn">
                           {saving ? "Saving..." : isStageCompleted("Payment") ? "💾 Record Additional Payment" : "💾 Save Payment Deposit"}
                         </button>
                       </div>
@@ -1736,7 +1747,7 @@ export function FileProcessingWorkspace({
                         <h2>🏅 5. Saudi Takamul Skill Verification &amp; Certification</h2>
                         <p>Record Saudi SVP skill verification test schedule, center attendance, and certificate number.</p>
                       </div>
-                      <button
+                      <button data-action-ui="secondary" data-action-size="normal"
                         type="button"
                         className="payment-receipt-btn"
                         onClick={() =>
@@ -1832,7 +1843,7 @@ export function FileProcessingWorkspace({
                         />
                       </div>
                       <div className="form-actions">
-                        <button type="submit" disabled={saving} className="primary-action-btn">
+                        <button data-action-ui="primary" data-action-size="normal" type="submit" disabled={saving} className="primary-action-btn">
                           {saving ? "Saving..." : isStageCompleted("Takamul") ? "💾 Update Takamul Certificate" : "💾 Save Takamul Skill Test"}
                         </button>
                       </div>
@@ -1848,7 +1859,7 @@ export function FileProcessingWorkspace({
                         <h2>🌐 6. Saudi MOFA &amp; Embassy Visa Stamping</h2>
                         <p>Record Saudi MOFA submission, MOFA Done dates, Embassy Visa Stamping, and Kafeel sponsor details.</p>
                       </div>
-                      <button
+                      <button data-action-ui="secondary" data-action-size="normal"
                         type="button"
                         className="payment-receipt-btn"
                         onClick={() =>
@@ -1951,7 +1962,7 @@ export function FileProcessingWorkspace({
                         />
                       </div>
                       <div className="form-actions">
-                        <button type="submit" disabled={saving} className="primary-action-btn">
+                        <button data-action-ui="primary" data-action-size="normal" type="submit" disabled={saving} className="primary-action-btn">
                           {saving ? "Saving..." : isStageCompleted("Mofa") ? "💾 Update Visa / MOFA Information" : "💾 Save Visa & MOFA Details"}
                         </button>
                       </div>
@@ -1968,7 +1979,7 @@ export function FileProcessingWorkspace({
                         <h2>🇦🇪 4. Dubai MOHRE Labor Approval &amp; Offer Letter</h2>
                         <p>Track Ministry of Human Resources and Emiratisation (MOHRE) approval and signed offer letter.</p>
                       </div>
-                      <button
+                      <button data-action-ui="secondary" data-action-size="normal"
                         type="button"
                         className="payment-receipt-btn"
                         onClick={() =>
@@ -2061,7 +2072,7 @@ export function FileProcessingWorkspace({
                       </div>
 
                       <div className="form-actions">
-                        <button type="submit" disabled={saving} className="primary-action-btn">
+                        <button data-action-ui="primary" data-action-size="normal" type="submit" disabled={saving} className="primary-action-btn">
                           {saving ? "Saving..." : isStageCompleted("Approval Application") ? "💾 Update Labor Approval" : "💾 Save Labor Approval"}
                         </button>
                       </div>
@@ -2077,7 +2088,7 @@ export function FileProcessingWorkspace({
                         <h2>🇦🇪 5. Dubai E-Visa &amp; Entry Permit Stamping</h2>
                         <p>Record issued Dubai employment entry permit, UID number, validity, and E-Visa Done status.</p>
                       </div>
-                      <button
+                      <button data-action-ui="secondary" data-action-size="normal"
                         type="button"
                         className="payment-receipt-btn"
                         onClick={() =>
@@ -2174,9 +2185,10 @@ export function FileProcessingWorkspace({
                         />
                       </div>
 
-                      <div className="form-actions">
-                        <button type="submit" disabled={saving} className="primary-action-btn">
-                          {saving ? "Saving..." : isStageCompleted("E-Visa Stamping") ? "💾 Update E-Visa Information" : "💾 Save E-Visa Details"}
+                      <div className="form-actions pipeline-save-actions">
+                        <button data-action-ui="primary" data-action-size="normal" type="submit" disabled={saving} className="primary-action-btn pipeline-save-action">
+                          <Save aria-hidden="true" />
+                          {saving ? "Saving..." : isStageCompleted("E-Visa Stamping") ? "Update E-Visa Information" : "Save E-Visa Details"}
                         </button>
                       </div>
                     </form>
@@ -2191,7 +2203,7 @@ export function FileProcessingWorkspace({
                         <h2>📜 8. BMET Manpower Smart Card Clearance</h2>
                         <p>Submit candidate file for Bureau of Manpower, Employment and Training (BMET) Smart Card.</p>
                       </div>
-                      <button
+                      <button data-action-ui="neutral" data-action-size="normal"
                         type="button"
                         className="payment-receipt-btn"
                         onClick={() =>
@@ -2277,9 +2289,10 @@ export function FileProcessingWorkspace({
                           onRemove={() => handleRemoveFile("manpower")}
                         />
                       </div>
-                      <div className="form-actions">
-                        <button type="submit" disabled={saving} className="primary-action-btn">
-                          {saving ? "Saving..." : isStageCompleted("Manpower") ? "💾 Update Manpower Clearance" : "💾 Save BMET Clearance"}
+                      <div className="form-actions pipeline-save-actions">
+                        <button data-action-ui="primary" data-action-size="normal" type="submit" disabled={saving} className="primary-action-btn pipeline-save-action">
+                          <Save aria-hidden="true" />
+                          {saving ? "Saving..." : isStageCompleted("Manpower") ? "Update Manpower Clearance" : "Save BMET Clearance"}
                         </button>
                       </div>
                     </form>
@@ -2288,13 +2301,13 @@ export function FileProcessingWorkspace({
 
                 {/* 9. Flight Form */}
                 {activeTab === "Flight" && (
-                  <div className="stage-card">
+                  <div className="stage-card pipeline-flight-card">
                     <div className="stage-card-header">
                       <div>
-                        <h2>✈️ 9. Flight Booking &amp; Candidate Departure</h2>
+                        <h2>9. Flight Booking &amp; Candidate Departure</h2>
                         <p>Issue final flight e-ticket, departure schedule, and complete candidate deployment cycle.</p>
                       </div>
-                      <button
+                      <button data-action-ui="secondary" data-action-size="normal"
                         type="button"
                         className="payment-receipt-btn"
                         onClick={() =>
@@ -2313,12 +2326,12 @@ export function FileProcessingWorkspace({
                           })
                         }
                       >
-                        <Eye size={14} /> View E-Ticket {attachedFiles["flight"] && "✓"}
+                        View E-Ticket {attachedFiles["flight"] && "✓"}
                       </button>
                     </div>
                     <div className="stage-guidance-banner">
-                      <Sparkles size={16} className="text-indigo-600 shrink-0" />
-                      <span><b>Stage Information:</b> Issue flight ticket, set departure schedule, and save flight details.</span>
+                      <span className="pipeline-info-symbol" aria-hidden="true">i</span>
+                      <span>Stage Information: Issue flight ticket, set departure schedule, and save flight details.</span>
                     </div>
                     <form
                       onSubmit={(e) => {
@@ -2332,7 +2345,7 @@ export function FileProcessingWorkspace({
                         });
                       }}
                     >
-                      <div className="form-grid">
+                      <div className="form-grid pipeline-flight-fields">
                         <label>
                           Airline
                           <select name="airline" defaultValue="Saudia Airlines">
@@ -2343,11 +2356,11 @@ export function FileProcessingWorkspace({
                           </select>
                         </label>
                         <label>
-                          Flight Number *
+                          <span>Flight Number <em>*</em></span>
                           <input name="flightNumber" defaultValue="SV-803" required />
                         </label>
                         <label>
-                          Departure Date &amp; Time *
+                          <span>Departure Date &amp; Time <em>*</em></span>
                           <input
                             name="departureDate"
                             type="datetime-local"
@@ -2383,10 +2396,11 @@ export function FileProcessingWorkspace({
                         />
                       </div>
                       <div className="form-actions">
-                        <button type="submit" disabled={saving} className="primary-action-btn">
-                          {saving ? "Saving..." : "✈️ Save Flight Details & Finalize"}
+                        <button data-action-ui="primary" data-action-size="normal" type="submit" disabled={saving} className="primary-action-btn">
+                          {saving ? "Saving..." : "Save Flight Details & Finalize"}
                         </button>
                       </div>
+                      {stageNavigation}
                     </form>
                   </div>
                 )}
@@ -2662,7 +2676,7 @@ export function FileProcessingWorkspace({
 
                         {/* Action Buttons */}
                         <div className="form-actions" style={{ margin: 0, paddingTop: "18px", borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-                          <button
+                          <button data-action-ui="primary" data-action-size="normal"
                             type="submit"
                             disabled={saving}
                             className="primary-action-btn"
@@ -2686,58 +2700,125 @@ export function FileProcessingWorkspace({
                   );
                 })()}
 
-                {/* Stage Workflow Progression Navigation Bar */}
-                <div className="stage-nav-bar bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between mt-4">
-                  <div>
-                    {prevStage ? (
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab(prevStage.id)}
-                        className="stage-nav-btn prev"
-                        title={`Go back to ${prevStage.label}`}
-                      >
-                        <ChevronLeft size={16} /> Previous: {prevStage.label}
-                      </button>
-                    ) : (
-                      <span className="text-xs text-slate-400 font-semibold px-2">Initial Milestone</span>
-                    )}
+                {activeTab !== "Flight" && stageNavigation}
+
+                {/* 3. Candidate Quick Contact Card */}
+                <div className="sidebar-widget-card candidate-contacts-card">
+                  <div className="widget-card-header">
+                    <div className="pipeline-contacts-heading"><h3 className="widget-card-title">
+                      Candidate Contacts
+                    </h3>
+                    <span className="contact-status-pill">
+                      Reachable
+                    </span></div>
+                  {/* Activity and Call Logs Navigation Button */}
+                  <button data-action-ui="secondary" data-action-size="normal"
+                    type="button"
+                    onClick={() => setMainView("timeline")}
+                    className="contacts-activity-btn"
+                    title="View candidate activity history, notes, and call logs"
+                  >
+                    View Activity &amp; Call Logs →
+                  </button>
                   </div>
 
-                  <div className="hidden sm:flex items-center gap-2 text-xs font-semibold text-slate-500">
-                    <span>Active: <b className="text-slate-800">{stages[activeStageIndex]?.label || activeTab}</b></span>
-                    <span>·</span>
-                    <span>Step {activeStageIndex + 1} of {stages.length}</span>
+                  <div className="candidate-contacts-body">
+                    {/* Primary Phone */}
+                    <div className="contact-row">
+                      <div className="contact-icon phone">
+                        <Phone size={15} />
+                      </div>
+                      <div className="contact-details">
+                        <span className="contact-label">Primary Mobile</span>
+                        <a href={`tel:${phoneClean}`} className="contact-value link" title="Click to call">
+                          {file.candidate.phone}
+                        </a>
+                      </div>
+                      <div className="contact-actions">
+                        <a data-action-ui="secondary" data-action-size="compact" href={`tel:${phoneClean}`} className="contact-quick-btn call" title="Direct Phone Call">
+                          <Phone size={12} /> Call
+                        </a>
+                        {phoneClean && (
+                          <a data-action-ui="secondary" data-action-size="compact"
+                            href={`https://wa.me/${phoneClean.startsWith("+") ? phoneClean.slice(1) : phoneClean}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="contact-quick-btn whatsapp"
+                            title="Chat on WhatsApp"
+                          >
+                            <MessageCircle size={12} /> WA
+                          </a>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* District & Location */}
+                    {(file.candidate.district || file.candidate.address) && (
+                      <div className="contact-row">
+                        <div className="contact-icon location">
+                          <MapPin size={15} />
+                        </div>
+                        <div className="contact-details">
+                          <span className="contact-label">Home District / Address</span>
+                          <span className="contact-value" title={file.candidate.address || file.candidate.district}>
+                            {file.candidate.district || ""}
+                            {file.candidate.address ? (file.candidate.district ? ` (${file.candidate.address})` : file.candidate.address) : ""}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Email Address */}
+                    {file.candidate.email && (
+                      <div className="contact-row">
+                        <div className="contact-icon email">
+                          <Mail size={15} />
+                        </div>
+                        <div className="contact-details">
+                          <span className="contact-label">Email Address</span>
+                          <a href={`mailto:${file.candidate.email}`} className="contact-value link" title="Send email">
+                            {file.candidate.email}
+                          </a>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Identification ID */}
+                    <div className="contact-row">
+                      <div className="contact-icon profile">
+                        <ShieldCheck size={15} />
+                      </div>
+                      <div className="contact-details">
+                        <span className="contact-label">Candidate Registration ID</span>
+                        <span className="contact-value font-mono">
+                          {file.candidate.candidateNo}
+                        </span>
+                      </div>
+                      <button data-action-ui="secondary" data-action-size="normal"
+                        type="button"
+                        onClick={copyCandidateId}
+                        className="contact-quick-btn copy"
+                        title="Copy Candidate ID"
+                      >
+                        <Copy size={11} /> Copy
+                      </button>
+                    </div>
                   </div>
 
-                  <div>
-                    {nextStage ? (
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab(nextStage.id)}
-                        className="stage-nav-btn next"
-                        title={`Proceed to ${nextStage.label}`}
-                      >
-                        Next: {nextStage.label} <ChevronRight size={16} />
-                      </button>
-                    ) : (
-                      <span className="text-xs text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
-                        <Check size={13} /> Final Departure Milestone
-                      </span>
-                    )}
-                  </div>
+
                 </div>
               </div>
 
               {/* Right Column: Financial & Document Assistant Sidebar */}
               <div className="file-sidebar">
                 {/* 1. Payment Ledger Card */}
-                <div className="sidebar-widget-card">
-                  <div className="flex items-center justify-between mb-3">
+                <div className="sidebar-widget-card pipeline-ledger-card">
+                  <div className="pipeline-widget-header flex items-center justify-between mb-3">
                     <h3 className="m-0 flex items-center gap-2 text-sm font-bold text-slate-800 uppercase tracking-wider">
-                      <CreditCard size={17} className="text-indigo-600" /> Financial Ledger
+                      Financial Ledger
                     </h3>
                     {canEditFile && allows("payment-collection", "create") && (
-                      <button
+                      <button data-action-ui="primary" data-action-size="compact"
                         type="button"
                         onClick={() => setActiveTab("Payment")}
                         className="profile-btn profile-btn-sm profile-btn-purple"
@@ -2749,27 +2830,24 @@ export function FileProcessingWorkspace({
                   </div>
 
                   <div className="ledger-total-box">
-                    <div style={{ flex: 1 }}>
-                      <span style={{ fontSize: "11px", color: "var(--muted)", textTransform: "uppercase", fontWeight: 700 }}>Total Amount Paid</span>
-                      <strong style={{ display: "block", fontSize: "19px", color: "#059669" }}>৳ {totalPaid.toLocaleString()} BDT</strong>
-                      <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "3px" }}>
-                        Contract Package: <b>৳ {totalPackageCost.toLocaleString()} BDT</b>
+                    <div className="pipeline-ledger-summary">
+                      <span>TOTAL AMOUNT PAID</span>
+                      <strong>৳{totalPaid.toLocaleString()} BDT</strong>
+                      <div className="pipeline-ledger-balances">
+                        <div>
+                          <small>Contract Package</small>
+                          <b>৳{totalPackageCost.toLocaleString()} BDT</b>
+                        </div>
+                        <div>
+                          <small>{advanceAmount > 0 ? "Advance Extra" : balanceRemaining > 0 ? "Remaining Due" : "Payment Status"}</small>
+                          <b className={balanceRemaining > 0 ? "due" : "settled"}>
+                            {advanceAmount > 0 ? `+৳${advanceAmount.toLocaleString()} BDT` : balanceRemaining > 0
+                              ? `৳${balanceRemaining.toLocaleString()} BDT` : "100% Fully Settled (Zero Due)"}
+                          </b>
+                        </div>
                       </div>
-                      {advanceAmount > 0 ? (
-                        <div style={{ fontSize: "11px", color: "#7c3aed", fontWeight: 800, marginTop: "3px" }}>
-                          🟣 Advance Extra: + ৳ {advanceAmount.toLocaleString()} BDT
-                        </div>
-                      ) : balanceRemaining > 0 ? (
-                        <div style={{ fontSize: "11px", color: "#e11d48", fontWeight: 800, marginTop: "3px" }}>
-                          🔴 Remaining Due: ৳ {balanceRemaining.toLocaleString()} BDT
-                        </div>
-                      ) : (
-                        <div style={{ fontSize: "11px", color: "#059669", fontWeight: 800, marginTop: "3px" }}>
-                          🟢 100% Fully Settled (Zero Due)
-                        </div>
-                      )}
                     </div>
-                    <DollarSign size={28} className="text-emerald-600 opacity-80" />
+                    <span className="pipeline-ledger-dollar">$</span>
                   </div>
 
                   <div className="payments-list">
@@ -2779,7 +2857,14 @@ export function FileProcessingWorkspace({
                           <div className="payment-item-main">
                             <div className="payment-item-top">
                               <b>{p.type}</b>
-                              <button
+
+                            </div>
+                            <small>
+                              {new Date(p.createdAt).toLocaleDateString()} · {p.method || "Paid"}
+                            </small>
+                          </div>
+                          <div className="pipeline-payment-actions"><span className="pay-amt">৳{Number(p.amount).toLocaleString()}</span>
+                              <button data-action-ui="neutral" data-action-size="compact"
                                 type="button"
                                 className="profile-btn profile-btn-sm profile-btn-blue"
                                 onClick={() =>
@@ -2803,14 +2888,9 @@ export function FileProcessingWorkspace({
                                   })
                                 }
                               >
-                                <Printer size={12} /> Print
+                                Print
                               </button>
-                            </div>
-                            <small>
-                              {new Date(p.createdAt).toLocaleDateString()} · {p.method || "Paid"}
-                            </small>
                           </div>
-                          <span className="pay-amt">৳ {Number(p.amount).toLocaleString()}</span>
                         </div>
                       ))
                     ) : (
@@ -2818,7 +2898,7 @@ export function FileProcessingWorkspace({
                     )}
 
                     {file.payments && file.payments.length > 4 && (
-                      <button
+                      <button data-action-ui="secondary" data-action-size="normal"
                         type="button"
                         onClick={() => setMainView("ledger")}
                         className="ledger-view-all-btn"
@@ -2831,10 +2911,10 @@ export function FileProcessingWorkspace({
                 </div>
 
                 {/* 2. Essential Document Vault Widget (Upgraded from Redundant Checklist) */}
-                <div className="sidebar-widget-card">
-                  <div className="flex items-center justify-between mb-3">
+                <div className="sidebar-widget-card pipeline-vault-card">
+                  <div className="pipeline-widget-header flex items-center justify-between mb-3">
                     <h3 className="m-0 flex items-center gap-2 text-sm font-bold text-slate-800 uppercase tracking-wider">
-                      <FileText size={17} className="text-indigo-600" /> Document Vault
+                      Document Vault
                     </h3>
                     <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
                       {
@@ -2901,12 +2981,11 @@ export function FileProcessingWorkspace({
                         icon: Plane,
                       },
                     ].map((doc) => {
-                      const IconDoc = doc.icon;
                       return (
                         <div key={doc.id} className="doc-vault-item">
                           <div className="doc-vault-item-left">
-                            <div className="doc-vault-icon">
-                              <IconDoc size={16} className={doc.isReady ? "text-emerald-600" : "text-slate-400"} />
+                            <div className={`doc-vault-icon doc-tone-${doc.id} ${doc.isReady ? "ready" : ""}`}>
+                              <span aria-hidden="true">{{passport: "📄", medical: "🏥", pcc: "🛡", visa: "📋", manpower: "✅", flight: "✈"}[doc.id]}</span>
                             </div>
                             <div className="doc-vault-meta">
                               <span className="doc-vault-title">{doc.title}</span>
@@ -2915,7 +2994,7 @@ export function FileProcessingWorkspace({
                           </div>
                           <div className="doc-vault-actions">
                             {doc.isReady ? (
-                              <button
+                              <button data-action-ui="secondary" data-action-size="compact"
                                 type="button"
                                 className="profile-btn profile-btn-sm profile-btn-emerald"
                                 onClick={() =>
@@ -2935,10 +3014,10 @@ export function FileProcessingWorkspace({
                                 }
                                 title="View Document Scan"
                               >
-                                <Eye size={12} /> View
+                                View
                               </button>
                             ) : (
-                              <button
+                              <button data-action-ui="secondary" data-action-size="compact"
                                 type="button"
                                 className="profile-btn profile-btn-sm profile-btn-neutral"
                                 onClick={() => setActiveTab(doc.stageId)}
@@ -2954,110 +3033,7 @@ export function FileProcessingWorkspace({
                   </div>
                 </div>
 
-                {/* 3. Candidate Quick Contact Card */}
-                <div className="sidebar-widget-card candidate-contacts-card">
-                  <div className="widget-card-header">
-                    <h3 className="widget-card-title">
-                      <PhoneCall size={16} /> Candidate Contacts
-                    </h3>
-                    <span className="contact-status-pill">
-                      ● Reachable
-                    </span>
-                  </div>
 
-                  <div className="candidate-contacts-body">
-                    {/* Primary Phone */}
-                    <div className="contact-row">
-                      <div className="contact-icon phone">
-                        <Phone size={15} />
-                      </div>
-                      <div className="contact-details">
-                        <span className="contact-label">Primary Mobile</span>
-                        <a href={`tel:${phoneClean}`} className="contact-value link" title="Click to call">
-                          {file.candidate.phone}
-                        </a>
-                      </div>
-                      <div className="contact-actions">
-                        <a href={`tel:${phoneClean}`} className="contact-quick-btn call" title="Direct Phone Call">
-                          <Phone size={12} /> Call
-                        </a>
-                        {phoneClean && (
-                          <a
-                            href={`https://wa.me/${phoneClean.startsWith("+") ? phoneClean.slice(1) : phoneClean}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="contact-quick-btn whatsapp"
-                            title="Chat on WhatsApp"
-                          >
-                            <MessageCircle size={12} /> WA
-                          </a>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* District & Location */}
-                    {(file.candidate.district || file.candidate.address) && (
-                      <div className="contact-row">
-                        <div className="contact-icon location">
-                          <MapPin size={15} />
-                        </div>
-                        <div className="contact-details">
-                          <span className="contact-label">Home District / Address</span>
-                          <span className="contact-value" title={file.candidate.address || file.candidate.district}>
-                            {file.candidate.district || ""}
-                            {file.candidate.address ? (file.candidate.district ? ` (${file.candidate.address})` : file.candidate.address) : ""}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Email Address */}
-                    {file.candidate.email && (
-                      <div className="contact-row">
-                        <div className="contact-icon email">
-                          <Mail size={15} />
-                        </div>
-                        <div className="contact-details">
-                          <span className="contact-label">Email Address</span>
-                          <a href={`mailto:${file.candidate.email}`} className="contact-value link" title="Send email">
-                            {file.candidate.email}
-                          </a>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Identification ID */}
-                    <div className="contact-row">
-                      <div className="contact-icon profile">
-                        <ShieldCheck size={15} />
-                      </div>
-                      <div className="contact-details">
-                        <span className="contact-label">Candidate Registration ID</span>
-                        <span className="contact-value font-mono">
-                          {file.candidate.candidateNo}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={copyCandidateId}
-                        className="contact-quick-btn copy"
-                        title="Copy Candidate ID"
-                      >
-                        <Copy size={11} /> Copy
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Activity and Call Logs Navigation Button */}
-                  <button
-                    type="button"
-                    onClick={() => setMainView("timeline")}
-                    className="contacts-activity-btn"
-                    title="View candidate activity history, notes, and call logs"
-                  >
-                    <History size={14} /> View Activity &amp; Call Logs ➔
-                  </button>
-                </div>
               </div>
             </div>
           </>
@@ -3126,7 +3102,7 @@ export function FileProcessingWorkspace({
                   { id: "flight", label: "✈️ Flight Booking & Departure" },
                   { id: "holds_returns", label: "⏸️ Hold & Return History" },
                   { id: "education_exp", label: "🎓 Education & Experience" },
-                  { id: "calls", label: "📞 Call Center Leads & Logs" },
+                  { id: "calls", label: "📞 Office Operations Leads & Logs" },
                   { id: "documents", label: "📁 Document Scans Repository" }
                 );
 
@@ -3135,6 +3111,7 @@ export function FileProcessingWorkspace({
                     key={pill.id}
                     type="button"
                     onClick={() => setActiveDossierSection(pill.id)}
+                    aria-pressed={activeDossierSection === pill.id}
                     className={`dossier-jump-pill ${activeDossierSection === pill.id ? "active" : ""}`}
                   >
                     {pill.label}
@@ -3153,7 +3130,7 @@ export function FileProcessingWorkspace({
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <span className="dossier-badge-done">● Registered Candidate</span>
-                    <button
+                    <button data-action-ui="secondary" data-action-size="normal"
                       type="button"
                       onClick={() => setShowEditBioModal(true)}
                       style={{
@@ -3219,7 +3196,7 @@ export function FileProcessingWorkspace({
                     <span className={isStageCompleted("Passport Entry") ? "dossier-badge-done" : "dossier-badge-pending"}>
                       {isStageCompleted("Passport Entry") ? "✓ Verified & Original In Hand" : "● Pending Verification"}
                     </span>
-                    <button
+                    <button data-action-ui="secondary" data-action-size="normal"
                       type="button"
                       className="payment-receipt-btn"
                       onClick={() =>
@@ -3249,7 +3226,7 @@ export function FileProcessingWorkspace({
                   <div className="dossier-field"><span className="dossier-field-label">Expiry Date (10-Year Valid)</span><b className="dossier-field-value highlight-green">{file.passport?.expiryDate ? new Date(file.passport.expiryDate).toLocaleDateString("en-GB") : "01 Jan 2034"}</b></div>
                   <div className="dossier-field"><span className="dossier-field-label">Issuing Authority / Place</span><b className="dossier-field-value">{file.passport?.issuingAuthority || "DIP Dhaka, Bangladesh"}</b></div>
                   <div className="dossier-field"><span className="dossier-field-label">Verification Status</span><b className="dossier-field-value highlight-green">{file.passport?.verificationStatus || "Verified & Original In Hand"}</b></div>
-                  <div className="dossier-field"><span className="dossier-field-label">Verified By Officer</span><b className="dossier-field-value">{file.assignedTo?.name || "Call Center Officer"}</b></div>
+                  <div className="dossier-field"><span className="dossier-field-label">Verified By Officer</span><b className="dossier-field-value">{file.assignedTo?.name || "Office Operations Officer"}</b></div>
                   <div className="dossier-field"><span className="dossier-field-label">Physical Scan Attached</span><b className={`dossier-field-value ${attachedFiles["passport"] ? "highlight-green" : ""}`}>{attachedFiles["passport"] ? "✓ Scan Attached" : "Digital Record"}</b></div>
                 </div>
               </div>
@@ -3267,7 +3244,7 @@ export function FileProcessingWorkspace({
                     <span className={isStageCompleted("Medical") ? "dossier-badge-done" : "dossier-badge-pending"}>
                       {file.medical?.[0]?.result ? `✓ Result: ${file.medical[0].result}` : "● Medical In Progress"}
                     </span>
-                    <button
+                    <button data-action-ui="secondary" data-action-size="normal"
                       type="button"
                       className="payment-receipt-btn"
                       onClick={() =>
@@ -3299,7 +3276,7 @@ export function FileProcessingWorkspace({
                   <div className="dossier-field"><span className="dossier-field-label">Medical Picture Collected</span><b className="dossier-field-value highlight-green">✓ YES (Collected)</b></div>
                   <div className="dossier-field"><span className="dossier-field-label">Physical Medical Slip in Hand</span><b className="dossier-field-value highlight-green">✓ YES (In Hand)</b></div>
                   <div className="dossier-field"><span className="dossier-field-label">Re-Medical File</span><b className="dossier-field-value">NO (Normal 1st Medical)</b></div>
-                  <div className="dossier-field"><span className="dossier-field-label">Contact Medical Done By</span><b className="dossier-field-value">{file.assignedTo?.name || "Call Center Officer"}</b></div>
+                  <div className="dossier-field"><span className="dossier-field-label">Contact Medical Done By</span><b className="dossier-field-value">{file.assignedTo?.name || "Office Operations Officer"}</b></div>
                   <div className="dossier-field"><span className="dossier-field-label">Fit Card Status</span><b className="dossier-field-value highlight-green">Fit Card Issued</b></div>
                   <div className="dossier-field span-2"><span className="dossier-field-label">Officer Medical Remarks</span><b className="dossier-field-value">{file.medical?.[0]?.remarks || "GAMCA medical passed with clear blood tests and X-ray."}</b></div>
                 </div>
@@ -3318,7 +3295,7 @@ export function FileProcessingWorkspace({
                     <span className={isStageCompleted("Police Clearance") ? "dossier-badge-done" : "dossier-badge-pending"}>
                       {isStageCompleted("Police Clearance") ? "✓ PCC Cleared & Verified" : "● PCC Under Verification"}
                     </span>
-                    <button
+                    <button data-action-ui="neutral" data-action-size="normal"
                       type="button"
                       className="payment-receipt-btn"
                       onClick={() =>
@@ -3349,7 +3326,7 @@ export function FileProcessingWorkspace({
                   <div className="dossier-field"><span className="dossier-field-label">Verification Result</span><b className="dossier-field-value highlight-green">{file.police?.[0]?.result || "Clear / Verified (No Criminal Record)"}</b></div>
                   <div className="dossier-field"><span className="dossier-field-label">PCC Processing Status</span><b className="dossier-field-value">{file.police?.[0]?.status || "Verified & Available"}</b></div>
                   <div className="dossier-field"><span className="dossier-field-label">Certificate Reference Key</span><b className="dossier-field-value">{file.police?.[0]?.certificateKey || `CERT-PCC-${file.fileNo.slice(-6)}`}</b></div>
-                  <div className="dossier-field"><span className="dossier-field-label">Verified Officer</span><b className="dossier-field-value">{file.assignedTo?.name || "Call Center Officer"}</b></div>
+                  <div className="dossier-field"><span className="dossier-field-label">Verified Officer</span><b className="dossier-field-value">{file.assignedTo?.name || "Office Operations Officer"}</b></div>
                 </div>
               </div>
             )}
@@ -3370,7 +3347,7 @@ export function FileProcessingWorkspace({
                         ? `✓ ৳ ${totalPaid.toLocaleString()} BDT Paid (${Math.round((totalPaid / totalPackageCost) * 100)}% - Due: ৳ ${balanceRemaining.toLocaleString()} BDT)`
                         : "● Payment Pending"}
                     </span>
-                    <button
+                    <button data-action-ui="neutral" data-action-size="normal"
                       type="button"
                       className="payment-receipt-btn"
                       onClick={() =>
@@ -3443,7 +3420,7 @@ export function FileProcessingWorkspace({
                             <b style={{ fontSize: "14px", color: "#15803d", fontWeight: 800 }}>
                               ৳ {Number(p.amount).toLocaleString()} BDT
                             </b>
-                            <button
+                            <button data-action-ui="neutral" data-action-size="normal"
                               type="button"
                               className="payment-receipt-btn"
                               style={{ fontSize: "11px" }}
@@ -3520,7 +3497,7 @@ export function FileProcessingWorkspace({
                     <span className={isStageCompleted("Takamul") ? "dossier-badge-done" : "dossier-badge-pending"}>
                       {file.takamul?.[0]?.reportStatus ? `✓ ${file.takamul[0].reportStatus}` : "● Takamul In Progress"}
                     </span>
-                    <button
+                    <button data-action-ui="secondary" data-action-size="normal"
                       type="button"
                       className="payment-receipt-btn"
                       onClick={() =>
@@ -3576,7 +3553,7 @@ export function FileProcessingWorkspace({
                   <div className="dossier-field"><span className="dossier-field-label">Appointment Date</span><b className="dossier-field-value">{file.biometrics?.[0]?.appointmentDate ? new Date(file.biometrics[0].appointmentDate).toLocaleDateString("en-GB") : "18 Aug 2026"}</b></div>
                   <div className="dossier-field"><span className="dossier-field-label">Present Date</span><b className="dossier-field-value">{file.biometrics?.[0]?.presentDate ? new Date(file.biometrics[0].presentDate).toLocaleDateString("en-GB") : "18 Aug 2026"}</b></div>
                   <div className="dossier-field"><span className="dossier-field-label">Biometric Evidence Key</span><b className="dossier-field-value">{file.biometrics?.[0]?.evidenceKey || `BIO-KSA-${file.fileNo.slice(-6)}`}</b></div>
-                  <div className="dossier-field"><span className="dossier-field-label">Officer In Charge</span><b className="dossier-field-value">{file.assignedTo?.name || "Call Center Officer"}</b></div>
+                  <div className="dossier-field"><span className="dossier-field-label">Officer In Charge</span><b className="dossier-field-value">{file.assignedTo?.name || "Office Operations Officer"}</b></div>
                   <div className="dossier-field"><span className="dossier-field-label">Office Center</span><b className="dossier-field-value">{file.office?.name || "Dhaka Head Office"}</b></div>
                   <div className="dossier-field"><span className="dossier-field-label">Completed Date</span><b className="dossier-field-value highlight-green">{file.biometrics?.[0]?.completedAt ? new Date(file.biometrics[0].completedAt).toLocaleDateString("en-GB") : "18 Aug 2026"}</b></div>
                 </div>
@@ -3595,7 +3572,7 @@ export function FileProcessingWorkspace({
                     <span className={isStageCompleted("Mofa") ? "dossier-badge-done" : "dossier-badge-pending"}>
                       {isStageCompleted("Mofa") ? "✓ MOFA Approved & Done" : "● MOFA Pending"}
                     </span>
-                    <button
+                    <button data-action-ui="secondary" data-action-size="normal"
                       type="button"
                       className="payment-receipt-btn"
                       onClick={() =>
@@ -3651,7 +3628,7 @@ export function FileProcessingWorkspace({
                     <span className={file.visas?.[0]?.status === "Stamped" || isStageCompleted("Mofa") ? "dossier-badge-done" : "dossier-badge-pending"}>
                       ✓ E-Visa Stamped &amp; Ready
                     </span>
-                    <button
+                    <button data-action-ui="secondary" data-action-size="normal"
                       type="button"
                       className="payment-receipt-btn"
                       onClick={() =>
@@ -3759,7 +3736,7 @@ export function FileProcessingWorkspace({
                               <span className="dossier-field-label">{fld.label}</span>
                               <b className={`dossier-field-value ${val ? "highlight-purple" : ""}`}>
                                 {isFile && attachedFiles[`custom_${cStage.code}_${fld.id}`] ? (
-                                  <button
+                                  <button data-action-ui="secondary" data-action-size="normal"
                                     type="button"
                                     onClick={() =>
                                       setActiveDoc({
@@ -3814,7 +3791,7 @@ export function FileProcessingWorkspace({
                     <span className={isStageCompleted("Manpower") ? "dossier-badge-done" : "dossier-badge-pending"}>
                       {isStageCompleted("Manpower") ? "✓ Approved & Smart Card Ready" : "● BMET Under Submission"}
                     </span>
-                    <button
+                    <button data-action-ui="neutral" data-action-size="normal"
                       type="button"
                       className="payment-receipt-btn"
                       onClick={() =>
@@ -3862,7 +3839,7 @@ export function FileProcessingWorkspace({
                     <span className={isStageCompleted("Flight") ? "dossier-badge-done" : "dossier-badge-pending"}>
                       {isStageCompleted("Flight") ? "✓ Flight Booked & Ticket Issued" : "● Pending Flight Schedule"}
                     </span>
-                    <button
+                    <button data-action-ui="secondary" data-action-size="normal"
                       type="button"
                       className="payment-receipt-btn"
                       onClick={() =>
@@ -3977,13 +3954,13 @@ export function FileProcessingWorkspace({
               </div>
             )}
 
-            {/* SECTION 14: CALL CENTER LEADS & CALL LOGS */}
+            {/* SECTION 14: OFFICE OPERATIONS LEADS & CALL LOGS */}
             {showSection("calls") && (
               <div className="dossier-section-card">
                 <div className="dossier-section-header">
                   <div className="dossier-title-group">
                     <span className="dossier-table-num">TABLE 14</span>
-                    <h3 className="dossier-table-title">📞 Call Center Lead Communications &amp; Officer Call Logs</h3>
+                    <h3 className="dossier-table-title">📞 Office Operations Lead Communications &amp; Officer Call Logs</h3>
                   </div>
                 </div>
                 <div className="dossier-grid-4">
@@ -4059,7 +4036,7 @@ export function FileProcessingWorkspace({
                         )}
                       </div>
                       <div className="dossier-doc-actions">
-                        <button
+                        <button data-action-ui="secondary" data-action-size="normal"
                           type="button"
                           className="payment-receipt-btn"
                           style={{ flex: 1, justifyContent: "center" }}
@@ -4081,7 +4058,7 @@ export function FileProcessingWorkspace({
                         >
                           <Eye size={13} /> View Document
                         </button>
-                        <label className="btn-file-change" style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                        <label data-action-ui="secondary" data-action-size="compact" className="btn-file-change" style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}>
                           <UploadCloud size={13} /> Upload Scan
                           <input
                             type="file"
@@ -4135,15 +4112,15 @@ export function FileProcessingWorkspace({
             </div>
 
             {/* Master Payment Statement */}
-            <div className="sidebar-widget-card mt-6">
-              <div className="flex items-center justify-between mb-4">
+            <section className="payment-history-card" aria-labelledby="payment-history-title">
+              <div className="payment-history-header">
                 <div>
-                  <h3 className="m-0"><Receipt size={18} className="text-indigo-600 inline mr-2" /> Complete Payment History</h3>
-                  <p className="text-xs text-slate-500 m-0">All official transaction records with printable receipts.</p>
+                  <h3 id="payment-history-title">Complete Payment History</h3>
+                  <p>All official transaction records with printable receipts.</p>
                 </div>
-                <button
+                <button data-action-ui="neutral" data-action-size="normal"
                   type="button"
-                  className="button primary sm"
+                  className="payment-history-master-btn"
                   onClick={() =>
                     setActiveReceipt({
                       receiptNo: `MR-${file.fileNo.replace("FILE-", "")}`,
@@ -4169,66 +4146,74 @@ export function FileProcessingWorkspace({
                 </button>
               </div>
 
-              <table className="receipt-payment-table">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Payment Type / Stage</th>
-                    <th>Payment Method</th>
-                    <th>Reference / Voucher No</th>
-                    <th className="text-right">Amount (BDT)</th>
-                    <th className="text-center">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {file.payments?.map((p) => (
-                    <tr key={p.id}>
-                      <td>{new Date(p.createdAt).toLocaleDateString("en-GB")}</td>
-                      <td><b>{p.type}</b></td>
-                      <td>{p.method || "Cash Deposit"}</td>
-                      <td><code>{p.referenceNo || "REC-OFFICE"}</code></td>
-                      <td className="text-right font-bold text-emerald-700">৳ {Number(p.amount).toLocaleString()}</td>
-                      <td className="text-center">
-                        <button
-                          type="button"
-                          className="payment-receipt-btn"
-                          onClick={() =>
-                            setActiveReceipt({
-                              receiptNo: `MR-${p.referenceNo || p.id.slice(-6).toUpperCase()}`,
-                              date: new Date(p.createdAt).toLocaleDateString("en-GB"),
-                              candidateName: file.candidate.fullName,
-                              candidateNo: file.candidate.candidateNo,
-                              fileNo: file.fileNo,
-                              passportNo: file.candidate.passportNo || file.passport?.passportNumber,
-                              phone: file.candidate.phone,
-                              country: file.country,
-                              profession: file.profession,
-                              paymentType: p.type,
-                              paymentMethod: p.method || "Cash Deposit",
-                              referenceNo: p.referenceNo || "OFFICE-REC",
-                              amount: Number(p.amount),
-                              totalPaid: totalPaid,
-                              totalPackage: totalPackageCost,
-                              officerName: file.assignedTo?.name || "Accounts Department",
-                            })
-                          }
-                        >
-                          <Printer size={12} /> Print Receipt
-                        </button>
-                      </td>
+              <div className="payment-history-scroll" role="region" aria-label="Payment transactions" tabIndex={0}>
+                <table className="payment-history-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Date</th>
+                      <th scope="col">Payment Type / Stage</th>
+                      <th scope="col">Payment Method</th>
+                      <th scope="col">Reference / Voucher No</th>
+                      <th scope="col" className="payment-history-amount">Amount (BDT)</th>
+                      <th scope="col" className="payment-history-action">Action</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {file.payments?.map((p) => (
+                      <tr key={p.id}>
+                        <td>{new Date(p.createdAt).toLocaleDateString("en-GB")}</td>
+                        <td><b>{p.type}</b></td>
+                        <td>{p.method || "Cash Deposit"}</td>
+                        <td><code>{p.referenceNo || "REC-OFFICE"}</code></td>
+                        <td className="payment-history-amount">৳ {Number(p.amount).toLocaleString()}</td>
+                        <td className="payment-history-action">
+                          <button data-action-ui="neutral" data-action-size="compact"
+                            type="button"
+                            className="payment-history-receipt-btn"
+                            onClick={() =>
+                              setActiveReceipt({
+                                receiptNo: `MR-${p.referenceNo || p.id.slice(-6).toUpperCase()}`,
+                                date: new Date(p.createdAt).toLocaleDateString("en-GB"),
+                                candidateName: file.candidate.fullName,
+                                candidateNo: file.candidate.candidateNo,
+                                fileNo: file.fileNo,
+                                passportNo: file.candidate.passportNo || file.passport?.passportNumber,
+                                phone: file.candidate.phone,
+                                country: file.country,
+                                profession: file.profession,
+                                paymentType: p.type,
+                                paymentMethod: p.method || "Cash Deposit",
+                                referenceNo: p.referenceNo || "OFFICE-REC",
+                                amount: Number(p.amount),
+                                totalPaid: totalPaid,
+                                totalPackage: totalPackageCost,
+                                officerName: file.assignedTo?.name || "Accounts Department",
+                              })
+                            }
+                          >
+                            <Printer size={12} /> Print Receipt
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {!file.payments?.length && <tr><td colSpan={6} className="payment-history-empty">No payment transactions recorded yet.</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+              <div className="payment-history-footer">
+                <span>{file.payments?.length || 0} payment transactions</span>
+                <span>Total Paid <b>৳ {totalPaid.toLocaleString()} BDT</b></span>
+              </div>
+            </section>
           </div>
         )}
 
         {/* VIEW 4: 💬 TIMELINE, NOTES & AUDIT TRAIL */}
         {mainView === "timeline" && (
-          <div className="timeline-view-container" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          <div className="timeline-view-container activity-design-view" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             {/* 1. INTERNAL OFFICER NOTES CARD */}
             <div
+              className="activity-panel"
               style={{
                 background: "#fff",
                 border: "1px solid var(--line)",
@@ -4239,6 +4224,7 @@ export function FileProcessingWorkspace({
             >
               {/* Header */}
               <div
+                className="activity-panel-header"
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
@@ -4250,8 +4236,9 @@ export function FileProcessingWorkspace({
                   gap: "12px",
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <div className="activity-heading-group" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                   <div
+                    className="activity-heading-icon"
                     style={{
                       width: "40px",
                       height: "40px",
@@ -4267,7 +4254,7 @@ export function FileProcessingWorkspace({
                   </div>
                   <div>
                     <h3 style={{ fontSize: "16px", fontWeight: 800, color: "var(--ink)", margin: "0 0 3px 0", letterSpacing: "0.2px" }}>
-                      INTERNAL OFFICER NOTES
+                      Internal Officer Notes
                     </h3>
                     <p style={{ fontSize: "12px", color: "var(--muted)", margin: 0 }}>
                       Private remarks, operational follow-ups, and candidate milestone records visible to authorized officers.
@@ -4276,6 +4263,7 @@ export function FileProcessingWorkspace({
                 </div>
 
                 <span
+                  className="activity-note-count"
                   style={{
                     fontSize: "11px",
                     fontWeight: 700,
@@ -4292,6 +4280,7 @@ export function FileProcessingWorkspace({
 
               {/* Note Composer Box */}
               <div
+                className="activity-note-composer"
                 style={{
                   background: "#faf8ff",
                   border: "1px solid #dcd5fb",
@@ -4301,7 +4290,7 @@ export function FileProcessingWorkspace({
                 }}
               >
                 {/* Category Chip Selector */}
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "12px", flexWrap: "wrap" }}>
+                <div className="activity-note-categories" style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "12px", flexWrap: "wrap" }}>
                   <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", marginRight: "4px" }}>
                     Note Category:
                   </span>
@@ -4312,6 +4301,8 @@ export function FileProcessingWorkspace({
                         key={tag}
                         type="button"
                         onClick={() => setNoteTag(tag)}
+                        className="activity-category-pill"
+                        aria-pressed={isSelected}
                         style={{
                           padding: "4px 10px",
                           borderRadius: "6px",
@@ -4332,10 +4323,13 @@ export function FileProcessingWorkspace({
 
                 {/* Input Fields: Title, Price & Description */}
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: "10px" }}>
+                  <div className="activity-note-inputs" style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: "10px" }}>
+                    <label className="activity-note-field">
+                      <span className="activity-mobile-label">Title / Subject</span>
                     <input
                       type="text"
                       placeholder="Title / Subject (e.g. Visa Fee Agreement)..."
+                      aria-label="Note title or subject"
                       value={noteTitle}
                       onChange={(e) => setNoteTitle(e.target.value)}
                       style={{
@@ -4347,9 +4341,13 @@ export function FileProcessingWorkspace({
                         outline: "none",
                       }}
                     />
+                    </label>
+                    <label className="activity-note-field">
+                      <span className="activity-mobile-label">Price Remark (BDT) <small>Optional</small></span>
                     <input
                       type="number"
                       placeholder="Price Remark ৳ (Opt)"
+                      aria-label="Optional price remark in BDT"
                       value={notePrice}
                       onChange={(e) => setNotePrice(e.target.value)}
                       style={{
@@ -4361,12 +4359,16 @@ export function FileProcessingWorkspace({
                         outline: "none",
                       }}
                     />
+                    </label>
                   </div>
 
-                  <div style={{ display: "flex", gap: "10px", alignItems: "flex-start", flexWrap: "wrap" }}>
+                  <div className="activity-note-body" style={{ display: "flex", gap: "10px", alignItems: "flex-start", flexWrap: "wrap" }}>
+                    <label className="activity-note-field">
+                      <span className="activity-mobile-label">Internal Remarks</span>
                     <textarea
                       rows={2}
                       placeholder="Type internal remarks, candidate feedback, or milestone updates..."
+                      aria-label="Internal note remarks"
                       value={newNote}
                       onChange={(e) => setNewNote(e.target.value)}
                       style={{
@@ -4384,7 +4386,8 @@ export function FileProcessingWorkspace({
                         lineHeight: "1.45",
                       }}
                     />
-                    <button
+                    </label>
+                    <button data-action-ui="primary" data-action-size="normal"
                       type="button"
                       disabled={submittingNote}
                       onClick={handleCreateFileNote}
@@ -4409,7 +4412,7 @@ export function FileProcessingWorkspace({
                   </div>
                 </div>
 
-                <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "8px", display: "flex", alignItems: "center", gap: "4px" }}>
+                <div className="activity-note-privacy" style={{ fontSize: "11px", color: "var(--muted)", marginTop: "8px", display: "flex", alignItems: "center", gap: "4px" }}>
                   <span>🔒 Internal notes are private and encrypted for officer &amp; admin access only.</span>
                 </div>
               </div>
@@ -4435,15 +4438,16 @@ export function FileProcessingWorkspace({
                 const combinedNotes = [...dbNotes, ...notesList];
 
                 return (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  <div className="activity-note-feed" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                     {combinedNotes.length === 0 ? (
-                      <div style={{ textAlign: "center", padding: "24px 10px", color: "var(--muted)", fontSize: "13px" }}>
+                      <div className="activity-empty" style={{ textAlign: "center", padding: "24px 10px", color: "var(--muted)", fontSize: "13px" }}>
                         No internal officer or agent notes added yet for this candidate.
                       </div>
                     ) : (
                       combinedNotes.map((item) => (
                         <div
                           key={item.id}
+                          className="activity-note-card"
                           style={{
                             display: "flex",
                             gap: "12px",
@@ -4456,6 +4460,7 @@ export function FileProcessingWorkspace({
                         >
                           {/* Avatar */}
                           <div
+                            className="activity-note-avatar"
                             style={{
                               width: "34px",
                               height: "34px",
@@ -4473,11 +4478,12 @@ export function FileProcessingWorkspace({
                           </div>
 
                           {/* Content */}
-                          <div style={{ flex: 1 }}>
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px", flexWrap: "wrap", gap: "6px" }}>
+                          <div className="activity-note-content" style={{ flex: 1 }}>
+                            <div className="activity-note-meta" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px", flexWrap: "wrap", gap: "6px" }}>
                               <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                                 <strong style={{ fontSize: "13px", color: "var(--ink)" }}>{item.author}</strong>
                                 <span
+                                  className="activity-role-badge"
                                   style={{
                                     fontSize: "10px",
                                     fontWeight: 700,
@@ -4490,6 +4496,7 @@ export function FileProcessingWorkspace({
                                   {item.role}
                                 </span>
                                 <span
+                                  className="activity-tag-badge"
                                   style={{
                                     fontSize: "10px",
                                     fontWeight: 700,
@@ -4503,6 +4510,7 @@ export function FileProcessingWorkspace({
                                 </span>
                                 {item.price > 0 && (
                                   <span
+                                    className="activity-price-badge"
                                     style={{
                                       fontSize: "10px",
                                       fontWeight: 800,
@@ -4516,11 +4524,11 @@ export function FileProcessingWorkspace({
                                   </span>
                                 )}
                               </div>
-                              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                              <div className="activity-note-time" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                                 <span style={{ fontSize: "11px", color: "var(--muted)", display: "inline-flex", alignItems: "center", gap: "4px" }}>
                                   <Clock size={11} /> {item.createdAt}
                                 </span>
-                                <button
+                                <button data-action-ui="danger" data-action-size="icon"
                                   type="button"
                                   onClick={() => {
                                     if (item.isDb) {
@@ -4531,6 +4539,7 @@ export function FileProcessingWorkspace({
                                     }
                                   }}
                                   title="Delete Note"
+                                  aria-label="Delete note"
                                   style={{
                                     background: "none",
                                     border: "none",
@@ -4566,6 +4575,7 @@ export function FileProcessingWorkspace({
 
             {/* 2. STAGE ACTIVITY & AUDIT TRAIL CARD */}
             <div
+              className="activity-panel activity-audit-panel"
               style={{
                 background: "#fff",
                 border: "1px solid var(--line)",
@@ -4574,8 +4584,9 @@ export function FileProcessingWorkspace({
                 boxShadow: "var(--shadow)",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "18px", paddingBottom: "14px", borderBottom: "1px solid var(--line)" }}>
+              <div className="activity-panel-header activity-heading-group" style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "18px", paddingBottom: "14px", borderBottom: "1px solid var(--line)" }}>
                 <div
+                  className="activity-heading-icon"
                   style={{
                     width: "40px",
                     height: "40px",
@@ -4591,7 +4602,7 @@ export function FileProcessingWorkspace({
                 </div>
                 <div>
                   <h3 style={{ fontSize: "16px", fontWeight: 800, color: "var(--ink)", margin: "0 0 3px 0" }}>
-                    STAGE ACTIVITY &amp; AUDIT TRAIL
+                    Stage Activity &amp; Audit Trail
                   </h3>
                   <p style={{ fontSize: "12px", color: "var(--muted)", margin: 0 }}>
                     Automated system timeline tracking each dossier stage advancement and exception.
@@ -4599,8 +4610,8 @@ export function FileProcessingWorkspace({
                 </div>
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                <div style={{ padding: "14px 16px", background: "#fafafd", borderRadius: "12px", border: "1px solid var(--line)" }}>
+              <div className="activity-audit-list" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                <div className="activity-audit-item" style={{ padding: "14px 16px", background: "#fafafd", borderRadius: "12px", border: "1px solid var(--line)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", fontWeight: 700, color: "var(--ink)" }}>
                     <span>🚀 Stage Advanced to: <strong style={{ color: "#7258e8" }}>{file.currentStage}</strong></span>
                     <span style={{ color: "var(--muted)", fontWeight: 500 }}>Just now</span>
@@ -4611,7 +4622,7 @@ export function FileProcessingWorkspace({
                 </div>
 
                 {file.holds?.map((h) => (
-                  <div key={h.id} style={{ padding: "14px 16px", background: "#fffbeb", borderRadius: "12px", border: "1px solid #fde68a" }}>
+                  <div key={h.id} className="activity-audit-item activity-audit-hold" style={{ padding: "14px 16px", background: "#fffbeb", borderRadius: "12px", border: "1px solid #fde68a" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", fontWeight: 700, color: "#92400e" }}>
                       <span>⏸️ Placed on Hold: {h.reason}</span>
                       <span style={{ color: "#b45309", fontWeight: 500 }}>{new Date(h.createdAt).toLocaleDateString("en-GB")}</span>
@@ -4626,7 +4637,7 @@ export function FileProcessingWorkspace({
 
         {/* EDIT CANDIDATE REGISTRATION BIO-DATA MODAL */}
         {showEditBioModal && (
-          <div
+          <div role="dialog" aria-modal="true" aria-label="👤 Edit Candidate Registration Bio-Data" className="master-modal-overlay"
             style={{
               position: "fixed",
               inset: 0,
@@ -4639,7 +4650,7 @@ export function FileProcessingWorkspace({
             }}
             onClick={() => setShowEditBioModal(false)}
           >
-            <div
+            <div className="master-modal-card master-modal-inline-card master-modal-panel"
               style={{
                 background: "#ffffff",
                 borderRadius: "18px",
@@ -4654,7 +4665,7 @@ export function FileProcessingWorkspace({
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px", borderBottom: "1px solid #f1f5f9", paddingBottom: "12px" }}>
+              <div className="master-modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px", borderBottom: "1px solid #f1f5f9", paddingBottom: "12px" }}>
                 <div>
                   <h3 style={{ fontSize: "17px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
                     👤 Edit Candidate Registration Bio-Data
@@ -4663,7 +4674,7 @@ export function FileProcessingWorkspace({
                     Update primary registration profile, contact numbers, NID, DOB, trade &amp; assigned partner.
                   </p>
                 </div>
-                <button
+                <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog" className="master-modal-close"
                   type="button"
                   onClick={() => setShowEditBioModal(false)}
                   style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: "4px" }}
@@ -4934,14 +4945,14 @@ export function FileProcessingWorkspace({
 
                 {/* Modal Buttons */}
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "8px", paddingTop: "14px", borderTop: "1px solid #f1f5f9" }}>
-                  <button
+                  <button data-action-ui="neutral" data-action-size="normal"
                     type="button"
                     onClick={() => setShowEditBioModal(false)}
                     style={{ padding: "8px 18px", borderRadius: "8px", border: "1px solid #cbd5e1", background: "#fff", color: "var(--ink)", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}
                   >
                     Cancel
                   </button>
-                  <button
+                  <button data-action-ui="primary" data-action-size="normal" className="master-modal-primary"
                     type="submit"
                     disabled={savingBio}
                     style={{
@@ -4966,11 +4977,11 @@ export function FileProcessingWorkspace({
 
         {/* HOLD FILE MODAL */}
         {showHoldModal && (
-          <div className="profile-action-modal-overlay" onClick={() => setShowHoldModal(false)}>
-            <div className="profile-action-modal" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header-box">
+          <div role="dialog" aria-modal="true" aria-label="⏸️ Place File on Hold" className="profile-action-modal-overlay master-modal-overlay" onClick={() => setShowHoldModal(false)}>
+            <div className="profile-action-modal master-modal-card" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header-box master-modal-header">
                 <h2>⏸️ Place File on Hold</h2>
-                <button
+                <button data-action-ui="warning" data-action-size="icon" aria-label="Close dialog"
                   type="button"
                   className="modal-close-btn"
                   onClick={() => setShowHoldModal(false)}
@@ -5011,18 +5022,18 @@ export function FileProcessingWorkspace({
                     />
                   </div>
                 </div>
-                <div className="modal-footer-box">
-                  <button
+                <div className="modal-footer-box master-modal-footer">
+                  <button data-action-ui="warning" data-action-size="normal"
                     type="button"
                     className="btn-modal-cancel"
                     onClick={() => setShowHoldModal(false)}
                   >
                     Cancel
                   </button>
-                  <button
+                  <button data-action-ui="warning" data-action-size="normal"
                     type="submit"
                     disabled={actionLoading}
-                    className="btn-modal-hold"
+                    className="btn-modal-hold master-modal-warning"
                   >
                     {actionLoading ? "Holding..." : "Confirm & Place on Hold"}
                   </button>
@@ -5034,11 +5045,11 @@ export function FileProcessingWorkspace({
 
         {/* RETURN & REFUND FILE MODAL */}
         {showReturnModal && (
-          <div className="profile-action-modal-overlay" onClick={() => setShowReturnModal(false)}>
-            <div className="profile-action-modal" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header-box">
+          <div role="dialog" aria-modal="true" aria-label="↩️ Return File & Refund Calculation" className="profile-action-modal-overlay master-modal-overlay" onClick={() => setShowReturnModal(false)}>
+            <div className="profile-action-modal master-modal-card" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header-box master-modal-header">
                 <h2>↩️ Return File &amp; Refund Calculation</h2>
-                <button
+                <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog"
                   type="button"
                   className="modal-close-btn"
                   onClick={() => setShowReturnModal(false)}
@@ -5095,18 +5106,18 @@ export function FileProcessingWorkspace({
                     />
                   </div>
                 </div>
-                <div className="modal-footer-box">
-                  <button
+                <div className="modal-footer-box master-modal-footer">
+                  <button data-action-ui="neutral" data-action-size="normal"
                     type="button"
                     className="btn-modal-cancel"
                     onClick={() => setShowReturnModal(false)}
                   >
                     Cancel
                   </button>
-                  <button
+                  <button data-action-ui="danger" data-action-size="normal"
                     type="submit"
                     disabled={actionLoading}
-                    className="btn-modal-return"
+                    className="btn-modal-return master-modal-danger"
                   >
                     {actionLoading ? "Processing..." : `Approve Return & Refund ৳ ${Math.max(0, totalPaid - deductionAmount).toLocaleString()}`}
                   </button>

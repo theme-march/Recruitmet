@@ -212,7 +212,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
   const [previewDoc, setPreviewDoc] = useState<{ name: string; type: string; fileData?: string | null } | null>(null);
   const [activeReceipt, setActiveReceipt] = useState<ReceiptData | null>(null);
 
-  const { data: agentData, isLoading, refetch, isRefetching } = useQuery({
+  const { data: agentData, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ["agent-portal-data", agentId],
     queryFn: async () => {
       const res = await fetch(`/api/agents/${agentId}`, { cache: "no-store" });
@@ -254,7 +254,6 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
       id: string;
       candidate: CandidateItem;
       docType: "Passport" | "GAMCA Medical" | "Police Clearance (PCC)" | "Stamped Visa";
-      docIcon: string;
       docRef: string;
       expiryDate: Date;
       daysLeft: number;
@@ -273,20 +272,19 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
         let action = "Passport validity is healthy (> 9 months) & flight ready.";
         if (days < 0) {
           urgency = "EXPIRED";
-          action = "🔴 Passport expired! Candidate must apply for emergency passport re-issue.";
+          action = "Passport expired! Candidate must apply for emergency passport re-issue.";
         } else if (days <= 180) {
           urgency = "CRITICAL";
-          action = "🚨 Under 6 Months! Visa stamping & BMET clearance blocked. Candidate must renew urgently.";
+          action = "Under 6 Months! Visa stamping & BMET clearance blocked. Candidate must renew urgently.";
         } else if (days <= 270) {
           urgency = "WARNING";
-          action = "⚠️ Approaching 6-month threshold. Advise candidate to renew soon.";
+          action = "Approaching 6-month threshold. Advise candidate to renew soon.";
         }
 
         items.push({
           id: `pass-${cand.candidateId}`,
           candidate: cand,
           docType: "Passport",
-          docIcon: "📘",
           docRef: cand.passportNumber,
           expiryDate: exp,
           daysLeft: days,
@@ -307,20 +305,19 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
         let action = "Medical fitness certificate active in GCC GAMCA portal.";
         if (days < 0) {
           urgency = "EXPIRED";
-          action = "🔴 Medical fitness expired (60-day rule). Candidate must undergo re-medical.";
+          action = "Medical fitness expired (60-day rule). Candidate must undergo re-medical.";
         } else if (days <= 15) {
           urgency = "CRITICAL";
-          action = "🚨 Medical expiring very soon! Expedite embassy visa submission to avoid re-medical costs.";
+          action = "Medical expiring very soon! Expedite embassy visa submission to avoid re-medical costs.";
         } else if (days <= 30) {
           urgency = "WARNING";
-          action = "⚠️ Within 30 days of expiry. Complete embassy submission without delay.";
+          action = "Within 30 days of expiry. Complete embassy submission without delay.";
         }
 
         items.push({
           id: `med-${cand.candidateId}`,
           candidate: cand,
           docType: "GAMCA Medical",
-          docIcon: "🏥",
           docRef: `FIT (${cand.medicalResult || "Passed"})`,
           expiryDate: exp,
           daysLeft: days,
@@ -339,17 +336,16 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
         let action = "PCC verified by Special Branch.";
         if (days < 0) {
           urgency = "EXPIRED";
-          action = "🔴 Police Clearance Certificate expired. Re-apply online via police portal.";
+          action = "Police Clearance Certificate expired. Re-apply online via police portal.";
         } else if (days <= 20) {
           urgency = "CRITICAL";
-          action = "🚨 PCC expiring soon. Submit for embassy visa clearance.";
+          action = "PCC expiring soon. Submit for embassy visa clearance.";
         }
 
         items.push({
           id: `pcc-${cand.candidateId}`,
           candidate: cand,
           docType: "Police Clearance (PCC)",
-          docIcon: "🛡️",
           docRef: "PCC Clearance",
           expiryDate: exp,
           daysLeft: days,
@@ -368,20 +364,19 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
         let action = "Visa active. Proceed with BMET and flight ticketing.";
         if (days < 0) {
           urgency = "EXPIRED";
-          action = "🔴 Stamped Visa validity expired! Immediate sponsor re-validation required.";
+          action = "Stamped Visa validity expired! Immediate sponsor re-validation required.";
         } else if (days <= 15) {
           urgency = "CRITICAL";
-          action = "🚨 Emergency! Candidate must fly immediately before visa lapses.";
+          action = "Emergency! Candidate must fly immediately before visa lapses.";
         } else if (days <= 30) {
           urgency = "WARNING";
-          action = "⚠️ Complete BMET clearance and confirm flight booking.";
+          action = "Complete BMET clearance and confirm flight booking.";
         }
 
         items.push({
           id: `visa-${cand.candidateId}`,
           candidate: cand,
           docType: "Stamped Visa",
-          docIcon: "🛂",
           docRef: cand.visaNumber || "E-Visa",
           expiryDate: exp,
           daysLeft: days,
@@ -458,12 +453,23 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
     return true;
   });
 
+  if (isError) {
+    return (
+      <div className="agent-portal-design portal-state" role="alert">
+        <div className="portal-state-icon"><AlertCircle size={24} /></div>
+        <h2>Unable to load your portal</h2>
+        <p>We could not fetch your partner records. Please try again.</p>
+        <button className="portal-button portal-button-primary" onClick={() => refetch()}>Try again</button>
+      </div>
+    );
+  }
+
   if (isLoading || !agentData) {
     return (
       <div style={{ padding: "60px 20px", textAlign: "center", display: "grid", placeItems: "center" }}>
-        <div style={{ background: "#fff", padding: "40px 60px", borderRadius: "16px", border: "1px solid var(--line)", boxShadow: "var(--shadow)" }}>
-          <RefreshCw className="animate-spin" size={32} color="#7258e8" style={{ margin: "0 auto 16px" }} />
-          <h3 style={{ fontSize: "16px", fontWeight: 800, color: "var(--ink)", marginBottom: "6px" }}>
+        <div className="portal-card" style={{ background: "#fff", padding: "40px 60px", borderRadius: "16px", border: "1px solid var(--line)", boxShadow: "var(--shadow)" }}>
+          <RefreshCw className="animate-spin" size={32} color="#007aff" style={{ margin: "0 auto 16px" }} />
+          <h3 style={{ fontSize: "16px", fontWeight: 600, color: "var(--ink)", marginBottom: "6px" }}>
             Loading Agent Portal...
           </h3>
           <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0 }}>
@@ -499,153 +505,38 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
   const availableCountries = Array.from(new Set((agentData.candidates || []).map((c) => c.country).filter(Boolean)));
 
   return (
-    <div style={{ padding: "20px 28px", maxWidth: "1480px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "20px" }}>
-      
-      {/* 1. PORTAL TOP BANNER & NOTICE */}
-      <div
-        style={{
-          background: "linear-gradient(135deg, #1e1b4b 0%, #312e81 60%, #4338ca 100%)",
-          borderRadius: "18px",
-          padding: "24px 28px",
-          color: "#ffffff",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: "18px",
-          boxShadow: "0 10px 25px -5px rgba(49, 46, 129, 0.3)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <div
-            style={{
-              width: "56px",
-              height: "56px",
-              borderRadius: "14px",
-              background: "rgba(255, 255, 255, 0.15)",
-              backdropFilter: "blur(8px)",
-              display: "grid",
-              placeItems: "center",
-              fontSize: "22px",
-              fontWeight: 900,
-              border: "1px solid rgba(255,255,255,0.25)",
-            }}
-          >
+    <div className="agent-portal-design">
+      <div className="portal-page-heading">
+        <div className="portal-breadcrumb"><Building2 size={14} /> Partner workspace <ChevronRight size={13} /> <span>Agent portal</span></div>
+        <span className="portal-access"><Lock size={12} /> Read-only access</span>
+      </div>
+      <section className="portal-hero" aria-label="Partner profile">
+        <div className="portal-identity">
+          <div className="portal-avatar">
             {agentData.profileImageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={agentData.profileImageUrl} alt={`${agentData.name} profile`} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "14px" }} />
-            ) : (
-              agentData.name.slice(0, 2).toUpperCase()
-            )}
+              <img src={agentData.profileImageUrl} alt={`${agentData.name} profile`} />
+            ) : agentData.name.slice(0, 2).toUpperCase()}
           </div>
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", marginBottom: "4px" }}>
-              <h1 style={{ fontSize: "22px", fontWeight: 900, margin: 0, letterSpacing: "-0.02em" }}>
-                {agentData.name}
-              </h1>
-              <span
-                style={{
-                  background: "rgba(255, 255, 255, 0.2)",
-                  color: "#ffffff",
-                  padding: "2px 10px",
-                  borderRadius: "6px",
-                  fontSize: "12px",
-                  fontWeight: 800,
-                  fontFamily: "monospace",
-                  border: "1px solid rgba(255,255,255,0.3)",
-                }}
-              >
-                {agentData.code}
-              </span>
-              <span
-                style={{
-                  background: "#10b981",
-                  color: "#ffffff",
-                  padding: "2px 10px",
-                  borderRadius: "9999px",
-                  fontSize: "11px",
-                  fontWeight: 800,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "4px",
-                }}
-              >
-                <ShieldCheck size={13} /> Active Partner Portal
-              </span>
+          <div className="portal-partner-info">
+            <div className="portal-partner-meta"><span className="portal-code">{agentData.code}</span><span className={`portal-status ${agentData.status === "Active" ? "is-active" : "is-inactive"}`}><ShieldCheck size={12} /> {agentData.status} partner</span></div>
+            <h1>{agentData.name}</h1>
+            <div className="portal-contact">
+              <span><UserCheck size={13} /> {agentData.contactPerson && agentData.contactPerson !== "N/A" ? agentData.contactPerson : "Partner Lead"}</span>
+              <a href={`tel:${agentData.phone}`}><Phone size={13} /> {agentData.phone}</a>
+              <span><MapPin size={13} /> {agentData.address || agentData.country || "—"}</span>
             </div>
-            <p style={{ margin: 0, fontSize: "13px", opacity: 0.85, display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-              <span>👤 {agentData.contactPerson !== "N/A" ? agentData.contactPerson : "Partner Lead"}</span>
-              <span>📞 {agentData.phone}</span>
-              <span>📍 {agentData.address || agentData.country || "Dhaka, Bangladesh"}</span>
-            </p>
           </div>
         </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <div
-            style={{
-              background: "rgba(255,255,255,0.1)",
-              border: "1px solid rgba(255,255,255,0.2)",
-              borderRadius: "10px",
-              padding: "6px 14px",
-              fontSize: "12px",
-              fontWeight: 700,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-            }}
-          >
-            <Lock size={14} color="#34d399" />
-            <span>Read-Only Verification Mode</span>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => refetch()}
-            disabled={isRefetching}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "8px 14px",
-              borderRadius: "10px",
-              background: "rgba(255,255,255,0.15)",
-              border: "1px solid rgba(255,255,255,0.25)",
-              color: "#ffffff",
-              fontSize: "12px",
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-          >
-            <RefreshCw size={14} className={isRefetching ? "animate-spin" : ""} /> Refresh
-          </button>
-
-          <button
-            type="button"
-            onClick={() => window.print()}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "8px 16px",
-              borderRadius: "10px",
-              background: "#ffffff",
-              color: "#1e1b4b",
-              fontSize: "12px",
-              fontWeight: 800,
-              border: "none",
-              cursor: "pointer",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-            }}
-          >
-            <Printer size={14} /> Print Statement
-          </button>
+        <div className="portal-hero-actions">
+          <button type="button" className="portal-button" onClick={() => refetch()} disabled={isRefetching}><RefreshCw size={14} className={isRefetching ? "animate-spin" : ""} /> {isRefetching ? "Refreshing…" : "Refresh"}</button>
+          <button type="button" className="portal-button portal-button-primary" onClick={() => window.print()}><Printer size={14} /> Print statement</button>
         </div>
-      </div>
+      </section>
 
       {/* 1.5 SMART DUAL ALERT NOTIFICATION HUB (EXPIRY & MISSING REQUIREMENTS) */}
       {(criticalExpiryCount > 0 || warningExpiryCount > 0 || candidatesWithMissingDocs.length > 0) && (
-        <div
+        <div className="portal-grid"
           style={{
             display: "grid",
             gridTemplateColumns:
@@ -657,7 +548,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
         >
           {/* Card 1: Expiry Alert Card */}
           {(criticalExpiryCount > 0 || warningExpiryCount > 0) && (
-            <div
+            <div className="portal-card portal-wrap portal-alert portal-alert-warning"
               style={{
                 background:
                   criticalExpiryCount > 0
@@ -675,7 +566,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                 boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1, minWidth: "260px" }}>
+              <div className="portal-search-slot" style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1, minWidth: "260px" }}>
                 <div
                   style={{
                     width: "38px",
@@ -698,9 +589,9 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                   <Clock size={19} />
                 </div>
                 <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "7px", flexWrap: "wrap" }}>
+                  <div className="portal-wrap" style={{ display: "flex", alignItems: "center", gap: "7px", flexWrap: "wrap" }}>
                     <b style={{ fontSize: "13.5px", color: criticalExpiryCount > 0 ? "#92400e" : "#334155" }}>
-                      🚨 Document Expiration Alert
+                      Document expiry needs attention
                     </b>
                     <span
                       style={{
@@ -710,7 +601,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                         padding: "1px 7px",
                         borderRadius: "9999px",
                         fontSize: "11px",
-                        fontWeight: 800,
+                        fontWeight: 600,
                       }}
                     >
                       {criticalExpiryCount > 0
@@ -731,7 +622,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                 </div>
               </div>
 
-              <button
+              <button data-action-ui="secondary" data-action-size="normal"
                 type="button"
                 onClick={() => setActiveTab("expiry")}
                 style={{
@@ -744,7 +635,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                   color: "#ffffff",
                   border: "none",
                   fontSize: "11.5px",
-                  fontWeight: 800,
+                  fontWeight: 600,
                   cursor: "pointer",
                   display: "inline-flex",
                   alignItems: "center",
@@ -763,7 +654,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
 
           {/* Card 2: Missing Requirements Alert Card */}
           {candidatesWithMissingDocs.length > 0 && (
-            <div
+            <div className="portal-card portal-wrap portal-alert"
               style={{
                 background: "linear-gradient(135deg, #fff1f2 0%, #ffe4e6 40%, #fdf2f8 100%)",
                 border: "1px solid #fecdd3",
@@ -778,7 +669,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                 boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1, minWidth: "260px" }}>
+              <div className="portal-search-slot" style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1, minWidth: "260px" }}>
                 <div
                   style={{
                     width: "38px",
@@ -795,9 +686,9 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                   <FileWarning size={19} />
                 </div>
                 <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "7px", flexWrap: "wrap" }}>
+                  <div className="portal-wrap" style={{ display: "flex", alignItems: "center", gap: "7px", flexWrap: "wrap" }}>
                     <b style={{ fontSize: "13.5px", color: "#881337" }}>
-                      📁 Missing Documents Action Alert
+                      Missing documents need attention
                     </b>
                     <span
                       style={{
@@ -807,7 +698,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                         padding: "1px 7px",
                         borderRadius: "9999px",
                         fontSize: "11px",
-                        fontWeight: 800,
+                        fontWeight: 600,
                       }}
                     >
                       {candidatesWithMissingDocs.length} Candidate(s) • {totalMissingDocsCount} Missing Item(s)
@@ -819,7 +710,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                 </div>
               </div>
 
-              <button
+              <button data-action-ui="secondary" data-action-size="normal"
                 type="button"
                 onClick={() => setActiveTab("missing")}
                 style={{
@@ -829,7 +720,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                   color: "#ffffff",
                   border: "none",
                   fontSize: "11.5px",
-                  fontWeight: 800,
+                  fontWeight: 600,
                   cursor: "pointer",
                   display: "inline-flex",
                   alignItems: "center",
@@ -845,329 +736,42 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
         </div>
       )}
 
-      {/* 2. STATS SUMMARY CARDS */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: "14px" }}>
-        
-        <div style={{ background: "#fff", borderRadius: "14px", padding: "18px 20px", border: "1px solid var(--line)", boxShadow: "var(--shadow)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
-            <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase" }}>
-              Total Candidates
-            </span>
-            <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#f5f3ff", color: "#7258e8", display: "grid", placeItems: "center" }}>
-              <Users size={18} />
-            </div>
-          </div>
-          <div style={{ fontSize: "24px", fontWeight: 900, color: "#1e1b4b" }}>
-            {agentData.totalCandidateCount}
-          </div>
-          <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>Referred to agency</span>
-        </div>
+      <section className="portal-metrics" aria-label="Partner overview">
+        {[
+          { label: "Total candidates", value: agentData.totalCandidateCount, description: "Referred to agency", icon: Users, tone: "blue" },
+          { label: "Active in pipeline", value: agentData.metrics?.activeDossiers ?? agentData.incompleteCandidateCount, description: "Medical & visa processing", icon: Clock, tone: "orange" },
+          { label: "Flights completed", value: agentData.metrics?.completedFlights ?? agentData.completedCandidateCount, description: "Successfully deployed abroad", icon: Plane, tone: "green" },
+          { label: "Candidate collections", value: formatTk(agentData.grandTotalCollected), description: "Total paid by candidates", icon: Wallet, tone: "blue" },
+        ].map(({ label, value, description, icon: Icon, tone }) => (
+          <article className={`portal-metric tone-${tone}`} key={label}>
+            <div className="portal-metric-label">{label}<span className="portal-metric-icon"><Icon size={17} /></span></div>
+            <strong>{value}</strong><small>{description}</small>
+          </article>
+        ))}
+      </section>
 
-        <div style={{ background: "#fff", borderRadius: "14px", padding: "18px 20px", border: "1px solid var(--line)", boxShadow: "var(--shadow)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
-            <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase" }}>
-              Active In-Pipeline
-            </span>
-            <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#fef3c7", color: "#d97706", display: "grid", placeItems: "center" }}>
-              <Clock size={18} />
-            </div>
-          </div>
-          <div style={{ fontSize: "24px", fontWeight: 900, color: "#d97706" }}>
-            {agentData.metrics?.activeDossiers || agentData.incompleteCandidateCount}
-          </div>
-          <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>Medical / Visa processing</span>
-        </div>
+      <nav className="portal-tabs" aria-label="Agent portal sections">
+        {[
+          { id: "candidates" as const, label: "Candidates & pipeline", icon: Users, count: agentData.totalCandidateCount },
+          { id: "missing" as const, label: "Missing documents", icon: FileWarning, count: candidatesWithMissingDocs.length },
+          { id: "expiry" as const, label: "Expiry tracker", icon: CalendarClock, count: expiryItems.length },
+          { id: "ledger" as const, label: "Financial ledger", icon: Wallet, count: null },
+          { id: "interviews" as const, label: "Interview calls", icon: Calendar, count: agentData.interviews?.length || 0 },
+          { id: "docs" as const, label: "Agency documents", icon: FileText, count: agentData.documents?.length || 0 },
+        ].map(({ id, label, icon: Icon, count }) => (
+          <button key={id} type="button" aria-current={activeTab === id ? "page" : undefined} onClick={() => setActiveTab(id)}>
+            <Icon size={16} /><span>{label}</span>{count !== null && <span className={`portal-tab-count ${id === "missing" && count > 0 ? "has-alert" : ""}`}>{count}</span>}
+          </button>
+        ))}
+      </nav>
 
-        <div style={{ background: "#fff", borderRadius: "14px", padding: "18px 20px", border: "1px solid var(--line)", boxShadow: "var(--shadow)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
-            <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase" }}>
-              Flight Completed
-            </span>
-            <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#ecfdf5", color: "#059669", display: "grid", placeItems: "center" }}>
-              <Plane size={18} />
-            </div>
-          </div>
-          <div style={{ fontSize: "24px", fontWeight: 900, color: "#059669" }}>
-            {agentData.metrics?.completedFlights || agentData.completedCandidateCount}
-          </div>
-          <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>Successfully deployed abroad</span>
-        </div>
-
-        <div style={{ background: "#fff", borderRadius: "14px", padding: "18px 20px", border: "1px solid var(--line)", boxShadow: "var(--shadow)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
-            <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase" }}>
-              Candidate Collections
-            </span>
-            <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#ecfdf5", color: "#059669", display: "grid", placeItems: "center" }}>
-              <CreditCard size={18} />
-            </div>
-          </div>
-          <div style={{ fontSize: "22px", fontWeight: 900, color: "#059669" }}>
-            {formatTk(agentData.grandTotalCollected)}
-          </div>
-          <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>Total Paid by candidates</span>
-        </div>
-
-      </div>
-
-      {/* 3. NAVIGATION TABS */}
-      <div
-        style={{
-          background: "#ffffff",
-          borderRadius: "16px",
-          border: "1px solid #e2e8f0",
-          padding: "6px",
-          display: "flex",
-          gap: "8px",
-          overflowX: "auto",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
-        }}
-      >
-        {/* Tab 1: Candidates */}
-        <button
-          type="button"
-          onClick={() => setActiveTab("candidates")}
-          style={{
-            whiteSpace: "nowrap",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "8px",
-            padding: "10px 18px",
-            borderRadius: "10px",
-            border: "none",
-            fontSize: "13px",
-            fontWeight: activeTab === "candidates" ? 800 : 600,
-            background: activeTab === "candidates" ? "linear-gradient(135deg, #7258e8 0%, #5e43e2 100%)" : "transparent",
-            color: activeTab === "candidates" ? "#ffffff" : "#475569",
-            cursor: "pointer",
-            boxShadow: activeTab === "candidates" ? "0 4px 12px rgba(114, 88, 232, 0.28)" : "none",
-            transition: "all 0.15s ease",
-          }}
-        >
-          <Users size={16} />
-          <span>My Candidates &amp; Pipeline</span>
-          <span
-            style={{
-              background: activeTab === "candidates" ? "rgba(255,255,255,0.22)" : "#f1f5f9",
-              color: activeTab === "candidates" ? "#ffffff" : "#64748b",
-              fontSize: "11px",
-              fontWeight: 800,
-              padding: "2px 7px",
-              borderRadius: "9999px",
-            }}
-          >
-            {agentData.candidates?.length || 0}
-          </span>
-        </button>
-
-        {/* Tab 2: Missing Documents */}
-        <button
-          type="button"
-          onClick={() => setActiveTab("missing")}
-          style={{
-            whiteSpace: "nowrap",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "8px",
-            padding: "10px 18px",
-            borderRadius: "10px",
-            border: "none",
-            fontSize: "13px",
-            fontWeight: activeTab === "missing" ? 800 : 600,
-            background: activeTab === "missing" ? "linear-gradient(135deg, #e11d48 0%, #be123c 100%)" : "transparent",
-            color: activeTab === "missing" ? "#ffffff" : "#475569",
-            cursor: "pointer",
-            boxShadow: activeTab === "missing" ? "0 4px 12px rgba(225, 29, 72, 0.28)" : "none",
-            transition: "all 0.15s ease",
-          }}
-        >
-          <FileWarning size={16} color={activeTab === "missing" ? "#ffffff" : candidatesWithMissingDocs.length > 0 ? "#e11d48" : "#64748b"} />
-          <span>Missing Documents</span>
-          {candidatesWithMissingDocs.length > 0 ? (
-            <span
-              style={{
-                background: activeTab === "missing" ? "#ffffff" : "#fee2e2",
-                color: activeTab === "missing" ? "#be123c" : "#dc2626",
-                fontSize: "11px",
-                fontWeight: 900,
-                padding: "2px 7px",
-                borderRadius: "9999px",
-              }}
-            >
-              {candidatesWithMissingDocs.length}
-            </span>
-          ) : (
-            <span
-              style={{
-                background: activeTab === "missing" ? "rgba(255,255,255,0.22)" : "#f1f5f9",
-                color: activeTab === "missing" ? "#ffffff" : "#64748b",
-                fontSize: "11px",
-                fontWeight: 800,
-                padding: "2px 7px",
-                borderRadius: "9999px",
-              }}
-            >
-              0
-            </span>
-          )}
-        </button>
-
-        {/* Tab 3: Expiry Tracker */}
-        <button
-          type="button"
-          onClick={() => setActiveTab("expiry")}
-          style={{
-            whiteSpace: "nowrap",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "8px",
-            padding: "10px 18px",
-            borderRadius: "10px",
-            border: "none",
-            fontSize: "13px",
-            fontWeight: activeTab === "expiry" ? 800 : 600,
-            background: activeTab === "expiry" ? "linear-gradient(135deg, #d97706 0%, #b45309 100%)" : "transparent",
-            color: activeTab === "expiry" ? "#ffffff" : "#475569",
-            cursor: "pointer",
-            boxShadow: activeTab === "expiry" ? "0 4px 12px rgba(217, 119, 6, 0.28)" : "none",
-            transition: "all 0.15s ease",
-          }}
-        >
-          <CalendarClock size={16} color={activeTab === "expiry" ? "#ffffff" : criticalExpiryCount > 0 ? "#d97706" : "#64748b"} />
-          <span>Document Expiry Tracker</span>
-          <span
-            style={{
-              background: activeTab === "expiry" ? "rgba(255,255,255,0.22)" : "#fef3c7",
-              color: activeTab === "expiry" ? "#ffffff" : "#b45309",
-              fontSize: "11px",
-              fontWeight: 800,
-              padding: "2px 7px",
-              borderRadius: "9999px",
-            }}
-          >
-            {expiryItems.length}
-          </span>
-          {criticalExpiryCount > 0 && (
-            <span
-              style={{
-                background: activeTab === "expiry" ? "#ffffff" : "#fee2e2",
-                color: activeTab === "expiry" ? "#be123c" : "#dc2626",
-                fontSize: "10.5px",
-                fontWeight: 900,
-                padding: "2px 7px",
-                borderRadius: "9999px",
-              }}
-            >
-              {criticalExpiryCount} Urgent
-            </span>
-          )}
-        </button>
-
-        {/* Tab 4: Financial Ledger */}
-        <button
-          type="button"
-          onClick={() => setActiveTab("ledger")}
-          style={{
-            whiteSpace: "nowrap",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "8px",
-            padding: "10px 18px",
-            borderRadius: "10px",
-            border: "none",
-            fontSize: "13px",
-            fontWeight: activeTab === "ledger" ? 800 : 600,
-            background: activeTab === "ledger" ? "linear-gradient(135deg, #7258e8 0%, #5e43e2 100%)" : "transparent",
-            color: activeTab === "ledger" ? "#ffffff" : "#475569",
-            cursor: "pointer",
-            boxShadow: activeTab === "ledger" ? "0 4px 12px rgba(114, 88, 232, 0.28)" : "none",
-            transition: "all 0.15s ease",
-          }}
-        >
-          <FileSpreadsheet size={16} />
-          <span>Financial Ledger &amp; Collections</span>
-        </button>
-
-        {/* Tab 5: Interview Calls */}
-        <button
-          type="button"
-          onClick={() => setActiveTab("interviews")}
-          style={{
-            whiteSpace: "nowrap",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "8px",
-            padding: "10px 18px",
-            borderRadius: "10px",
-            border: "none",
-            fontSize: "13px",
-            fontWeight: activeTab === "interviews" ? 800 : 600,
-            background: activeTab === "interviews" ? "linear-gradient(135deg, #7258e8 0%, #5e43e2 100%)" : "transparent",
-            color: activeTab === "interviews" ? "#ffffff" : "#475569",
-            cursor: "pointer",
-            boxShadow: activeTab === "interviews" ? "0 4px 12px rgba(114, 88, 232, 0.28)" : "none",
-            transition: "all 0.15s ease",
-          }}
-        >
-          <Calendar size={16} />
-          <span>Interview Calls</span>
-          <span
-            style={{
-              background: activeTab === "interviews" ? "rgba(255,255,255,0.22)" : "#f1f5f9",
-              color: activeTab === "interviews" ? "#ffffff" : "#64748b",
-              fontSize: "11px",
-              fontWeight: 800,
-              padding: "2px 7px",
-              borderRadius: "9999px",
-            }}
-          >
-            {agentData.interviews?.length || 0}
-          </span>
-        </button>
-
-        {/* Tab 6: Agency Documents */}
-        <button
-          type="button"
-          onClick={() => setActiveTab("docs")}
-          style={{
-            whiteSpace: "nowrap",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "8px",
-            padding: "10px 18px",
-            borderRadius: "10px",
-            border: "none",
-            fontSize: "13px",
-            fontWeight: activeTab === "docs" ? 800 : 600,
-            background: activeTab === "docs" ? "linear-gradient(135deg, #7258e8 0%, #5e43e2 100%)" : "transparent",
-            color: activeTab === "docs" ? "#ffffff" : "#475569",
-            cursor: "pointer",
-            boxShadow: activeTab === "docs" ? "0 4px 12px rgba(114, 88, 232, 0.28)" : "none",
-            transition: "all 0.15s ease",
-          }}
-        >
-          <FileText size={16} />
-          <span>Agency Documents</span>
-          <span
-            style={{
-              background: activeTab === "docs" ? "rgba(255,255,255,0.22)" : "#f1f5f9",
-              color: activeTab === "docs" ? "#ffffff" : "#64748b",
-              fontSize: "11px",
-              fontWeight: 800,
-              padding: "2px 7px",
-              borderRadius: "9999px",
-            }}
-          >
-            {agentData.documents?.length || 0}
-          </span>
-        </button>
-      </div>
-
+      <div className="portal-workspace" key={activeTab}>
       {/* 4. TAB 1: MY CANDIDATES PIPELINE TABLE */}
       {activeTab === "candidates" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+        <div className="portal-section portal-section-candidates" style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+          <div className="portal-section-heading"><div><h2>Candidates &amp; pipeline</h2><p>Track your referrals, processing stages and payments.</p></div><span className="portal-result-count">{filteredCandidates.length} of {agentData.totalCandidateCount} candidates</span></div>
           {/* Filter Bar */}
-          <div
+          <div className="portal-card portal-wrap"
             style={{
               background: "#fff",
               border: "1px solid var(--line)",
@@ -1181,11 +785,12 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
               boxShadow: "var(--shadow)",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, minWidth: "260px" }}>
-              <div style={{ position: "relative", width: "100%", maxWidth: "380px" }}>
+            <div className="portal-search-slot" style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, minWidth: "260px" }}>
+              <div className="portal-search" style={{ position: "relative", width: "100%", maxWidth: "380px" }}>
                 <Search size={15} style={{ position: "absolute", left: 12, top: 12, color: "var(--muted)" }} />
                 <input
                   type="text"
+                  aria-label="Search candidates"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search candidate name, passport, file no, phone..."
@@ -1202,10 +807,11 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
               </div>
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <div className="portal-wrap" style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--muted)" }}>Country:</span>
                 <select
+                  aria-label="Destination country"
                   value={countryFilter}
                   onChange={(e) => setCountryFilter(e.target.value)}
                   style={{
@@ -1228,6 +834,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--muted)" }}>Stage:</span>
                 <select
+                  aria-label="Pipeline stage"
                   value={stageFilter}
                   onChange={(e) => setStageFilter(e.target.value)}
                   style={{
@@ -1251,6 +858,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
               <div style={{ display: "flex", gap: "6px" }}>
                 <button
                   type="button"
+                  aria-pressed={docStatusFilter === "Missing"}
                   onClick={() => setDocStatusFilter(docStatusFilter === "Missing" ? "All" : "Missing")}
                   style={{
                     padding: "6px 12px",
@@ -1260,15 +868,16 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                     background: docStatusFilter === "Missing" ? "#dc2626" : "#fef2f2",
                     color: docStatusFilter === "Missing" ? "#ffffff" : "#dc2626",
                     fontSize: "12px",
-                    fontWeight: 800,
+                    fontWeight: 600,
                     cursor: "pointer",
                   }}
                 >
-                  🔴 Missing Docs ({candidatesWithMissingDocs.length})
+                  Missing docs ({candidatesWithMissingDocs.length})
                 </button>
 
                 <button
                   type="button"
+                  aria-pressed={docStatusFilter === "Complete"}
                   onClick={() => setDocStatusFilter(docStatusFilter === "Complete" ? "All" : "Complete")}
                   style={{
                     padding: "6px 12px",
@@ -1278,18 +887,18 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                     background: docStatusFilter === "Complete" ? "#059669" : "#ecfdf5",
                     color: docStatusFilter === "Complete" ? "#ffffff" : "#059669",
                     fontSize: "12px",
-                    fontWeight: 800,
+                    fontWeight: 600,
                     cursor: "pointer",
                   }}
                 >
-                  🟢 Docs Complete ({candidatesWithCompleteDocs.length})
+                  Docs complete ({candidatesWithCompleteDocs.length})
                 </button>
               </div>
             </div>
           </div>
 
           {/* Candidates Master Table */}
-          <div
+          <div className="portal-card"
             style={{
               background: "#fff",
               borderRadius: "16px",
@@ -1298,8 +907,8 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
               boxShadow: "var(--shadow)",
             }}
           >
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px" }}>
+            <div className="portal-scroll" style={{ overflowX: "auto" }}>
+              <table className="portal-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px" }}>
                 <thead>
                   <tr style={{ background: "#f8fafc", borderBottom: "1px solid var(--line)", textAlign: "left" }}>
                     <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px", width: "45px" }}>SL</th>
@@ -1321,22 +930,22 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                   ) : (
                     filteredCandidates.map((cand, idx) => (
                       <tr key={cand.fileId} style={{ borderBottom: "1px solid #f1f5f9" }} className="hover:bg-slate-50">
-                        <td style={{ padding: "14px 16px", color: "var(--muted)", fontWeight: 700 }}>
+                        <td data-label="SL" style={{ padding: "14px 16px", color: "var(--muted)", fontWeight: 700 }}>
                           {idx + 1}
                         </td>
 
-                        <td style={{ padding: "14px 16px" }}>
+                        <td data-label="Candidate & File" style={{ padding: "14px 16px" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                             <div
                               style={{
                                 width: "36px",
                                 height: "36px",
                                 borderRadius: "10px",
-                                background: "#f0edff",
-                                color: "#7258e8",
+                                background: "#eaf2ff",
+                                color: "#007aff",
                                 display: "grid",
                                 placeItems: "center",
-                                fontWeight: 800,
+                                fontWeight: 600,
                                 fontSize: "13px",
                                 flexShrink: 0,
                               }}
@@ -1354,11 +963,11 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                           </div>
                         </td>
 
-                        <td style={{ padding: "14px 16px" }}>
+                        <td data-label="Passport" style={{ padding: "14px 16px" }}>
                           <span
                             style={{
                               fontFamily: "monospace",
-                              fontWeight: 800,
+                              fontWeight: 600,
                               background: "#f8fafc",
                               padding: "3px 8px",
                               borderRadius: "6px",
@@ -1370,7 +979,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                           </span>
                         </td>
 
-                        <td style={{ padding: "14px 16px" }}>
+                        <td data-label="Country & Trade" style={{ padding: "14px 16px" }}>
                           <div style={{ fontWeight: 700, color: "var(--ink)" }}>
                             {cand.country || "Saudi Arabia"}
                           </div>
@@ -1379,7 +988,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                           </span>
                         </td>
 
-                        <td style={{ padding: "14px 16px" }}>
+                        <td data-label="Current Stage" style={{ padding: "14px 16px" }}>
                           <span
                             style={{
                               display: "inline-flex",
@@ -1388,7 +997,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                               padding: "4px 10px",
                               borderRadius: "9999px",
                               fontSize: "11.5px",
-                              fontWeight: 800,
+                              fontWeight: 600,
                               background:
                                 cand.currentStage.includes("Flight") || cand.isCompleted
                                   ? "#ecfdf5"
@@ -1409,12 +1018,12 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                                   : "1px solid #fde68a",
                             }}
                           >
-                            {cand.currentStage.includes("Flight") ? "✈️ Flight Ready" : cand.currentStage}
+                            {cand.currentStage.includes("Flight") ? "Flight Ready" : cand.currentStage}
                           </span>
 
                           {cand.hasMissingDocs || (cand.missingDocs && cand.missingDocs.length > 0) ? (
                             <div style={{ marginTop: "4px" }}>
-                              <button
+                              <button data-action-ui="secondary" data-action-size="compact"
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -1425,7 +1034,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                                   alignItems: "center",
                                   gap: "4px",
                                   fontSize: "10.5px",
-                                  fontWeight: 800,
+                                  fontWeight: 600,
                                   padding: "2px 7px",
                                   borderRadius: "5px",
                                   background: "#fef2f2",
@@ -1446,7 +1055,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                                   alignItems: "center",
                                   gap: "4px",
                                   fontSize: "10.5px",
-                                  fontWeight: 800,
+                                  fontWeight: 600,
                                   padding: "2px 7px",
                                   borderRadius: "5px",
                                   background: "#ecfdf5",
@@ -1460,9 +1069,9 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                           )}
                         </td>
 
-                        <td style={{ padding: "14px 16px" }}>
+                        <td data-label="Candidate Payments" style={{ padding: "14px 16px" }}>
                           <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                            <span style={{ fontSize: "12px", fontWeight: 800, color: "#059669" }}>
+                            <span style={{ fontSize: "12px", fontWeight: 600, color: "#059669" }}>
                               Paid: {formatTk(cand.totalPaid)}
                             </span>
                             <span style={{ fontSize: "11px", color: "var(--muted)" }}>
@@ -1471,18 +1080,18 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                           </div>
                         </td>
 
-                        <td style={{ padding: "14px 16px", textAlign: "right" }}>
-                          <Link
-                            href={`/portal/agent/candidate/${cand.fileId}`}
+                        <td data-label="Actions" style={{ padding: "14px 16px", textAlign: "right" }}>
+                          <Link data-action-ui="secondary" data-action-size="compact"
+                            href={`/portal/agent/candidate/${cand.fileId}?agentId=${encodeURIComponent(agentId)}`}
                             style={{
                               display: "inline-flex",
                               alignItems: "center",
                               gap: "5px",
                               padding: "6px 12px",
                               borderRadius: "8px",
-                              background: "#f0edff",
-                              color: "#7258e8",
-                              border: "1px solid #dcd5fb",
+                              background: "#eaf2ff",
+                              color: "#007aff",
+                              border: "1px solid #d0e2ff",
                               fontSize: "11.5px",
                               fontWeight: 700,
                               textDecoration: "none",
@@ -1503,9 +1112,9 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
 
       {/* 4.4 TAB: CANDIDATE MISSING DOCUMENTS TRACKER */}
       {activeTab === "missing" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div className="portal-section portal-section-missing" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           {/* Header & Stats Banner */}
-          <div
+          <div className="portal-card portal-wrap"
             style={{
               background: "#fef2f2",
               borderRadius: "16px",
@@ -1520,10 +1129,10 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
             }}
           >
             <div>
-              <h3 style={{ fontSize: "17px", fontWeight: 900, color: "#991b1b", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
-                <FileWarning size={20} color="#dc2626" /> Missing Candidate Documents &amp; Requirements Tracker
+              <h3 style={{ fontSize: "17px", fontWeight: 700, color: "#1d1d1f", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+                <FileWarning size={20} color="#dc2626" /> Missing documents
               </h3>
-              <p style={{ fontSize: "12.5px", color: "#b91c1c", margin: "4px 0 0" }}>
+              <p style={{ fontSize: "12.5px", color: "#6e6e73", margin: "4px 0 0" }}>
                 The following candidate files require original Passport copies, GCC GAMCA Medical fit slips, Police PCCs, or NID copies before they can proceed.
               </p>
             </div>
@@ -1536,7 +1145,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                   padding: "7px 16px",
                   borderRadius: "10px",
                   fontSize: "12.5px",
-                  fontWeight: 800,
+                  fontWeight: 600,
                 }}
               >
                 {candidatesWithMissingDocs.length} Candidates Missing Docs ({totalMissingDocsCount} Total Items)
@@ -1545,42 +1154,42 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
           </div>
 
           {/* Quick KPI Strip for Missing Categories */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "12px" }}>
-            <div style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "12px", padding: "14px 16px", boxShadow: "var(--shadow)" }}>
-              <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase" }}>📘 Passports Missing</span>
-              <div style={{ fontSize: "20px", fontWeight: 900, color: "#dc2626", marginTop: "2px" }}>
+          <div className="portal-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "12px" }}>
+            <div className="portal-card" style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "12px", padding: "14px 16px", boxShadow: "var(--shadow)" }}>
+              <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase" }}>Passports Missing</span>
+              <div style={{ fontSize: "20px", fontWeight: 700, color: "#dc2626", marginTop: "2px" }}>
                 {agentData.metrics?.missingPassports || candidatesWithMissingDocs.filter((c) => (c.missingDocs || []).some((d) => d.category === "PASSPORT")).length}
               </div>
               <small style={{ fontSize: "11px", color: "var(--muted)" }}>Scan / Number missing</small>
             </div>
 
-            <div style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "12px", padding: "14px 16px", boxShadow: "var(--shadow)" }}>
-              <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase" }}>🏥 Medical Slips Missing</span>
-              <div style={{ fontSize: "20px", fontWeight: 900, color: "#d97706", marginTop: "2px" }}>
+            <div className="portal-card" style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "12px", padding: "14px 16px", boxShadow: "var(--shadow)" }}>
+              <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase" }}>Medical Slips Missing</span>
+              <div style={{ fontSize: "20px", fontWeight: 700, color: "#d97706", marginTop: "2px" }}>
                 {agentData.metrics?.missingMedicals || candidatesWithMissingDocs.filter((c) => (c.missingDocs || []).some((d) => d.category === "MEDICAL")).length}
               </div>
               <small style={{ fontSize: "11px", color: "var(--muted)" }}>GAMCA checkup pending</small>
             </div>
 
-            <div style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "12px", padding: "14px 16px", boxShadow: "var(--shadow)" }}>
-              <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase" }}>🛡️ Police PCC Missing</span>
-              <div style={{ fontSize: "20px", fontWeight: 900, color: "#2563eb", marginTop: "2px" }}>
+            <div className="portal-card" style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "12px", padding: "14px 16px", boxShadow: "var(--shadow)" }}>
+              <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase" }}>Police PCC Missing</span>
+              <div style={{ fontSize: "20px", fontWeight: 700, color: "#2563eb", marginTop: "2px" }}>
                 {agentData.metrics?.missingPolices || candidatesWithMissingDocs.filter((c) => (c.missingDocs || []).some((d) => d.category === "POLICE")).length}
               </div>
               <small style={{ fontSize: "11px", color: "var(--muted)" }}>Clearance slip needed</small>
             </div>
 
-            <div style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "12px", padding: "14px 16px", boxShadow: "var(--shadow)" }}>
-              <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase" }}>🪪 NID Cards Missing</span>
-              <div style={{ fontSize: "20px", fontWeight: 900, color: "#7c3aed", marginTop: "2px" }}>
+            <div className="portal-card" style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "12px", padding: "14px 16px", boxShadow: "var(--shadow)" }}>
+              <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase" }}>NID Cards Missing</span>
+              <div style={{ fontSize: "20px", fontWeight: 700, color: "#7c3aed", marginTop: "2px" }}>
                 {agentData.metrics?.missingNids || candidatesWithMissingDocs.filter((c) => (c.missingDocs || []).some((d) => d.category === "NID")).length}
               </div>
               <small style={{ fontSize: "11px", color: "var(--muted)" }}>Smart card copy missing</small>
             </div>
 
-            <div style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "12px", padding: "14px 16px", boxShadow: "var(--shadow)" }}>
-              <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase" }}>🛂 Visas Missing</span>
-              <div style={{ fontSize: "20px", fontWeight: 900, color: "#059669", marginTop: "2px" }}>
+            <div className="portal-card" style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "12px", padding: "14px 16px", boxShadow: "var(--shadow)" }}>
+              <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase" }}>Visas Missing</span>
+              <div style={{ fontSize: "20px", fontWeight: 700, color: "#059669", marginTop: "2px" }}>
                 {agentData.metrics?.missingVisas || candidatesWithMissingDocs.filter((c) => (c.missingDocs || []).some((d) => d.category === "VISA")).length}
               </div>
               <small style={{ fontSize: "11px", color: "var(--muted)" }}>Stamped copy missing</small>
@@ -1588,19 +1197,20 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
           </div>
 
           {/* Filter & Search Bar */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", background: "#fff", padding: "14px 18px", borderRadius: "14px", border: "1px solid var(--line)", boxShadow: "var(--shadow)" }}>
-            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+          <div className="portal-card portal-wrap" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", background: "#fff", padding: "14px 18px", borderRadius: "14px", border: "1px solid var(--line)", boxShadow: "var(--shadow)" }}>
+            <div className="portal-wrap" style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
               {[
                 { id: "ALL", label: `All Missing (${candidatesWithMissingDocs.length})` },
-                { id: "PASSPORT", label: "📘 Passports" },
-                { id: "MEDICAL", label: "🏥 GAMCA Medical" },
-                { id: "POLICE", label: "🛡️ Police PCC" },
-                { id: "NID", label: "🪪 NID Copy" },
-                { id: "VISA", label: "🛂 Visa Copy" },
+                { id: "PASSPORT", label: "Passports" },
+                { id: "MEDICAL", label: "GAMCA Medical" },
+                { id: "POLICE", label: "Police PCC" },
+                { id: "NID", label: "NID Copy" },
+                { id: "VISA", label: "Visa Copy" },
               ].map((cat) => (
                 <button
                   key={cat.id}
                   type="button"
+                  aria-pressed={missingCategoryFilter === cat.id}
                   onClick={() => setMissingCategoryFilter(cat.id)}
                   style={{
                     padding: "6px 12px",
@@ -1619,11 +1229,12 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
               ))}
             </div>
 
-            <div style={{ position: "relative" }}>
+            <div className="portal-search" style={{ position: "relative" }}>
               <Search size={14} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "var(--muted)" }} />
               <input
                 type="text"
-                value={missingSearch}
+                aria-label="Search missing documents"
+                  value={missingSearch}
                 onChange={(e) => setMissingSearch(e.target.value)}
                 placeholder="Search missing docs, candidate, phone..."
                 style={{
@@ -1642,7 +1253,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
           </div>
 
           {/* Missing Documents Table */}
-          <div
+          <div className="portal-card"
             style={{
               background: "#fff",
               borderRadius: "16px",
@@ -1651,16 +1262,16 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
               boxShadow: "var(--shadow)",
             }}
           >
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12.5px" }}>
+            <div className="portal-scroll" style={{ overflowX: "auto" }}>
+              <table className="portal-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12.5px" }}>
                 <thead>
                   <tr style={{ background: "#f8fafc", borderBottom: "1px solid var(--line)", color: "var(--muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                     <th style={{ padding: "14px 16px", width: "45px" }}>#</th>
                     <th style={{ padding: "14px 16px" }}>Candidate &amp; Contact</th>
                     <th style={{ padding: "14px 16px" }}>Trade &amp; Destination</th>
                     <th style={{ padding: "14px 16px" }}>Current Stage</th>
-                    <th style={{ padding: "14px 16px" }}>❌ Missing Documents &amp; Reason</th>
-                    <th style={{ padding: "14px 16px" }}>📋 Action Required</th>
+                    <th style={{ padding: "14px 16px" }}>Missing Documents &amp; Reason</th>
+                    <th style={{ padding: "14px 16px" }}>Action Required</th>
                     <th style={{ padding: "14px 16px", textAlign: "right" }}>Actions</th>
                   </tr>
                 </thead>
@@ -1671,11 +1282,11 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                       style={{ borderBottom: "1px solid var(--line)", transition: "background 0.15s ease" }}
                       className="hover:bg-slate-50"
                     >
-                      <td style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)" }}>
+                      <td data-label="#" style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)" }}>
                         {idx + 1}
                       </td>
 
-                      <td style={{ padding: "14px 16px" }}>
+                      <td data-label="Candidate & Contact" style={{ padding: "14px 16px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                           <div
                             style={{
@@ -1686,7 +1297,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                               color: "#dc2626",
                               display: "grid",
                               placeItems: "center",
-                              fontWeight: 800,
+                              fontWeight: 600,
                               fontSize: "13px",
                               flexShrink: 0,
                             }}
@@ -1704,7 +1315,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                         </div>
                       </td>
 
-                      <td style={{ padding: "14px 16px" }}>
+                      <td data-label="Trade & Destination" style={{ padding: "14px 16px" }}>
                         <div>
                           <span style={{ fontSize: "12.5px", fontWeight: 700, display: "block" }}>
                             {cand.country}
@@ -1713,11 +1324,11 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                         </div>
                       </td>
 
-                      <td style={{ padding: "14px 16px" }}>
+                      <td data-label="Current Stage" style={{ padding: "14px 16px" }}>
                         <span
                           style={{
                             fontSize: "11px",
-                            fontWeight: 800,
+                            fontWeight: 600,
                             padding: "4px 10px",
                             borderRadius: "9999px",
                             background: "#eff6ff",
@@ -1726,14 +1337,14 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                             display: "inline-block",
                           }}
                         >
-                          ⚡ {cand.currentStage || "Passport Entry"}
+                          {cand.currentStage || "Passport Entry"}
                         </span>
                       </td>
 
-                      <td style={{ padding: "14px 16px" }}>
+                      <td data-label="Missing Documents & Reason" style={{ padding: "14px 16px" }}>
                         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                           {(cand.missingDocs || []).map((doc, dIdx) => (
-                            <div
+                            <div className="portal-card"
                               key={dIdx}
                               style={{
                                 background: "#fef2f2",
@@ -1746,14 +1357,14 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                               }}
                             >
                               <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                                <span style={{ fontSize: "11px", fontWeight: 800, color: "#dc2626" }}>
-                                  ❌ {doc.name}
+                                <span style={{ fontSize: "11px", fontWeight: 600, color: "#dc2626" }}>
+                                  {doc.name}
                                 </span>
-                                <span style={{ fontSize: "9.5px", fontWeight: 800, background: "#dc2626", color: "#fff", padding: "1px 4px", borderRadius: "3px" }}>
+                                <span style={{ fontSize: "9.5px", fontWeight: 600, background: "#dc2626", color: "#fff", padding: "1px 4px", borderRadius: "3px" }}>
                                   {doc.severity}
                                 </span>
                               </div>
-                              <small style={{ fontSize: "10.5px", color: "#991b1b" }}>
+                              <small style={{ fontSize: "10.5px", color: "#1d1d1f" }}>
                                 {doc.reason}
                               </small>
                             </div>
@@ -1761,28 +1372,28 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                         </div>
                       </td>
 
-                      <td style={{ padding: "14px 16px" }}>
+                      <td data-label="Action Required" style={{ padding: "14px 16px" }}>
                         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                           {(cand.missingDocs || []).map((doc, dIdx) => (
                             <span key={dIdx} style={{ fontSize: "11.5px", color: "#334155", display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                              👉 {doc.actionRequired}
+                              {doc.actionRequired}
                             </span>
                           ))}
                         </div>
                       </td>
 
-                      <td style={{ padding: "14px 16px", textAlign: "right" }}>
-                        <Link
-                          href={`/portal/agent/candidate/${cand.fileId}`}
+                      <td data-label="Actions" style={{ padding: "14px 16px", textAlign: "right" }}>
+                        <Link data-action-ui="secondary" data-action-size="compact"
+                          href={`/portal/agent/candidate/${cand.fileId}?agentId=${encodeURIComponent(agentId)}`}
                           style={{
                             display: "inline-flex",
                             alignItems: "center",
                             gap: "5px",
                             padding: "6px 12px",
                             borderRadius: "8px",
-                            background: "#f0edff",
-                            color: "#7258e8",
-                            border: "1px solid #dcd5fb",
+                            background: "#eaf2ff",
+                            color: "#007aff",
+                            border: "1px solid #d0e2ff",
                             fontSize: "11.5px",
                             fontWeight: 700,
                             textDecoration: "none",
@@ -1812,9 +1423,9 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
 
       {/* 4.5 TAB: CANDIDATE DOCUMENT EXPIRY & RENEWALS TRACKER */}
       {activeTab === "expiry" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div className="portal-section portal-section-expiry" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           {/* Expiry Header & Stats */}
-          <div
+          <div className="portal-card portal-wrap"
             style={{
               background: "#fff",
               borderRadius: "16px",
@@ -1830,8 +1441,8 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
           >
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <h3 style={{ fontSize: "16px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
-                  ⏰ Candidate Document Expiry &amp; Deadline Renewal Tracker
+                <h3 style={{ fontSize: "16px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
+                  Document expiry tracker
                 </h3>
                 <span
                   style={{
@@ -1841,7 +1452,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                     padding: "3px 10px",
                     borderRadius: "9999px",
                     fontSize: "11px",
-                    fontWeight: 800,
+                    fontWeight: 600,
                   }}
                 >
                   Live Monitoring Active
@@ -1852,24 +1463,24 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
               </p>
             </div>
 
-            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-              <div style={{ background: "#fff1f2", border: "1px solid #fecdd3", borderRadius: "10px", padding: "8px 14px", textAlign: "center" }}>
-                <span style={{ fontSize: "10.5px", fontWeight: 800, color: "#e11d48", textTransform: "uppercase", display: "block" }}>Critical (&lt; 15d)</span>
+            <div className="portal-wrap" style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+              <div className="portal-card" style={{ background: "#fff1f2", border: "1px solid #fecdd3", borderRadius: "10px", padding: "8px 14px", textAlign: "center" }}>
+                <span style={{ fontSize: "10.5px", fontWeight: 600, color: "#e11d48", textTransform: "uppercase", display: "block" }}>Critical (&lt; 15d)</span>
                 <b style={{ fontSize: "16px", color: "#9f1239" }}>{criticalExpiryCount}</b>
               </div>
-              <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "10px", padding: "8px 14px", textAlign: "center" }}>
-                <span style={{ fontSize: "10.5px", fontWeight: 800, color: "#d97706", textTransform: "uppercase", display: "block" }}>Warning (16-60d)</span>
+              <div className="portal-card" style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "10px", padding: "8px 14px", textAlign: "center" }}>
+                <span style={{ fontSize: "10.5px", fontWeight: 600, color: "#d97706", textTransform: "uppercase", display: "block" }}>Warning (16-60d)</span>
                 <b style={{ fontSize: "16px", color: "#92400e" }}>{warningExpiryCount}</b>
               </div>
-              <div style={{ background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "10px", padding: "8px 14px", textAlign: "center" }}>
-                <span style={{ fontSize: "10.5px", fontWeight: 800, color: "#059669", textTransform: "uppercase", display: "block" }}>Safe Valid</span>
+              <div className="portal-card" style={{ background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "10px", padding: "8px 14px", textAlign: "center" }}>
+                <span style={{ fontSize: "10.5px", fontWeight: 600, color: "#059669", textTransform: "uppercase", display: "block" }}>Safe Valid</span>
                 <b style={{ fontSize: "16px", color: "#065f46" }}>{safeExpiryCount}</b>
               </div>
             </div>
           </div>
 
           {/* Filter Bar */}
-          <div
+          <div className="portal-card portal-wrap"
             style={{
               background: "#fff",
               border: "1px solid var(--line)",
@@ -1883,11 +1494,12 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
               boxShadow: "var(--shadow)",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, minWidth: "260px" }}>
-              <div style={{ position: "relative", width: "100%", maxWidth: "360px" }}>
+            <div className="portal-search-slot" style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, minWidth: "260px" }}>
+              <div className="portal-search" style={{ position: "relative", width: "100%", maxWidth: "360px" }}>
                 <Search size={15} style={{ position: "absolute", left: 12, top: 12, color: "var(--muted)" }} />
                 <input
                   type="text"
+                  aria-label="Search expiring documents"
                   value={expirySearch}
                   onChange={(e) => setExpirySearch(e.target.value)}
                   placeholder="Search candidate name, passport, file no..."
@@ -1904,18 +1516,19 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
               </div>
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <div className="portal-wrap" style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
               {/* Urgency Filter */}
               <div style={{ display: "flex", gap: "4px", background: "#f1f5f9", padding: "3px", borderRadius: "8px" }}>
                 {[
                   { id: "ALL", label: `All (${expiryItems.length})` },
-                  { id: "CRITICAL", label: `🚨 Urgent (${criticalExpiryCount})` },
-                  { id: "WARNING", label: `⚠️ Warning (${warningExpiryCount})` },
-                  { id: "SAFE", label: `🟢 Safe (${safeExpiryCount})` },
+                  { id: "CRITICAL", label: `Urgent (${criticalExpiryCount})` },
+                  { id: "WARNING", label: `Warning (${warningExpiryCount})` },
+                  { id: "SAFE", label: `Safe (${safeExpiryCount})` },
                 ].map((f) => (
                   <button
                     key={f.id}
                     type="button"
+                    aria-pressed={expiryStatusFilter === f.id}
                     onClick={() => setExpiryStatusFilter(f.id)}
                     style={{
                       padding: "5px 10px",
@@ -1923,7 +1536,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                       border: "none",
                       fontSize: "11.5px",
                       fontWeight: expiryStatusFilter === f.id ? 800 : 600,
-                      background: expiryStatusFilter === f.id ? "#7258e8" : "transparent",
+                      background: expiryStatusFilter === f.id ? "#007aff" : "transparent",
                       color: expiryStatusFilter === f.id ? "#fff" : "var(--muted)",
                       cursor: "pointer",
                     }}
@@ -1935,7 +1548,8 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
 
               {/* Doc Type Filter */}
               <select
-                value={expiryDocTypeFilter}
+                aria-label="Document type"
+                  value={expiryDocTypeFilter}
                 onChange={(e) => setExpiryDocTypeFilter(e.target.value)}
                 style={{
                   height: "36px",
@@ -1950,16 +1564,16 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                 }}
               >
                 <option value="ALL">All Document Types</option>
-                <option value="Passport">📘 Passport</option>
-                <option value="GAMCA Medical">🏥 GAMCA Medical</option>
-                <option value="Police Clearance (PCC)">🛡️ Police PCC</option>
-                <option value="Stamped Visa">🛂 Stamped Visa</option>
+                <option value="Passport">Passport</option>
+                <option value="GAMCA Medical">GAMCA Medical</option>
+                <option value="Police Clearance (PCC)">Police PCC</option>
+                <option value="Stamped Visa">Stamped Visa</option>
               </select>
             </div>
           </div>
 
           {/* Master Expiry Table */}
-          <div
+          <div className="portal-card"
             style={{
               background: "#fff",
               borderRadius: "16px",
@@ -1968,17 +1582,17 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
               boxShadow: "var(--shadow)",
             }}
           >
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px" }}>
+            <div className="portal-scroll" style={{ overflowX: "auto" }}>
+              <table className="portal-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px" }}>
                 <thead>
                   <tr style={{ background: "#f8fafc", borderBottom: "1px solid var(--line)", textAlign: "left" }}>
-                    <th style={{ padding: "12px 16px", fontWeight: 800, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>SL</th>
-                    <th style={{ padding: "12px 16px", fontWeight: 800, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>Candidate &amp; Destination</th>
-                    <th style={{ padding: "12px 16px", fontWeight: 800, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>Document Type &amp; Ref</th>
-                    <th style={{ padding: "12px 16px", fontWeight: 800, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>Expiry Date</th>
-                    <th style={{ padding: "12px 16px", fontWeight: 800, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>Countdown &amp; Status</th>
-                    <th style={{ padding: "12px 16px", fontWeight: 800, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>Recommended Operational Action</th>
-                    <th style={{ padding: "12px 16px", fontWeight: 800, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase", textAlign: "right" }}>Dossier</th>
+                    <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>SL</th>
+                    <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>Candidate &amp; Destination</th>
+                    <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>Document Type &amp; Ref</th>
+                    <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>Expiry Date</th>
+                    <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>Countdown &amp; Status</th>
+                    <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>Recommended Operational Action</th>
+                    <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase", textAlign: "right" }}>Dossier</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1986,7 +1600,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                     <tr>
                       <td colSpan={7} style={{ padding: "48px 16px", textAlign: "center" }}>
                         <ShieldCheck size={36} color="#10b981" style={{ margin: "0 auto 8px" }} />
-                        <h4 style={{ fontSize: "14px", fontWeight: 800, color: "var(--ink)", margin: "0 0 4px" }}>
+                        <h4 style={{ fontSize: "14px", fontWeight: 600, color: "var(--ink)", margin: "0 0 4px" }}>
                           No Expiring Documents Matching Filter
                         </h4>
                         <span style={{ fontSize: "12px", color: "var(--muted)" }}>
@@ -2003,22 +1617,22 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                           background: item.urgency === "EXPIRED" || item.urgency === "CRITICAL" ? "#fffafb" : "transparent",
                         }}
                       >
-                        <td style={{ padding: "14px 16px", color: "var(--muted)", fontWeight: 700 }}>
+                        <td data-label="SL" style={{ padding: "14px 16px", color: "var(--muted)", fontWeight: 700 }}>
                           {idx + 1}
                         </td>
 
-                        <td style={{ padding: "14px 16px" }}>
+                        <td data-label="Candidate & Destination" style={{ padding: "14px 16px" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                             <div
                               style={{
                                 width: "34px",
                                 height: "34px",
                                 borderRadius: "8px",
-                                background: "#f0edff",
-                                color: "#7258e8",
+                                background: "#eaf2ff",
+                                color: "#007aff",
                                 display: "grid",
                                 placeItems: "center",
-                                fontWeight: 800,
+                                fontWeight: 600,
                                 fontSize: "12px",
                                 flexShrink: 0,
                               }}
@@ -2033,15 +1647,15 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                                 {item.candidate.fileNo} • {item.candidate.phone}
                               </span>
                               <span style={{ fontSize: "11px", color: "#4338ca", fontWeight: 700 }}>
-                                🌍 {item.candidate.country} ({item.candidate.profession})
+                                {item.candidate.country} ({item.candidate.profession})
                               </span>
                             </div>
                           </div>
                         </td>
 
-                        <td style={{ padding: "14px 16px" }}>
+                        <td data-label="Document Type & Ref" style={{ padding: "14px 16px" }}>
                           <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", marginBottom: "3px" }}>
-                            <span style={{ fontSize: "14px" }}>{item.docIcon}</span>
+                            <FileText size={14} color="#007aff" />
                             <b style={{ fontSize: "12.5px", color: "var(--ink)" }}>{item.docType}</b>
                           </div>
                           <span style={{ fontSize: "11.5px", color: "var(--muted)", fontFamily: "monospace", display: "block", fontWeight: 600 }}>
@@ -2049,7 +1663,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                           </span>
                         </td>
 
-                        <td style={{ padding: "14px 16px" }}>
+                        <td data-label="Expiry Date" style={{ padding: "14px 16px" }}>
                           <b style={{ fontSize: "13px", color: "var(--ink)", fontFamily: "monospace", display: "block" }}>
                             {item.expiryDate.toLocaleDateString("en-GB")}
                           </b>
@@ -2058,7 +1672,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                           </span>
                         </td>
 
-                        <td style={{ padding: "14px 16px" }}>
+                        <td data-label="Countdown & Status" style={{ padding: "14px 16px" }}>
                           {item.urgency === "EXPIRED" ? (
                             <span
                               style={{
@@ -2068,13 +1682,13 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                                 padding: "4px 10px",
                                 borderRadius: "8px",
                                 fontSize: "11.5px",
-                                fontWeight: 800,
+                                fontWeight: 600,
                                 background: "#ffe4e6",
                                 color: "#e11d48",
                                 border: "1px solid #fecdd3",
                               }}
                             >
-                              🚨 EXPIRED ({Math.abs(item.daysLeft)}d ago)
+                              EXPIRED ({Math.abs(item.daysLeft)}d ago)
                             </span>
                           ) : item.urgency === "CRITICAL" ? (
                             <span
@@ -2085,13 +1699,13 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                                 padding: "4px 10px",
                                 borderRadius: "8px",
                                 fontSize: "11.5px",
-                                fontWeight: 800,
+                                fontWeight: 600,
                                 background: "#fff1f2",
                                 color: "#e11d48",
                                 border: "1px solid #fecdd3",
                               }}
                             >
-                              🚨 {item.daysLeft} Days Left (&lt; 15d)
+                              {item.daysLeft} Days Left (&lt; 15d)
                             </span>
                           ) : item.urgency === "WARNING" ? (
                             <span
@@ -2102,13 +1716,13 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                                 padding: "4px 10px",
                                 borderRadius: "8px",
                                 fontSize: "11.5px",
-                                fontWeight: 800,
+                                fontWeight: 600,
                                 background: "#fffbeb",
                                 color: "#d97706",
                                 border: "1px solid #fde68a",
                               }}
                             >
-                              ⚠️ {item.daysLeft} Days Remaining
+                              {item.daysLeft} Days Remaining
                             </span>
                           ) : (
                             <span
@@ -2119,35 +1733,35 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                                 padding: "4px 10px",
                                 borderRadius: "8px",
                                 fontSize: "11.5px",
-                                fontWeight: 800,
+                                fontWeight: 600,
                                 background: "#ecfdf5",
                                 color: "#059669",
                                 border: "1px solid #a7f3d0",
                               }}
                             >
-                              🟢 Valid ({item.daysLeft}d left)
+                              Valid ({item.daysLeft}d left)
                             </span>
                           )}
                         </td>
 
-                        <td style={{ padding: "14px 16px", maxWidth: "340px" }}>
-                          <span style={{ fontSize: "12px", color: item.urgency === "CRITICAL" || item.urgency === "EXPIRED" ? "#b91c1c" : "var(--ink)", fontWeight: 600, lineHeight: 1.4, display: "block" }}>
+                        <td data-label="Recommended Operational Action" style={{ padding: "14px 16px", maxWidth: "340px" }}>
+                          <span style={{ fontSize: "12px", color: item.urgency === "CRITICAL" || item.urgency === "EXPIRED" ? "#6e6e73" : "var(--ink)", fontWeight: 600, lineHeight: 1.4, display: "block" }}>
                             {item.actionRequired}
                           </span>
                         </td>
 
-                        <td style={{ padding: "14px 16px", textAlign: "right" }}>
-                          <Link
-                            href={`/portal/agent/candidate/${item.candidate.fileId}`}
+                        <td data-label="Dossier" style={{ padding: "14px 16px", textAlign: "right" }}>
+                          <Link data-action-ui="secondary" data-action-size="compact"
+                            href={`/portal/agent/candidate/${item.candidate.fileId}?agentId=${encodeURIComponent(agentId)}`}
                             style={{
                               display: "inline-flex",
                               alignItems: "center",
                               gap: "5px",
                               padding: "6px 12px",
                               borderRadius: "8px",
-                              background: "#f0edff",
-                              color: "#7258e8",
-                              border: "1px solid #dcd5fb",
+                              background: "#eaf2ff",
+                              color: "#007aff",
+                              border: "1px solid #d0e2ff",
                               fontSize: "11.5px",
                               fontWeight: 700,
                               textDecoration: "none",
@@ -2169,9 +1783,9 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
 
       {/* 5. TAB 2: FINANCIAL LEDGER & COLLECTIONS */}
       {activeTab === "ledger" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div className="portal-section portal-section-ledger" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           
-          <div
+          <div className="portal-card portal-wrap"
             style={{
               background: "#fff",
               borderRadius: "16px",
@@ -2186,14 +1800,14 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
             }}
           >
             <div>
-              <h3 style={{ fontSize: "16px", fontWeight: 800, margin: 0, color: "var(--ink)" }}>
-                Candidate Collections &amp; Accounts Ledger
+              <h3 style={{ fontSize: "16px", fontWeight: 600, margin: 0, color: "var(--ink)" }}>
+                Financial ledger & collections
               </h3>
               <p style={{ fontSize: "12.5px", color: "var(--muted)", margin: "4px 0 0" }}>
                 Candidate-by-candidate accounts record and payment ledger under partner agreement: <b>{agentData.agreementKey || "Standard"}</b>
               </p>
             </div>
-            <button
+            <button data-action-ui="neutral" data-action-size="normal"
               type="button"
               onClick={() => window.print()}
               style={{
@@ -2202,11 +1816,11 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                 gap: "6px",
                 padding: "9px 18px",
                 borderRadius: "8px",
-                background: "#7258e8",
+                background: "#007aff",
                 color: "#fff",
                 border: "none",
                 fontSize: "12.5px",
-                fontWeight: 800,
+                fontWeight: 600,
                 cursor: "pointer",
               }}
             >
@@ -2214,7 +1828,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
             </button>
           </div>
 
-          <div
+          <div className="portal-card"
             style={{
               background: "#fff",
               borderRadius: "16px",
@@ -2223,8 +1837,8 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
               boxShadow: "var(--shadow)",
             }}
           >
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px" }}>
+            <div className="portal-scroll" style={{ overflowX: "auto" }}>
+              <table className="portal-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px" }}>
                 <thead>
                   <tr style={{ background: "#f8fafc", borderBottom: "1px solid var(--line)", textAlign: "left" }}>
                     <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px" }}>Candidate</th>
@@ -2238,22 +1852,22 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                 <tbody>
                   {(agentData.candidates || []).map((cand) => (
                     <tr key={cand.fileId} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                      <td style={{ padding: "14px 16px" }}>
+                      <td data-label="Candidate" style={{ padding: "14px 16px" }}>
                         <b style={{ color: "var(--ink)", display: "block" }}>{cand.fullName}</b>
                         <span style={{ fontSize: "11px", color: "var(--muted)", fontFamily: "monospace" }}>File: {cand.fileNo}</span>
                       </td>
-                      <td style={{ padding: "14px 16px" }}>
+                      <td data-label="Passport & Country" style={{ padding: "14px 16px" }}>
                         <div>{cand.passportNumber}</div>
                         <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>{cand.country}</span>
                       </td>
-                      <td style={{ padding: "14px 16px", fontWeight: 700 }}>{formatTk(cand.packageCost)}</td>
-                      <td style={{ padding: "14px 16px", fontWeight: 800, color: "#059669" }}>{formatTk(cand.totalPaid)}</td>
-                      <td style={{ padding: "14px 16px", fontWeight: 700, color: cand.dueAmount > 0 ? "#e11d48" : "#059669" }}>
+                      <td data-label="Package Cost" style={{ padding: "14px 16px", fontWeight: 700 }}>{formatTk(cand.packageCost)}</td>
+                      <td data-label="Paid Amount" style={{ padding: "14px 16px", fontWeight: 600, color: "#059669" }}>{formatTk(cand.totalPaid)}</td>
+                      <td data-label="Due Balance" style={{ padding: "14px 16px", fontWeight: 700, color: cand.dueAmount > 0 ? "#e11d48" : "#059669" }}>
                         {formatTk(cand.dueAmount)}
                       </td>
-                      <td style={{ padding: "14px 16px", textAlign: "right" }}>
+                      <td data-label="Receipts" style={{ padding: "14px 16px", textAlign: "right" }}>
                         {cand.paymentHistory && cand.paymentHistory.length > 0 ? (
-                          <button
+                          <button data-action-ui="secondary" data-action-size="compact"
                             type="button"
                             onClick={() => openPrintReceipt(cand.paymentHistory![0], cand)}
                             style={{
@@ -2287,7 +1901,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
 
       {/* 6. TAB 3: INTERVIEW CALLS & SELECTIONS */}
       {activeTab === "interviews" && (
-        <div
+        <div className="portal-section portal-section-interviews portal-card"
           style={{
             background: "#fff",
             borderRadius: "16px",
@@ -2297,16 +1911,16 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
           }}
         >
           <div style={{ padding: "18px 22px", borderBottom: "1px solid var(--line)" }}>
-            <h3 style={{ fontSize: "15px", fontWeight: 800, margin: 0, color: "var(--ink)" }}>
-              Delegation &amp; Client Interview Tracker
+            <h3 style={{ fontSize: "15px", fontWeight: 600, margin: 0, color: "var(--ink)" }}>
+              Interview calls & selections
             </h3>
             <p style={{ fontSize: "12px", color: "var(--muted)", margin: "3px 0 0" }}>
               Interview schedules and client selection results for candidates referred by {agentData.name}
             </p>
           </div>
 
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px" }}>
+          <div className="portal-scroll" style={{ overflowX: "auto" }}>
+            <table className="portal-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px" }}>
               <thead>
                 <tr style={{ background: "#f8fafc", borderBottom: "1px solid var(--line)", textAlign: "left" }}>
                   <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px" }}>Candidate</th>
@@ -2321,19 +1935,19 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                 {(agentData.interviews && agentData.interviews.length > 0) ? (
                   agentData.interviews.map((iv) => (
                     <tr key={iv.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                      <td style={{ padding: "14px 16px" }}>
+                      <td data-label="Candidate" style={{ padding: "14px 16px" }}>
                         <b style={{ color: "var(--ink)", display: "block" }}>{iv.fullName}</b>
                         <span style={{ fontSize: "11px", color: "var(--muted)", fontFamily: "monospace" }}>{iv.passportNumber}</span>
                       </td>
-                      <td style={{ padding: "14px 16px" }}>
+                      <td data-label="Trade & Country" style={{ padding: "14px 16px" }}>
                         <div>{iv.profession}</div>
                         <span style={{ fontSize: "11px", color: "var(--muted)" }}>{iv.country}</span>
                       </td>
-                      <td style={{ padding: "14px 16px", fontWeight: 600 }}>{iv.company || "Delegation Direct"}</td>
-                      <td style={{ padding: "14px 16px" }}>
+                      <td data-label="Interview Company" style={{ padding: "14px 16px", fontWeight: 600 }}>{iv.company || "Delegation Direct"}</td>
+                      <td data-label="Interview Date" style={{ padding: "14px 16px" }}>
                         {iv.scheduledAt ? new Date(iv.scheduledAt).toLocaleDateString("en-GB") : "Scheduled"}
                       </td>
-                      <td style={{ padding: "14px 16px" }}>
+                      <td data-label="Selection Result" style={{ padding: "14px 16px" }}>
                         <span
                           style={{
                             display: "inline-flex",
@@ -2342,7 +1956,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                             padding: "3px 9px",
                             borderRadius: "6px",
                             fontSize: "11px",
-                            fontWeight: 800,
+                            fontWeight: 600,
                             background: iv.result === "Selected" ? "#ecfdf5" : "#fff1f2",
                             color: iv.result === "Selected" ? "#059669" : "#e11d48",
                             border: iv.result === "Selected" ? "1px solid #a7f3d0" : "1px solid #fecdd3",
@@ -2351,7 +1965,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                           {iv.result || iv.status || "Pending"}
                         </span>
                       </td>
-                      <td style={{ padding: "14px 16px", color: "var(--muted)", fontSize: "12px" }}>
+                      <td data-label="Remarks / Notes" style={{ padding: "14px 16px", color: "var(--muted)", fontSize: "12px" }}>
                         {iv.notes || "Client interview cleared successfully."}
                       </td>
                     </tr>
@@ -2359,17 +1973,17 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                 ) : (
                   (agentData.candidates || []).map((cand) => (
                     <tr key={cand.fileId} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                      <td style={{ padding: "14px 16px" }}>
+                      <td data-label="Candidate" style={{ padding: "14px 16px" }}>
                         <b style={{ color: "var(--ink)", display: "block" }}>{cand.fullName}</b>
                         <span style={{ fontSize: "11px", color: "var(--muted)", fontFamily: "monospace" }}>{cand.passportNumber}</span>
                       </td>
-                      <td style={{ padding: "14px 16px" }}>
+                      <td data-label="Trade & Country" style={{ padding: "14px 16px" }}>
                         <div>{cand.profession}</div>
                         <span style={{ fontSize: "11px", color: "var(--muted)" }}>{cand.country}</span>
                       </td>
-                      <td style={{ padding: "14px 16px", fontWeight: 600 }}>Al-Rajhi Recruitment Delegation</td>
-                      <td style={{ padding: "14px 16px" }}>12/08/2026</td>
-                      <td style={{ padding: "14px 16px" }}>
+                      <td data-label="Interview Company" style={{ padding: "14px 16px", fontWeight: 600 }}>Al-Rajhi Recruitment Delegation</td>
+                      <td data-label="Interview Date" style={{ padding: "14px 16px" }}>12/08/2026</td>
+                      <td data-label="Selection Result" style={{ padding: "14px 16px" }}>
                         <span
                           style={{
                             display: "inline-flex",
@@ -2378,7 +1992,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                             padding: "3px 9px",
                             borderRadius: "6px",
                             fontSize: "11px",
-                            fontWeight: 800,
+                            fontWeight: 600,
                             background: "#ecfdf5",
                             color: "#059669",
                             border: "1px solid #a7f3d0",
@@ -2387,7 +2001,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                           Selected
                         </span>
                       </td>
-                      <td style={{ padding: "14px 16px", color: "var(--muted)", fontSize: "12px" }}>
+                      <td data-label="Remarks / Notes" style={{ padding: "14px 16px", color: "var(--muted)", fontSize: "12px" }}>
                         Direct selection passed by foreign delegation.
                       </td>
                     </tr>
@@ -2401,15 +2015,16 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
 
       {/* 7. TAB 4: AGENCY DOCUMENTS */}
       {activeTab === "docs" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" }}>
+        <div className="portal-section portal-section-docs portal-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" }}>
+          <div className="portal-section-heading"><div><h2>Agency documents</h2><p>Your partner agreements and supporting files in one place.</p></div><span className="portal-result-count">{agentData.documents?.length || 0} documents</span></div>
           {(agentData.documents || []).length === 0 ? (
-            <div style={{ gridColumn: "1 / -1", background: "#fff", padding: "40px", textAlign: "center", borderRadius: "14px", border: "1px solid var(--line)" }}>
+            <div className="portal-card" style={{ gridColumn: "1 / -1", background: "#fff", padding: "40px", textAlign: "center", borderRadius: "14px", border: "1px solid var(--line)" }}>
               <FileText size={32} color="var(--muted)" style={{ margin: "0 auto 10px" }} />
               <p style={{ color: "var(--muted)", margin: 0, fontSize: "13px" }}>No documents uploaded for this agency yet.</p>
             </div>
           ) : (
             (agentData.documents || []).map((doc) => (
-              <div
+              <div className="portal-card"
                 key={doc.id}
                 style={{
                   background: "#fff",
@@ -2424,7 +2039,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                 }}
               >
                 <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
-                  <div style={{ width: "42px", height: "42px", borderRadius: "10px", background: "#f0edff", color: "#7258e8", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                  <div style={{ width: "42px", height: "42px", borderRadius: "10px", background: "#eaf2ff", color: "#007aff", display: "grid", placeItems: "center", flexShrink: 0 }}>
                     <FileText size={22} />
                   </div>
                   <div>
@@ -2441,7 +2056,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                   <span style={{ fontSize: "11px", color: "var(--muted)" }}>
                     {doc.createdAt ? new Date(doc.createdAt).toLocaleDateString("en-GB") : "Verified"}
                   </span>
-                  <button
+                  <button data-action-ui="secondary" data-action-size="normal"
                     type="button"
                     onClick={() => setPreviewDoc(doc)}
                     style={{
@@ -2450,8 +2065,8 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                       gap: "4px",
                       padding: "6px 12px",
                       borderRadius: "8px",
-                      background: "#f0edff",
-                      color: "#7258e8",
+                      background: "#eaf2ff",
+                      color: "#007aff",
                       border: "none",
                       fontSize: "11.5px",
                       fontWeight: 700,
@@ -2467,6 +2082,8 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
         </div>
       )}
 
+      </div>
+
       {/* 8. 📑 360° CANDIDATE COMPLETE PROFILE & ALL-TABLES MASTER DOSSIER (STRICT VIEW & DOWNLOAD ONLY) */}
       {selectedCandidate && (
         <Candidate360DossierModal
@@ -2479,24 +2096,24 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
 
       {/* 9. SAFE DOCUMENT PREVIEW & DOWNLOAD MODAL */}
       {previewDoc && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.75)", backdropFilter: "blur(6px)", display: "grid", placeItems: "center", zIndex: 99999, padding: "20px" }}>
-          <div style={{ background: "#fff", borderRadius: "18px", maxWidth: "640px", width: "100%", padding: "24px", boxShadow: "0 25px 50px rgba(0,0,0,0.3)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+        <div role="dialog" aria-modal="true" aria-label="Dialog" className="master-modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.75)", backdropFilter: "blur(6px)", display: "grid", placeItems: "center", zIndex: 99999, padding: "20px" }}>
+          <div className="master-modal-card master-modal-inline-card master-modal-panel" style={{ background: "#fff", borderRadius: "18px", maxWidth: "640px", width: "100%", padding: "24px", boxShadow: "0 25px 50px rgba(0,0,0,0.3)" }}>
+            <div className="master-modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <div style={{ width: "36px", height: "36px", borderRadius: "8px", background: "#f0edff", color: "#7258e8", display: "grid", placeItems: "center" }}>
+                <div className="master-modal-accent master-modal-icon" style={{ width: "36px", height: "36px", borderRadius: "8px", background: "#eaf2ff", color: "#007aff", display: "grid", placeItems: "center" }}>
                   <FileText size={18} />
                 </div>
                 <div>
-                  <h3 style={{ fontSize: "15px", fontWeight: 800, margin: 0, color: "var(--ink)" }}>{previewDoc.name}</h3>
+                  <h3 style={{ fontSize: "15px", fontWeight: 600, margin: 0, color: "var(--ink)" }}>{previewDoc.name}</h3>
                   <span style={{ fontSize: "11px", color: "var(--muted)" }}>{previewDoc.type || "Document"}</span>
                 </div>
               </div>
-              <button type="button" onClick={() => setPreviewDoc(null)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--muted)" }}>
+              <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog" className="master-modal-close" type="button" onClick={() => setPreviewDoc(null)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--muted)" }}>
                 <X size={20} />
               </button>
             </div>
 
-            <div style={{ background: "#f8fafc", borderRadius: "12px", border: "1px dashed var(--line)", padding: "36px 20px", textAlign: "center", display: "grid", placeItems: "center", gap: "12px" }}>
+            <div className="master-modal-panel" style={{ background: "#f8fafc", borderRadius: "12px", border: "1px dashed var(--line)", padding: "36px 20px", textAlign: "center", display: "grid", placeItems: "center", gap: "12px" }}>
               {previewDoc.fileData && previewDoc.fileData.startsWith("data:image/") ? (
                 <Image
                   src={previewDoc.fileData}
@@ -2523,7 +2140,7 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
               </span>
               <div style={{ display: "flex", gap: "8px" }}>
                 {previewDoc.fileData && (
-                  <a
+                  <a data-action-ui="neutral" data-action-size="normal"
                     href={previewDoc.fileData}
                     download={previewDoc.name}
                     style={{
@@ -2532,17 +2149,17 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
                       gap: "6px",
                       padding: "8px 16px",
                       borderRadius: "8px",
-                      background: "#7258e8",
+                      background: "#007aff",
                       color: "#fff",
                       textDecoration: "none",
                       fontSize: "12px",
-                      fontWeight: 800,
+                      fontWeight: 600,
                     }}
                   >
                     <Download size={14} /> Download File
                   </a>
                 )}
-                <button
+                <button data-action-ui="neutral" data-action-size="normal"
                   type="button"
                   onClick={() => setPreviewDoc(null)}
                   style={{ padding: "8px 16px", borderRadius: "8px", background: "#f1f5f9", border: "none", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}
@@ -2619,7 +2236,7 @@ function Candidate360DossierModal({
   const shouldShow = (secId: string) => activeSection === "all" || activeSection === secId;
 
   return (
-    <div
+    <div role="dialog" aria-modal="true" aria-label="👤 1. Candidate Bio-Data & Personal Profile" className="master-modal-overlay"
       style={{
         position: "fixed",
         inset: 0,
@@ -2631,7 +2248,7 @@ function Candidate360DossierModal({
         padding: "20px",
       }}
     >
-      <div
+      <div className="master-modal-card master-modal-inline-card master-modal-panel"
         style={{
           background: "var(--surface)",
           borderRadius: "20px",
@@ -2646,9 +2263,9 @@ function Candidate360DossierModal({
         }}
       >
         {/* HEADER */}
-        <div
+        <div className="master-modal-header"
           style={{
-            background: "linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%)",
+            background: "linear-gradient(135deg, #1d1d1f 0%, #312e81 50%, #4338ca 100%)",
             padding: "20px 26px",
             color: "#ffffff",
             display: "flex",
@@ -2659,7 +2276,7 @@ function Candidate360DossierModal({
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-            <div
+            <div className="master-modal-icon"
               style={{
                 width: "48px",
                 height: "48px",
@@ -2668,7 +2285,7 @@ function Candidate360DossierModal({
                 display: "grid",
                 placeItems: "center",
                 fontSize: "18px",
-                fontWeight: 900,
+                fontWeight: 700,
                 border: "1px solid rgba(255,255,255,0.3)",
               }}
             >
@@ -2676,7 +2293,7 @@ function Candidate360DossierModal({
             </div>
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                <h2 style={{ fontSize: "18px", fontWeight: 900, margin: 0 }}>
+                <h2 style={{ fontSize: "18px", fontWeight: 700, margin: 0 }}>
                   {candidate.fullName}
                 </h2>
                 <span
@@ -2686,7 +2303,7 @@ function Candidate360DossierModal({
                     padding: "1px 8px",
                     borderRadius: "4px",
                     fontSize: "11px",
-                    fontWeight: 800,
+                    fontWeight: 600,
                     fontFamily: "monospace",
                   }}
                 >
@@ -2699,7 +2316,7 @@ function Candidate360DossierModal({
                     padding: "2px 8px",
                     borderRadius: "9999px",
                     fontSize: "11px",
-                    fontWeight: 800,
+                    fontWeight: 600,
                   }}
                 >
                   {candidate.currentStage}
@@ -2715,7 +2332,7 @@ function Candidate360DossierModal({
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <div
+            <div className="master-modal-panel"
               style={{
                 background: "rgba(255,255,255,0.12)",
                 border: "1px solid rgba(255,255,255,0.2)",
@@ -2732,7 +2349,7 @@ function Candidate360DossierModal({
               <span>Read-Only Verification Mode</span>
             </div>
 
-            <button
+            <button data-action-ui="neutral" data-action-size="normal" className="master-modal-secondary"
               type="button"
               onClick={() => window.print()}
               style={{
@@ -2742,17 +2359,17 @@ function Candidate360DossierModal({
                 padding: "8px 14px",
                 borderRadius: "8px",
                 background: "#ffffff",
-                color: "#1e1b4b",
+                color: "#1d1d1f",
                 border: "none",
                 fontSize: "12px",
-                fontWeight: 800,
+                fontWeight: 600,
                 cursor: "pointer",
               }}
             >
               <Printer size={14} /> Print Dossier
             </button>
 
-            <button
+            <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog" className="master-modal-close"
               type="button"
               onClick={onClose}
               style={{
@@ -2787,9 +2404,9 @@ function Candidate360DossierModal({
           }}
         >
           <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
-            <span><b>Agreed Package:</b> <span style={{ color: "#4c1d95", fontWeight: 800 }}>{formatTk(fileData?.packageCost || candidate.packageCost)}</span></span>
-            <span><b>Paid by Candidate:</b> <span style={{ color: "#047857", fontWeight: 800 }}>{formatTk(fileData?.totalPaid || candidate.totalPaid)}</span></span>
-            <span><b>Remaining Due:</b> <span style={{ color: (candidate.dueAmount > 0) ? "#b91c1c" : "#047857", fontWeight: 800 }}>{formatTk(fileData?.dueAmount || candidate.dueAmount)}</span></span>
+            <span><b>Agreed Package:</b> <span style={{ color: "#4c1d95", fontWeight: 600 }}>{formatTk(fileData?.packageCost || candidate.packageCost)}</span></span>
+            <span><b>Paid by Candidate:</b> <span style={{ color: "#047857", fontWeight: 600 }}>{formatTk(fileData?.totalPaid || candidate.totalPaid)}</span></span>
+            <span><b>Remaining Due:</b> <span style={{ color: (candidate.dueAmount > 0) ? "#6e6e73" : "#047857", fontWeight: 600 }}>{formatTk(fileData?.dueAmount || candidate.dueAmount)}</span></span>
           </div>
           <span style={{ color: "var(--muted)", fontSize: "11px" }}>
             🔒 All files, visas &amp; vouchers are verified and view/download only.
@@ -2823,7 +2440,7 @@ function Candidate360DossierModal({
             { id: "education", label: "🎓 12. Education & Exp" },
             { id: "documents", label: "📁 13. Scanned Docs" },
           ].map((pill) => (
-            <button
+            <button aria-pressed={activeSection === pill.id}
               key={pill.id}
               type="button"
               onClick={() => setActiveSection(pill.id)}
@@ -2833,7 +2450,7 @@ function Candidate360DossierModal({
                 border: "none",
                 fontSize: "11.5px",
                 fontWeight: activeSection === pill.id ? 800 : 600,
-                background: activeSection === pill.id ? "#7258e8" : "#f1f5f9",
+                background: activeSection === pill.id ? "#007aff" : "#f1f5f9",
                 color: activeSection === pill.id ? "#ffffff" : "var(--muted)",
                 cursor: "pointer",
                 whiteSpace: "nowrap",
@@ -2850,16 +2467,16 @@ function Candidate360DossierModal({
           
           {isLoading ? (
             <div style={{ padding: "60px 20px", textAlign: "center" }}>
-              <RefreshCw className="animate-spin" size={28} color="#7258e8" style={{ margin: "0 auto 12px" }} />
+              <RefreshCw className="animate-spin" size={28} color="#007aff" style={{ margin: "0 auto 12px" }} />
               <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0 }}>Loading complete 360° candidate dossier...</p>
             </div>
           ) : (
             <>
               {/* 1. CANDIDATE BIO-DATA TABLE */}
               {shouldShow("bio") && (
-                <div style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
+                <div className="master-modal-panel" style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid var(--line)", paddingBottom: "8px" }}>
-                    <h3 style={{ fontSize: "14px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <h3 style={{ fontSize: "14px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
                       👤 1. Candidate Bio-Data &amp; Personal Profile
                     </h3>
                     <span style={{ fontSize: "11px", fontWeight: 700, color: "#10b981", background: "#ecfdf5", padding: "2px 8px", borderRadius: "4px" }}>
@@ -2914,9 +2531,9 @@ function Candidate360DossierModal({
 
               {/* 2. PASSPORT LIST & ENTRY TABLE */}
               {shouldShow("passport") && (
-                <div style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
+                <div className="master-modal-panel" style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid var(--line)", paddingBottom: "8px" }}>
-                    <h3 style={{ fontSize: "14px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <h3 style={{ fontSize: "14px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
                       📘 2. Passport Record &amp; Entry
                     </h3>
                     <span style={{ fontSize: "11px", fontWeight: 700, color: "#2563eb", background: "#eff6ff", padding: "2px 8px", borderRadius: "4px" }}>
@@ -2949,10 +2566,10 @@ function Candidate360DossierModal({
 
                   {passport.documentUrl && (
                     <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "flex-end", gap: "8px" }}>
-                      <button
+                      <button data-action-ui="secondary" data-action-size="normal" className="master-modal-accent"
                         type="button"
                         onClick={() => onPreviewDoc({ name: `Passport_${resolvedPassportNo || "Scan"}.pdf`, type: "Passport Scan", fileData: passport.documentUrl })}
-                        style={{ padding: "6px 12px", borderRadius: "6px", background: "#f0edff", color: "#7258e8", border: "none", fontSize: "11px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                        style={{ padding: "6px 12px", borderRadius: "6px", background: "#eaf2ff", color: "#007aff", border: "none", fontSize: "11px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}
                       >
                         <Eye size={12} /> View Passport Scan
                       </button>
@@ -2963,12 +2580,12 @@ function Candidate360DossierModal({
 
               {/* 3. MEDICAL & GCC GAMCA TABLE */}
               {shouldShow("medical") && (
-                <div style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
+                <div className="master-modal-panel" style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid var(--line)", paddingBottom: "8px" }}>
-                    <h3 style={{ fontSize: "14px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <h3 style={{ fontSize: "14px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
                       🏥 3. Medical Examination &amp; GCC GAMCA Fitness
                     </h3>
-                    <span style={{ fontSize: "11px", fontWeight: 800, color: "#059669", background: "#ecfdf5", padding: "2px 8px", borderRadius: "4px", border: "1px solid #a7f3d0" }}>
+                    <span style={{ fontSize: "11px", fontWeight: 600, color: "#059669", background: "#ecfdf5", padding: "2px 8px", borderRadius: "4px", border: "1px solid #a7f3d0" }}>
                       {medical.result || "FIT (Passed)"}
                     </span>
                   </div>
@@ -3000,9 +2617,9 @@ function Candidate360DossierModal({
 
               {/* 4. POLICE CLEARANCE (PCC) TABLE */}
               {shouldShow("police") && (
-                <div style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
+                <div className="master-modal-panel" style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid var(--line)", paddingBottom: "8px" }}>
-                    <h3 style={{ fontSize: "14px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <h3 style={{ fontSize: "14px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
                       🛡️ 4. Police Clearance Certificate (PCC)
                     </h3>
                     <span style={{ fontSize: "11px", fontWeight: 700, color: "#059669", background: "#ecfdf5", padding: "2px 8px", borderRadius: "4px" }}>
@@ -3033,12 +2650,12 @@ function Candidate360DossierModal({
 
               {/* 5. PAYMENT DEPOSITS & INVOICES TABLE */}
               {shouldShow("payment") && (
-                <div style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
+                <div className="master-modal-panel" style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid var(--line)", paddingBottom: "8px" }}>
-                    <h3 style={{ fontSize: "14px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <h3 style={{ fontSize: "14px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
                       💵 5. Candidate Payment Deposits &amp; Money Receipts
                     </h3>
-                    <span style={{ fontSize: "12px", fontWeight: 800, color: "#059669" }}>
+                    <span style={{ fontSize: "12px", fontWeight: 600, color: "#059669" }}>
                       Total Collected: {formatTk(candidate.totalPaid)}
                     </span>
                   </div>
@@ -3071,11 +2688,11 @@ function Candidate360DossierModal({
                               </td>
                               <td style={{ padding: "8px 10px" }}>{p.type || "Candidate Deposit"}</td>
                               <td style={{ padding: "8px 10px" }}>{p.method || "Cash at Office"}</td>
-                              <td style={{ padding: "8px 10px", fontWeight: 800, color: "#059669" }}>
+                              <td style={{ padding: "8px 10px", fontWeight: 600, color: "#059669" }}>
                                 {formatTk(p.amount)}
                               </td>
                               <td style={{ padding: "8px 10px", textAlign: "right" }}>
-                                <button
+                                <button data-action-ui="neutral" data-action-size="compact" className="master-modal-secondary"
                                   type="button"
                                   onClick={() => onPrintReceipt(p)}
                                   style={{
@@ -3106,9 +2723,9 @@ function Candidate360DossierModal({
 
               {/* 6. TAKAMUL / MOHRE LABOR APPROVAL TABLE */}
               {shouldShow("takamul") && (
-                <div style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
+                <div className="master-modal-panel" style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid var(--line)", paddingBottom: "8px" }}>
-                    <h3 style={{ fontSize: "14px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <h3 style={{ fontSize: "14px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
                       🏅 6. Skill Verification (Saudi Takamul / MOHRE Approval)
                     </h3>
                     <span style={{ fontSize: "11px", fontWeight: 700, color: "#059669", background: "#ecfdf5", padding: "2px 8px", borderRadius: "4px" }}>
@@ -3139,9 +2756,9 @@ function Candidate360DossierModal({
 
               {/* 7. BIO-FINGER TABLE */}
               {shouldShow("biofinger") && (
-                <div style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
+                <div className="master-modal-panel" style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid var(--line)", paddingBottom: "8px" }}>
-                    <h3 style={{ fontSize: "14px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <h3 style={{ fontSize: "14px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
                       🖐️ 7. Saudi Bio-Finger Biometrics
                     </h3>
                     <span style={{ fontSize: "11px", fontWeight: 700, color: "#059669", background: "#ecfdf5", padding: "2px 8px", borderRadius: "4px" }}>
@@ -3168,9 +2785,9 @@ function Candidate360DossierModal({
 
               {/* 8. MOFA & KAFEEL TABLE */}
               {shouldShow("mofa") && (
-                <div style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
+                <div className="master-modal-panel" style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid var(--line)", paddingBottom: "8px" }}>
-                    <h3 style={{ fontSize: "14px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <h3 style={{ fontSize: "14px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
                       🌐 8. Saudi MOFA &amp; Kafeel (Sponsor) Info
                     </h3>
                     <span style={{ fontSize: "11px", fontWeight: 700, color: "#059669", background: "#ecfdf5", padding: "2px 8px", borderRadius: "4px" }}>
@@ -3201,12 +2818,12 @@ function Candidate360DossierModal({
 
               {/* 9. VISA STAMPING & EMBASSY VISA TABLE */}
               {shouldShow("visa") && (
-                <div style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
+                <div className="master-modal-panel" style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid var(--line)", paddingBottom: "8px" }}>
-                    <h3 style={{ fontSize: "14px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <h3 style={{ fontSize: "14px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
                       🛂 9. Visa Stamping &amp; Embassy Visa
                     </h3>
-                    <span style={{ fontSize: "11px", fontWeight: 800, color: "#2563eb", background: "#eff6ff", padding: "2px 8px", borderRadius: "4px", border: "1px solid #bfdbfe" }}>
+                    <span style={{ fontSize: "11px", fontWeight: 600, color: "#2563eb", background: "#eff6ff", padding: "2px 8px", borderRadius: "4px", border: "1px solid #bfdbfe" }}>
                       {visa.status || "Visa Stamped (Original)"}
                     </span>
                   </div>
@@ -3234,9 +2851,9 @@ function Candidate360DossierModal({
 
               {/* 10. BMET MANPOWER CLEARANCE TABLE */}
               {shouldShow("manpower") && (
-                <div style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
+                <div className="master-modal-panel" style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid var(--line)", paddingBottom: "8px" }}>
-                    <h3 style={{ fontSize: "14px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <h3 style={{ fontSize: "14px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
                       📜 10. BMET Manpower Clearance &amp; Smart Card
                     </h3>
                     <span style={{ fontSize: "11px", fontWeight: 700, color: "#059669", background: "#ecfdf5", padding: "2px 8px", borderRadius: "4px" }}>
@@ -3267,9 +2884,9 @@ function Candidate360DossierModal({
 
               {/* 11. FLIGHT BOOKING & DEPARTURE TABLE */}
               {shouldShow("flight") && (
-                <div style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
+                <div className="master-modal-panel" style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid var(--line)", paddingBottom: "8px" }}>
-                    <h3 style={{ fontSize: "14px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <h3 style={{ fontSize: "14px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
                       ✈️ 11. Flight Booking, Ticket &amp; Departure
                     </h3>
                     <span style={{ fontSize: "11px", fontWeight: 700, color: "#059669", background: "#ecfdf5", padding: "2px 8px", borderRadius: "4px" }}>
@@ -3296,7 +2913,7 @@ function Candidate360DossierModal({
                     </div>
                     <div>
                       <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Airline PNR Ref</span>
-                      <b style={{ color: "#7258e8", fontFamily: "monospace" }}>{flight.pnr || "SV9X8K"}</b>
+                      <b className="master-modal-accent" style={{ color: "#007aff", fontFamily: "monospace" }}>{flight.pnr || "SV9X8K"}</b>
                     </div>
                   </div>
                 </div>
@@ -3304,9 +2921,9 @@ function Candidate360DossierModal({
 
               {/* 12. EDUCATION & EXPERIENCE */}
               {shouldShow("education") && (
-                <div style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
+                <div className="master-modal-panel" style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid var(--line)", paddingBottom: "8px" }}>
-                    <h3 style={{ fontSize: "14px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <h3 style={{ fontSize: "14px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
                       🎓 12. Education Qualifications &amp; Prior Experience
                     </h3>
                   </div>
@@ -3318,7 +2935,7 @@ function Candidate360DossierModal({
                         <span style={{ color: "var(--muted)" }}>Secondary School Certificate (SSC Passed - 2018)</span>
                       ) : (
                         educations.map((edu: any, i: number) => (
-                          <div key={i} style={{ padding: "6px 10px", background: "#f8fafc", borderRadius: "6px", marginBottom: "4px" }}>
+                          <div className="master-modal-panel" key={i} style={{ padding: "6px 10px", background: "#f8fafc", borderRadius: "6px", marginBottom: "4px" }}>
                             <b>{edu.degree || edu.level}</b> - {edu.institute} ({edu.year})
                           </div>
                         ))
@@ -3331,7 +2948,7 @@ function Candidate360DossierModal({
                         <span style={{ color: "var(--muted)" }}>4 Years Gulf Trade Experience in Masonry &amp; Construction</span>
                       ) : (
                         experiences.map((exp: any, i: number) => (
-                          <div key={i} style={{ padding: "6px 10px", background: "#f8fafc", borderRadius: "6px", marginBottom: "4px" }}>
+                          <div className="master-modal-panel" key={i} style={{ padding: "6px 10px", background: "#f8fafc", borderRadius: "6px", marginBottom: "4px" }}>
                             <b>{exp.company}</b> - {exp.role} ({exp.years} yrs)
                           </div>
                         ))
@@ -3343,9 +2960,9 @@ function Candidate360DossierModal({
 
               {/* 13. COMPLETE SCANNED DOCUMENTS REPOSITORY */}
               {shouldShow("documents") && (
-                <div style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
+                <div className="master-modal-panel" style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid var(--line)", paddingBottom: "8px" }}>
-                    <h3 style={{ fontSize: "14px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <h3 style={{ fontSize: "14px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
                       📁 13. Scanned Documents Archive (View &amp; Download Only)
                     </h3>
                     <span style={{ fontSize: "11px", color: "var(--muted)", display: "inline-flex", alignItems: "center", gap: "4px" }}>
@@ -3363,7 +2980,7 @@ function Candidate360DossierModal({
                       { name: `Air_Ticket_E_Ticket.pdf`, type: "Confirmed Flight Ticket", size: "1.1 MB" },
                       ...documents,
                     ].map((doc: any, i: number) => (
-                      <div
+                      <div className="master-modal-panel"
                         key={i}
                         style={{
                           background: "#f8fafc",
@@ -3377,7 +2994,7 @@ function Candidate360DossierModal({
                         }}
                       >
                         <div style={{ display: "flex", alignItems: "center", gap: "8px", overflow: "hidden" }}>
-                          <FileText size={18} color="#7258e8" style={{ flexShrink: 0 }} />
+                          <FileText size={18} color="#007aff" style={{ flexShrink: 0 }} />
                           <div style={{ overflow: "hidden" }}>
                             <b style={{ fontSize: "12px", color: "var(--ink)", display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                               {doc.name}
@@ -3387,15 +3004,15 @@ function Candidate360DossierModal({
                         </div>
 
                         <div style={{ display: "flex", gap: "4px", flexShrink: 0 }}>
-                          <button
+                          <button data-action-ui="secondary" data-action-size="normal" className="master-modal-accent"
                             type="button"
                             onClick={() => onPreviewDoc(doc)}
                             title="View Document"
                             style={{
                               padding: "5px 8px",
                               borderRadius: "6px",
-                              background: "#f0edff",
-                              color: "#7258e8",
+                              background: "#eaf2ff",
+                              color: "#007aff",
                               border: "none",
                               fontSize: "11px",
                               fontWeight: 700,
@@ -3432,17 +3049,17 @@ function Candidate360DossierModal({
             <ShieldCheck size={14} color="#10b981" />
             Candidate record verified in Central Agency Database. Read &amp; download only.
           </span>
-          <button
+          <button data-action-ui="neutral" data-action-size="normal" className="master-modal-primary"
             type="button"
             onClick={onClose}
             style={{
               padding: "8px 20px",
               borderRadius: "8px",
-              background: "#7258e8",
+              background: "#007aff",
               color: "#ffffff",
               border: "none",
               fontSize: "12.5px",
-              fontWeight: 800,
+              fontWeight: 600,
               cursor: "pointer",
             }}
           >

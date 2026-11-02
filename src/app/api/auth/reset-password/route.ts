@@ -1,2 +1,18 @@
-import { resetSchema } from "@/features/auth/schemas"; import { resetPassword } from "@/features/auth/service"; import { errorResponse } from "@/lib/errors";
-export async function POST(request:Request){try{const data=resetSchema.parse(await request.json());await resetPassword(data.token,data.password);return Response.json({ok:true,message:"Password reset successfully. Please sign in again."})}catch(error){return errorResponse(error)}}
+import { resetSchema } from "@/features/auth/schemas";
+import { resetPassword } from "@/features/auth/service";
+import { errorResponse } from "@/lib/errors";
+
+export async function POST(request: Request) {
+  try {
+    const rawBody = await request.json();
+    const data = resetSchema.parse(rawBody);
+    await resetPassword(data.token, data.password);
+
+    return Response.json({
+      ok: true,
+      message: "Password reset successfully. Please sign in again.",
+    });
+  } catch (error) {
+    return errorResponse(error);
+  }
+}

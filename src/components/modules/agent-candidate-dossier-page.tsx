@@ -39,7 +39,7 @@ import Image from "next/image";
 import { useState } from "react";
 import { MoneyReceiptModal, type ReceiptData } from "@/components/modals/money-receipt-modal";
 
-export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
+export function AgentCandidateDossierPage({ fileId, agentId }: { fileId: string; agentId?: string }) {
   const [activeSection, setActiveSection] = useState<string>("all");
   const [previewDoc, setPreviewDoc] = useState<{ name: string; type: string; fileData?: string | null } | null>(null);
   const [activeReceipt, setActiveReceipt] = useState<ReceiptData | null>(null);
@@ -103,14 +103,16 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
     });
   };
 
+  const portalAgentId = agentId || fileData?.agentRecord?.id || fileData?.agentId;
+
   const shouldShow = (secId: string) => activeSection === "all" || activeSection === secId;
 
   if (isLoading || !fileData) {
     return (
       <div style={{ padding: "80px 20px", textAlign: "center", display: "grid", placeItems: "center" }}>
-        <div style={{ background: "#fff", padding: "40px 60px", borderRadius: "16px", border: "1px solid var(--line)", boxShadow: "var(--shadow)" }}>
-          <RefreshCw className="animate-spin" size={32} color="#7258e8" style={{ margin: "0 auto 16px" }} />
-          <h3 style={{ fontSize: "16px", fontWeight: 800, color: "var(--ink)", marginBottom: "6px" }}>
+        <div className="portal-card" style={{ background: "#fff", padding: "40px 60px", borderRadius: "16px", border: "1px solid var(--line)", boxShadow: "var(--shadow)" }}>
+          <RefreshCw className="animate-spin" size={32} color="#007aff" style={{ margin: "0 auto 16px" }} />
+          <h3 style={{ fontSize: "16px", fontWeight: 600, color: "var(--ink)", marginBottom: "6px" }}>
             Loading 360° Candidate Dossier...
           </h3>
           <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0 }}>
@@ -122,169 +124,35 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
   }
 
   return (
-    <div style={{ padding: "20px 28px 60px", maxWidth: "1480px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "20px" }}>
+    <div className="agent-portal-design portal-dossier" style={{ padding: "20px 28px 60px", maxWidth: "1480px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "20px" }}>
       
-      {/* 1. TOP NAVIGATION & CANDIDATE BANNER */}
-      <div
-        style={{
-          background: "linear-gradient(135deg, #1e1b4b 0%, #312e81 60%, #4338ca 100%)",
-          borderRadius: "18px",
-          padding: "24px 28px",
-          color: "#ffffff",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: "18px",
-          boxShadow: "0 10px 25px -5px rgba(49, 46, 129, 0.3)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <Link
-            href="/portal/agent"
-            style={{
-              width: "44px",
-              height: "44px",
-              borderRadius: "12px",
-              background: "rgba(255, 255, 255, 0.15)",
-              display: "grid",
-              placeItems: "center",
-              color: "#ffffff",
-              textDecoration: "none",
-              border: "1px solid rgba(255, 255, 255, 0.25)",
-              flexShrink: 0,
-            }}
-            title="Back to Agent Portal"
-          >
-            <ArrowLeft size={20} />
-          </Link>
-
-          <div
-            style={{
-              width: "56px",
-              height: "56px",
-              borderRadius: "14px",
-              background: "rgba(255, 255, 255, 0.2)",
-              display: "grid",
-              placeItems: "center",
-              fontSize: "22px",
-              fontWeight: 900,
-              border: "1px solid rgba(255,255,255,0.3)",
-              flexShrink: 0,
-            }}
-          >
-            {(cand.fullName || "CA").slice(0, 2).toUpperCase()}
-          </div>
-
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", marginBottom: "4px" }}>
-              <h1 style={{ fontSize: "22px", fontWeight: 900, margin: 0, letterSpacing: "-0.02em" }}>
-                {cand.fullName}
-              </h1>
-              <span
-                style={{
-                  background: "rgba(255, 255, 255, 0.2)",
-                  color: "#ffffff",
-                  padding: "2px 10px",
-                  borderRadius: "6px",
-                  fontSize: "12px",
-                  fontWeight: 800,
-                  fontFamily: "monospace",
-                  border: "1px solid rgba(255,255,255,0.3)",
-                }}
-              >
-                {cand.candidateNo || "CAN-101"}
-              </span>
-              <span
-                style={{
-                  background: "#10b981",
-                  color: "#ffffff",
-                  padding: "3px 12px",
-                  borderRadius: "9999px",
-                  fontSize: "11.5px",
-                  fontWeight: 800,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "4px",
-                }}
-              >
-                {fileData.currentStage || "Active Dossier"}
-              </span>
-            </div>
-            <p style={{ margin: 0, fontSize: "13px", opacity: 0.9, display: "flex", alignItems: "center", gap: "14px", flexWrap: "wrap" }}>
-              <span>📁 File: <b>{fileData.fileNo}</b></span>
-              <span>📘 Passport: <b>{resolvedPassportNo || "N/A"}</b></span>
-              <span>🌍 Destination: <b>{fileData.country || "Saudi Arabia"}</b></span>
-              <span>💼 Trade: <b>{fileData.profession || "General Work"}</b></span>
-              <span>📞 Phone: <b>{cand.phone}</b></span>
-            </p>
-          </div>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <div
-            style={{
-              background: "rgba(255,255,255,0.12)",
-              border: "1px solid rgba(255,255,255,0.2)",
-              borderRadius: "10px",
-              padding: "7px 14px",
-              fontSize: "12px",
-              fontWeight: 700,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-            }}
-          >
-            <Lock size={14} color="#34d399" />
-            <span>Read-Only Dossier Mode</span>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => refetch()}
-            disabled={isRefetching}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "8px 14px",
-              borderRadius: "10px",
-              background: "rgba(255,255,255,0.15)",
-              border: "1px solid rgba(255,255,255,0.25)",
-              color: "#ffffff",
-              fontSize: "12px",
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-          >
-            <RefreshCw size={14} className={isRefetching ? "animate-spin" : ""} /> Refresh
-          </button>
-
-          <button
-            type="button"
-            onClick={() => window.print()}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "8px 16px",
-              borderRadius: "10px",
-              background: "#ffffff",
-              color: "#1e1b4b",
-              fontSize: "12px",
-              fontWeight: 800,
-              border: "none",
-              cursor: "pointer",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-            }}
-          >
-            <Printer size={14} /> Print Dossier
-          </button>
-        </div>
+      <div className="portal-page-heading">
+        <Link className="portal-back-link" href={portalAgentId ? `/portal/agent?agentId=${encodeURIComponent(portalAgentId)}` : "/portal/agent"}><ArrowLeft size={14} /> Back to agent portal</Link>
+        <span className="portal-access"><Lock size={12} /> Read-only access</span>
       </div>
+      <section className="portal-hero" aria-label="Candidate profile">
+        <div className="portal-identity">
+          <div className="portal-avatar">{(cand.fullName || "CA").slice(0, 2).toUpperCase()}</div>
+          <div className="portal-partner-info">
+            <div className="portal-partner-meta"><span className="portal-code">{cand.candidateNo || fileData.fileNo}</span><span className="portal-status is-active">{fileData.currentStage || "Active dossier"}</span></div>
+            <h1>{cand.fullName}</h1>
+            <div className="portal-contact">
+              <span><FileText size={13} /> {fileData.fileNo}</span>
+              <span><ShieldCheck size={13} /> {resolvedPassportNo || "Passport not available"}</span>
+              <span><Globe size={13} /> {fileData.country || "—"}</span>
+              <span><Briefcase size={13} /> {fileData.profession || "—"}</span>
+              <span><Phone size={13} /> {cand.phone || "—"}</span>
+            </div>
+          </div>
+        </div>
+        <div className="portal-hero-actions">
+          <button type="button" className="portal-button" onClick={() => refetch()} disabled={isRefetching}><RefreshCw size={14} className={isRefetching ? "animate-spin" : ""} /> {isRefetching ? "Refreshing…" : "Refresh"}</button>
+          <button type="button" className="portal-button portal-button-primary" onClick={() => window.print()}><Printer size={14} /> Print dossier</button>
+        </div>
+      </section>
 
       {/* 2. STAGE PROCESSING PIPELINE (INTERACTIVE PROGRESS WORKFLOW) */}
-      <div
+      <div className="portal-card"
         style={{
           background: "#ffffff",
           borderRadius: "16px",
@@ -293,10 +161,10 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
           boxShadow: "var(--shadow)",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", flexWrap: "wrap", gap: "8px" }}>
+        <div className="portal-wrap" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", flexWrap: "wrap", gap: "8px" }}>
           <div>
-            <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 800, color: "#1e1b4b", display: "flex", alignItems: "center", gap: "6px" }}>
-              ⚡ Stage Processing Pipeline (Progress Workflow)
+            <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: "#1e1b4b", display: "flex", alignItems: "center", gap: "6px" }}>
+              Stage Processing Pipeline (Progress Workflow)
             </h3>
             <span style={{ fontSize: "12px", color: "var(--muted)" }}>
               Recruitment milestone progress for {fileData.country || "Overseas Deployment"}
@@ -305,7 +173,7 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
           <span
             style={{
               fontSize: "12px",
-              fontWeight: 800,
+              fontWeight: 600,
               background: "#ecfdf5",
               color: "#047857",
               padding: "4px 12px",
@@ -317,7 +185,7 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
           </span>
         </div>
 
-        <div style={{ display: "flex", gap: "8px", overflowX: "auto", paddingBottom: "6px" }}>
+        <div className="portal-scroll" style={{ display: "flex", gap: "8px", overflowX: "auto", paddingBottom: "6px" }}>
           {[
             { id: "Passport Entry", label: "Passport", step: 1 },
             { id: "Medical", label: "Medical", step: 2 },
@@ -345,7 +213,7 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
             const isCurrent = (thisStageNorm === currentStageNorm || st.label.toLowerCase() === currentStageNorm) && fileData.status !== "COMPLETED";
 
             return (
-              <div
+              <div className="portal-card portal-pipeline-step"
                 key={st.id}
                 style={{
                   flex: "1 0 110px",
@@ -354,8 +222,8 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
                   alignItems: "center",
                   padding: "10px 8px",
                   borderRadius: "12px",
-                  background: isCurrent ? "#1e1b4b" : isDone ? "#f0fdf4" : "#f8fafc",
-                  border: isCurrent ? "1.5px solid #1e1b4b" : isDone ? "1px solid #bbf7d0" : "1px solid #e2e8f0",
+                  background: isCurrent ? "#007aff" : isDone ? "#f0fdf4" : "#f8fafc",
+                  border: isCurrent ? "1.5px solid #007aff" : isDone ? "1px solid #bbf7d0" : "1px solid #e2e8f0",
                   color: isCurrent ? "#ffffff" : isDone ? "#166534" : "#64748b",
                   textAlign: "center",
                   position: "relative",
@@ -363,7 +231,7 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "4px" }}>
-                  <span style={{ fontSize: "10px", fontWeight: 800, opacity: isCurrent ? 0.8 : 0.6 }}>Step {idx + 1}</span>
+                  <span style={{ fontSize: "10px", fontWeight: 600, opacity: isCurrent ? 0.8 : 0.6 }}>Step {idx + 1}</span>
                   {isDone ? (
                     <CheckCircle2 size={13} color="#16a34a" />
                   ) : isCurrent ? (
@@ -372,7 +240,7 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
                     <Clock size={11} color="#94a3b8" />
                   )}
                 </div>
-                <strong style={{ fontSize: "11.5px", fontWeight: 800, whiteSpace: "nowrap" }}>{st.label}</strong>
+                <strong style={{ fontSize: "11.5px", fontWeight: 600, whiteSpace: "nowrap" }}>{st.label}</strong>
                 <small style={{ fontSize: "10px", opacity: isCurrent ? 0.85 : 0.7, marginTop: "2px" }}>
                   {isDone ? "✓ Completed" : isCurrent ? "● Active Stage" : "Pending"}
                 </small>
@@ -383,22 +251,22 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
       </div>
 
       {/* 3. FINANCIAL LEDGER STRIP CARDS */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "14px" }}>
-        <div style={{ background: "#fff", borderRadius: "14px", padding: "18px 20px", border: "1px solid var(--line)", boxShadow: "var(--shadow)" }}>
-          <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase" }}>Agreed Package Cost</span>
-          <div style={{ fontSize: "22px", fontWeight: 900, color: "#4c1d95", marginTop: "4px" }}>{formatTk(fileData.packageCost || 350000)}</div>
+      <div className="portal-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "14px" }}>
+        <div className="portal-card" style={{ background: "#fff", borderRadius: "14px", padding: "18px 20px", border: "1px solid var(--line)", boxShadow: "var(--shadow)" }}>
+          <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase" }}>Agreed Package Cost</span>
+          <div style={{ fontSize: "22px", fontWeight: 700, color: "#007aff", marginTop: "4px" }}>{formatTk(fileData.packageCost || 350000)}</div>
           <span style={{ fontSize: "11px", color: "var(--muted)" }}>Total processing package</span>
         </div>
 
-        <div style={{ background: "#fff", borderRadius: "14px", padding: "18px 20px", border: "1px solid var(--line)", boxShadow: "var(--shadow)" }}>
-          <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase" }}>Paid by Candidate</span>
-          <div style={{ fontSize: "22px", fontWeight: 900, color: "#047857", marginTop: "4px" }}>{formatTk(fileData.totalPaid || 0)}</div>
+        <div className="portal-card" style={{ background: "#fff", borderRadius: "14px", padding: "18px 20px", border: "1px solid var(--line)", boxShadow: "var(--shadow)" }}>
+          <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase" }}>Paid by Candidate</span>
+          <div style={{ fontSize: "22px", fontWeight: 700, color: "#047857", marginTop: "4px" }}>{formatTk(fileData.totalPaid || 0)}</div>
           <span style={{ fontSize: "11px", color: "var(--muted)" }}>Collected deposits in vault</span>
         </div>
 
-        <div style={{ background: "#fff", borderRadius: "14px", padding: "18px 20px", border: "1px solid var(--line)", boxShadow: "var(--shadow)" }}>
-          <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase" }}>Remaining Balance Due</span>
-          <div style={{ fontSize: "22px", fontWeight: 900, color: (fileData.dueAmount ?? ((fileData.packageCost || 350000) - (fileData.totalPaid || 0))) > 0 ? "#b91c1c" : "#047857", marginTop: "4px" }}>
+        <div className="portal-card" style={{ background: "#fff", borderRadius: "14px", padding: "18px 20px", border: "1px solid var(--line)", boxShadow: "var(--shadow)" }}>
+          <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase" }}>Remaining Balance Due</span>
+          <div style={{ fontSize: "22px", fontWeight: 700, color: (fileData.dueAmount ?? ((fileData.packageCost || 350000) - (fileData.totalPaid || 0))) > 0 ? "#b91c1c" : "#047857", marginTop: "4px" }}>
             {formatTk(fileData.dueAmount ?? Math.max(0, (fileData.packageCost || 350000) - (fileData.totalPaid || 0)))}
           </div>
           <span style={{ fontSize: "11px", color: "var(--muted)" }}>Pending candidate balance</span>
@@ -406,7 +274,7 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
       </div>
 
       {/* 3. TABLE FILTER JUMP PILLS */}
-      <div
+      <div className="portal-card portal-scroll"
         style={{
           background: "#ffffff",
           borderRadius: "14px",
@@ -418,29 +286,30 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
           boxShadow: "var(--shadow)",
         }}
       >
-        <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: 800, color: "var(--muted)", padding: "0 8px" }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: 600, color: "var(--muted)", padding: "0 8px" }}>
           <Filter size={14} /> Quick Filter:
         </span>
 
         {[
-          { id: "all", label: "🌟 Show All Tables" },
-          { id: "bio", label: "👤 1. Bio-Data" },
-          { id: "passport", label: "📘 2. Passport Record" },
-          { id: "medical", label: "🏥 3. Medical & GAMCA" },
-          { id: "police", label: "🛡️ 4. Police Clearance (PCC)" },
-          { id: "payment", label: "💵 5. Payment Deposits" },
-          { id: "takamul", label: "🏅 6. Takamul / MOHRE" },
-          { id: "biofinger", label: "🖐️ 7. Bio-Finger" },
-          { id: "mofa", label: "🌐 8. MOFA & Kafeel" },
-          { id: "visa", label: "🛂 9. Visa Stamping" },
-          { id: "manpower", label: "📜 10. BMET Manpower" },
-          { id: "flight", label: "✈️ 11. Flight Departure" },
-          { id: "education", label: "🎓 12. Education & Exp" },
-          { id: "documents", label: "📁 13. Scanned Documents" },
+          { id: "all", label: "Show All Tables" },
+          { id: "bio", label: "1. Bio-Data" },
+          { id: "passport", label: "2. Passport Record" },
+          { id: "medical", label: "3. Medical & GAMCA" },
+          { id: "police", label: "4. Police Clearance (PCC)" },
+          { id: "payment", label: "5. Payment Deposits" },
+          { id: "takamul", label: "6. Takamul / MOHRE" },
+          { id: "biofinger", label: "7. Bio-Finger" },
+          { id: "mofa", label: "8. MOFA & Kafeel" },
+          { id: "visa", label: "9. Visa Stamping" },
+          { id: "manpower", label: "10. BMET Manpower" },
+          { id: "flight", label: "11. Flight Departure" },
+          { id: "education", label: "12. Education & Exp" },
+          { id: "documents", label: "13. Scanned Documents" },
         ].map((pill) => (
           <button
             key={pill.id}
             type="button"
+            aria-pressed={activeSection === pill.id}
             onClick={() => setActiveSection(pill.id)}
             style={{
               padding: "7px 14px",
@@ -448,7 +317,7 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
               border: "none",
               fontSize: "12px",
               fontWeight: activeSection === pill.id ? 800 : 600,
-              background: activeSection === pill.id ? "#7258e8" : "#f1f5f9",
+              background: activeSection === pill.id ? "#007aff" : "#f1f5f9",
               color: activeSection === pill.id ? "#ffffff" : "var(--muted)",
               cursor: "pointer",
               whiteSpace: "nowrap",
@@ -465,17 +334,17 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
         
         {/* 1. CANDIDATE BIO-DATA TABLE */}
         {shouldShow("bio") && (
-          <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid var(--line)", padding: "22px 24px", boxShadow: "var(--shadow)" }}>
+          <div className="portal-card" style={{ background: "#fff", borderRadius: "16px", border: "1px solid var(--line)", padding: "22px 24px", boxShadow: "var(--shadow)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid var(--line)", paddingBottom: "10px" }}>
-              <h3 style={{ fontSize: "15px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
-                👤 1. Candidate Bio-Data &amp; Personal Profile
+              <h3 style={{ fontSize: "15px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
+                1. Candidate Bio-Data &amp; Personal Profile
               </h3>
               <span style={{ fontSize: "11.5px", fontWeight: 700, color: "#10b981", background: "#ecfdf5", padding: "3px 10px", borderRadius: "6px", border: "1px solid #a7f3d0" }}>
                 Registered &amp; Verified
               </span>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", fontSize: "12.5px" }}>
+            <div className="portal-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", fontSize: "12.5px" }}>
               <div>
                 <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block", textTransform: "uppercase" }}>Full Legal Name</span>
                 <b style={{ color: "var(--ink)", fontSize: "14px" }}>{cand.fullName}</b>
@@ -522,17 +391,17 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
 
         {/* 2. PASSPORT LIST & ENTRY TABLE */}
         {shouldShow("passport") && (
-          <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid var(--line)", padding: "22px 24px", boxShadow: "var(--shadow)" }}>
+          <div className="portal-card" style={{ background: "#fff", borderRadius: "16px", border: "1px solid var(--line)", padding: "22px 24px", boxShadow: "var(--shadow)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid var(--line)", paddingBottom: "10px" }}>
-              <h3 style={{ fontSize: "15px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
-                📘 2. Passport Record &amp; Entry
+              <h3 style={{ fontSize: "15px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
+                2. Passport Record &amp; Entry
               </h3>
               <span style={{ fontSize: "11.5px", fontWeight: 700, color: "#2563eb", background: "#eff6ff", padding: "3px 10px", borderRadius: "6px", border: "1px solid #bfdbfe" }}>
                 {passport.passportStatus || "Original in Vault"}
               </span>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", fontSize: "12.5px" }}>
+            <div className="portal-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", fontSize: "12.5px" }}>
               <div>
                 <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block", textTransform: "uppercase" }}>Passport Number</span>
                 <b style={{ color: "var(--ink)", fontFamily: "monospace", fontSize: "15px" }}>{resolvedPassportNo || "—"}</b>
@@ -557,10 +426,10 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
 
             {passport.documentUrl && (
               <div style={{ marginTop: "16px", paddingTop: "12px", borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "flex-end", gap: "8px" }}>
-                <button
+                <button data-action-ui="secondary" data-action-size="normal"
                   type="button"
                   onClick={() => setPreviewDoc({ name: `Passport_${resolvedPassportNo || "Scan"}.pdf`, type: "Passport Scan", fileData: passport.documentUrl })}
-                  style={{ padding: "7px 14px", borderRadius: "8px", background: "#f0edff", color: "#7258e8", border: "1px solid #dcd5fb", fontSize: "11.5px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                  style={{ padding: "7px 14px", borderRadius: "8px", background: "#eaf2ff", color: "#007aff", border: "1px solid #dcd5fb", fontSize: "11.5px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}
                 >
                   <Eye size={13} /> View Passport Scan
                 </button>
@@ -571,17 +440,17 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
 
         {/* 3. MEDICAL & GCC GAMCA TABLE */}
         {shouldShow("medical") && (
-          <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid var(--line)", padding: "22px 24px", boxShadow: "var(--shadow)" }}>
+          <div className="portal-card" style={{ background: "#fff", borderRadius: "16px", border: "1px solid var(--line)", padding: "22px 24px", boxShadow: "var(--shadow)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid var(--line)", paddingBottom: "10px" }}>
-              <h3 style={{ fontSize: "15px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
-                🏥 3. Medical Examination &amp; GCC GAMCA Fitness
+              <h3 style={{ fontSize: "15px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
+                3. Medical Examination &amp; GCC GAMCA Fitness
               </h3>
-              <span style={{ fontSize: "11.5px", fontWeight: 800, color: "#059669", background: "#ecfdf5", padding: "3px 10px", borderRadius: "6px", border: "1px solid #a7f3d0" }}>
+              <span style={{ fontSize: "11.5px", fontWeight: 600, color: "#059669", background: "#ecfdf5", padding: "3px 10px", borderRadius: "6px", border: "1px solid #a7f3d0" }}>
                 {medical.result || "FIT (Passed)"}
               </span>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", fontSize: "12.5px" }}>
+            <div className="portal-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", fontSize: "12.5px" }}>
               <div>
                 <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block", textTransform: "uppercase" }}>Medical Center</span>
                 <b style={{ color: "var(--ink)" }}>{medical.center || "Al-Nahda Medical Diagnostics Center"}</b>
@@ -608,17 +477,17 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
 
         {/* 4. POLICE CLEARANCE (PCC) TABLE */}
         {shouldShow("police") && (
-          <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid var(--line)", padding: "22px 24px", boxShadow: "var(--shadow)" }}>
+          <div className="portal-card" style={{ background: "#fff", borderRadius: "16px", border: "1px solid var(--line)", padding: "22px 24px", boxShadow: "var(--shadow)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid var(--line)", paddingBottom: "10px" }}>
-              <h3 style={{ fontSize: "15px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
-                🛡️ 4. Police Clearance Certificate (PCC)
+              <h3 style={{ fontSize: "15px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
+                4. Police Clearance Certificate (PCC)
               </h3>
               <span style={{ fontSize: "11.5px", fontWeight: 700, color: "#059669", background: "#ecfdf5", padding: "3px 10px", borderRadius: "6px", border: "1px solid #a7f3d0" }}>
                 {police.status || "CLEARED"}
               </span>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", fontSize: "12.5px" }}>
+            <div className="portal-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", fontSize: "12.5px" }}>
               <div>
                 <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block", textTransform: "uppercase" }}>PCC Token / App No</span>
                 <b style={{ color: "var(--ink)", fontFamily: "monospace" }}>{police.tokenNo || "PCC-BD-2026-9041"}</b>
@@ -641,18 +510,18 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
 
         {/* 5. PAYMENT DEPOSITS & INVOICES TABLE */}
         {shouldShow("payment") && (
-          <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid var(--line)", padding: "22px 24px", boxShadow: "var(--shadow)" }}>
+          <div className="portal-card" style={{ background: "#fff", borderRadius: "16px", border: "1px solid var(--line)", padding: "22px 24px", boxShadow: "var(--shadow)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid var(--line)", paddingBottom: "10px" }}>
-              <h3 style={{ fontSize: "15px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
-                💵 5. Candidate Payment Deposits &amp; Money Receipts
+              <h3 style={{ fontSize: "15px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
+                5. Candidate Payment Deposits &amp; Money Receipts
               </h3>
-              <span style={{ fontSize: "13px", fontWeight: 800, color: "#059669" }}>
+              <span style={{ fontSize: "13px", fontWeight: 600, color: "#059669" }}>
                 Total Collected: {formatTk(fileData.totalPaid)}
               </span>
             </div>
 
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px" }}>
+            <div className="portal-scroll" style={{ overflowX: "auto" }}>
+              <table className="portal-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px" }}>
                 <thead>
                   <tr style={{ background: "#f8fafc", borderBottom: "1px solid var(--line)", textAlign: "left" }}>
                     <th style={{ padding: "10px 12px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px" }}>Date</th>
@@ -673,17 +542,17 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
                   ) : (
                     payments.map((p: any, idx: number) => (
                       <tr key={p.id || idx} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                        <td style={{ padding: "10px 12px" }}>{formatDate(p.collectedAt || p.createdAt)}</td>
-                        <td style={{ padding: "10px 12px", fontFamily: "monospace", fontWeight: 700 }}>
+                        <td data-label="Date" style={{ padding: "10px 12px" }}>{formatDate(p.collectedAt || p.createdAt)}</td>
+                        <td data-label="Receipt / Ref No" style={{ padding: "10px 12px", fontFamily: "monospace", fontWeight: 700 }}>
                           {p.reference || p.paymentNo || `REC-${idx + 1}`}
                         </td>
-                        <td style={{ padding: "10px 12px" }}>{p.type || "Candidate Deposit"}</td>
-                        <td style={{ padding: "10px 12px" }}>{p.method || "Cash at Office"}</td>
-                        <td style={{ padding: "10px 12px", fontWeight: 800, color: "#059669" }}>
+                        <td data-label="Payment Type" style={{ padding: "10px 12px" }}>{p.type || "Candidate Deposit"}</td>
+                        <td data-label="Method" style={{ padding: "10px 12px" }}>{p.method || "Cash at Office"}</td>
+                        <td data-label="Amount (BDT)" style={{ padding: "10px 12px", fontWeight: 600, color: "#059669" }}>
                           {formatTk(p.amount)}
                         </td>
-                        <td style={{ padding: "10px 12px", textAlign: "right" }}>
-                          <button
+                        <td data-label="Receipt" style={{ padding: "10px 12px", textAlign: "right" }}>
+                          <button data-action-ui="neutral" data-action-size="compact"
                             type="button"
                             onClick={() => openPrintReceipt(p)}
                             style={{
@@ -714,17 +583,17 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
 
         {/* 6. TAKAMUL / MOHRE LABOR APPROVAL TABLE */}
         {shouldShow("takamul") && (
-          <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid var(--line)", padding: "22px 24px", boxShadow: "var(--shadow)" }}>
+          <div className="portal-card" style={{ background: "#fff", borderRadius: "16px", border: "1px solid var(--line)", padding: "22px 24px", boxShadow: "var(--shadow)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid var(--line)", paddingBottom: "10px" }}>
-              <h3 style={{ fontSize: "15px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
-                🏅 6. Skill Verification (Saudi Takamul SVP / MOHRE Approval)
+              <h3 style={{ fontSize: "15px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
+                6. Skill Verification (Saudi Takamul SVP / MOHRE Approval)
               </h3>
               <span style={{ fontSize: "11.5px", fontWeight: 700, color: "#059669", background: "#ecfdf5", padding: "3px 10px", borderRadius: "6px", border: "1px solid #a7f3d0" }}>
                 {takamul.result || "SVP Verified &amp; Passed"}
               </span>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", fontSize: "12.5px" }}>
+            <div className="portal-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", fontSize: "12.5px" }}>
               <div>
                 <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block", textTransform: "uppercase" }}>Assessment Center</span>
                 <b style={{ color: "var(--ink)" }}>{takamul.center || "Bangladesh-Korea TTC Skill Center"}</b>
@@ -747,17 +616,17 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
 
         {/* 7. BIO-FINGER TABLE */}
         {shouldShow("biofinger") && (
-          <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid var(--line)", padding: "22px 24px", boxShadow: "var(--shadow)" }}>
+          <div className="portal-card" style={{ background: "#fff", borderRadius: "16px", border: "1px solid var(--line)", padding: "22px 24px", boxShadow: "var(--shadow)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid var(--line)", paddingBottom: "10px" }}>
-              <h3 style={{ fontSize: "15px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
-                🖐️ 7. Saudi Bio-Finger Biometrics
+              <h3 style={{ fontSize: "15px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
+                7. Saudi Bio-Finger Biometrics
               </h3>
               <span style={{ fontSize: "11.5px", fontWeight: 700, color: "#059669", background: "#ecfdf5", padding: "3px 10px", borderRadius: "6px", border: "1px solid #a7f3d0" }}>
                 {biometrics.status || "Enrolled"}
               </span>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", fontSize: "12.5px" }}>
+            <div className="portal-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", fontSize: "12.5px" }}>
               <div>
                 <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block", textTransform: "uppercase" }}>VFS Tasheel Center</span>
                 <b style={{ color: "var(--ink)" }}>{biometrics.center || "VFS Tasheel Jamuna Future Park, Dhaka"}</b>
@@ -776,17 +645,17 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
 
         {/* 8. MOFA & KAFEEL TABLE */}
         {shouldShow("mofa") && (
-          <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid var(--line)", padding: "22px 24px", boxShadow: "var(--shadow)" }}>
+          <div className="portal-card" style={{ background: "#fff", borderRadius: "16px", border: "1px solid var(--line)", padding: "22px 24px", boxShadow: "var(--shadow)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid var(--line)", paddingBottom: "10px" }}>
-              <h3 style={{ fontSize: "15px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
-                🌐 8. Saudi MOFA &amp; Kafeel (Sponsor) Info
+              <h3 style={{ fontSize: "15px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
+                8. Saudi MOFA &amp; Kafeel (Sponsor) Info
               </h3>
               <span style={{ fontSize: "11.5px", fontWeight: 700, color: "#059669", background: "#ecfdf5", padding: "3px 10px", borderRadius: "6px", border: "1px solid #a7f3d0" }}>
                 {mofa.status || "Approved"}
               </span>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", fontSize: "12.5px" }}>
+            <div className="portal-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", fontSize: "12.5px" }}>
               <div>
                 <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block", textTransform: "uppercase" }}>MOFA Number</span>
                 <b style={{ color: "var(--ink)", fontFamily: "monospace" }}>{mofa.mofaNo || "MOFA-7819203"}</b>
@@ -809,17 +678,17 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
 
         {/* 9. VISA STAMPING & EMBASSY VISA TABLE */}
         {shouldShow("visa") && (
-          <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid var(--line)", padding: "22px 24px", boxShadow: "var(--shadow)" }}>
+          <div className="portal-card" style={{ background: "#fff", borderRadius: "16px", border: "1px solid var(--line)", padding: "22px 24px", boxShadow: "var(--shadow)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid var(--line)", paddingBottom: "10px" }}>
-              <h3 style={{ fontSize: "15px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
-                🛂 9. Visa Stamping &amp; Embassy Visa
+              <h3 style={{ fontSize: "15px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
+                9. Visa Stamping &amp; Embassy Visa
               </h3>
-              <span style={{ fontSize: "11.5px", fontWeight: 800, color: "#2563eb", background: "#eff6ff", padding: "3px 10px", borderRadius: "6px", border: "1px solid #bfdbfe" }}>
+              <span style={{ fontSize: "11.5px", fontWeight: 600, color: "#2563eb", background: "#eff6ff", padding: "3px 10px", borderRadius: "6px", border: "1px solid #bfdbfe" }}>
                 {visa.status || "Visa Stamped (Original)"}
               </span>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", fontSize: "12.5px" }}>
+            <div className="portal-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", fontSize: "12.5px" }}>
               <div>
                 <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block", textTransform: "uppercase" }}>E-Visa Number</span>
                 <b style={{ color: "var(--ink)", fontFamily: "monospace", fontSize: "15px" }}>{visa.visaNo || "E-98129038"}</b>
@@ -842,17 +711,17 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
 
         {/* 10. BMET MANPOWER CLEARANCE TABLE */}
         {shouldShow("manpower") && (
-          <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid var(--line)", padding: "22px 24px", boxShadow: "var(--shadow)" }}>
+          <div className="portal-card" style={{ background: "#fff", borderRadius: "16px", border: "1px solid var(--line)", padding: "22px 24px", boxShadow: "var(--shadow)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid var(--line)", paddingBottom: "10px" }}>
-              <h3 style={{ fontSize: "15px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
-                📜 10. BMET Manpower Clearance &amp; Smart Card
+              <h3 style={{ fontSize: "15px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
+                10. BMET Manpower Clearance &amp; Smart Card
               </h3>
               <span style={{ fontSize: "11.5px", fontWeight: 700, color: "#059669", background: "#ecfdf5", padding: "3px 10px", borderRadius: "6px", border: "1px solid #a7f3d0" }}>
                 {manpower.status || "Smart Card Issued"}
               </span>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", fontSize: "12.5px" }}>
+            <div className="portal-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", fontSize: "12.5px" }}>
               <div>
                 <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block", textTransform: "uppercase" }}>BMET Smart Card No</span>
                 <b style={{ color: "var(--ink)", fontFamily: "monospace" }}>{manpower.smartCardNo || "BMET-SC-88129"}</b>
@@ -875,17 +744,17 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
 
         {/* 11. FLIGHT BOOKING & DEPARTURE TABLE */}
         {shouldShow("flight") && (
-          <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid var(--line)", padding: "22px 24px", boxShadow: "var(--shadow)" }}>
+          <div className="portal-card" style={{ background: "#fff", borderRadius: "16px", border: "1px solid var(--line)", padding: "22px 24px", boxShadow: "var(--shadow)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid var(--line)", paddingBottom: "10px" }}>
-              <h3 style={{ fontSize: "15px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
-                ✈️ 11. Flight Booking, Ticket &amp; Departure
+              <h3 style={{ fontSize: "15px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
+                11. Flight Booking, Ticket &amp; Departure
               </h3>
               <span style={{ fontSize: "11.5px", fontWeight: 700, color: "#059669", background: "#ecfdf5", padding: "3px 10px", borderRadius: "6px", border: "1px solid #a7f3d0" }}>
                 {flight.flightNo ? "Ticket Confirmed" : "Scheduled"}
               </span>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", fontSize: "12.5px" }}>
+            <div className="portal-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", fontSize: "12.5px" }}>
               <div>
                 <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block", textTransform: "uppercase" }}>Airline Carrier</span>
                 <b style={{ color: "var(--ink)" }}>{flight.airline || "Saudia Airlines (SV)"}</b>
@@ -904,7 +773,7 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
               </div>
               <div>
                 <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block", textTransform: "uppercase" }}>Airline PNR Ref</span>
-                <b style={{ color: "#7258e8", fontFamily: "monospace" }}>{flight.pnr || "SV9X8K"}</b>
+                <b style={{ color: "#007aff", fontFamily: "monospace" }}>{flight.pnr || "SV9X8K"}</b>
               </div>
             </div>
           </div>
@@ -912,14 +781,14 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
 
         {/* 12. EDUCATION & EXPERIENCE */}
         {shouldShow("education") && (
-          <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid var(--line)", padding: "22px 24px", boxShadow: "var(--shadow)" }}>
+          <div className="portal-card" style={{ background: "#fff", borderRadius: "16px", border: "1px solid var(--line)", padding: "22px 24px", boxShadow: "var(--shadow)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid var(--line)", paddingBottom: "10px" }}>
-              <h3 style={{ fontSize: "15px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
-                🎓 12. Education Qualifications &amp; Prior Experience
+              <h3 style={{ fontSize: "15px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
+                12. Education Qualifications &amp; Prior Experience
               </h3>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", fontSize: "12.5px" }}>
+            <div className="portal-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", fontSize: "12.5px" }}>
               <div>
                 <b style={{ fontSize: "12.5px", color: "var(--ink)", display: "block", marginBottom: "8px" }}>Educational Degrees</b>
                 {educations.length === 0 ? (
@@ -951,17 +820,17 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
 
         {/* 13. COMPLETE SCANNED DOCUMENTS REPOSITORY */}
         {shouldShow("documents") && (
-          <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid var(--line)", padding: "22px 24px", boxShadow: "var(--shadow)" }}>
+          <div className="portal-card" style={{ background: "#fff", borderRadius: "16px", border: "1px solid var(--line)", padding: "22px 24px", boxShadow: "var(--shadow)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid var(--line)", paddingBottom: "10px" }}>
-              <h3 style={{ fontSize: "15px", fontWeight: 800, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
-                📁 13. Scanned Documents Archive (View &amp; Download Only)
+              <h3 style={{ fontSize: "15px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
+                13. Scanned Documents Archive (View &amp; Download Only)
               </h3>
               <span style={{ fontSize: "11.5px", color: "var(--muted)", display: "inline-flex", alignItems: "center", gap: "4px" }}>
                 <Lock size={12} color="#10b981" /> No uploads or deletes permitted
               </span>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "14px" }}>
+            <div className="portal-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "14px" }}>
               {[
                 { name: `Passport_${resolvedPassportNo || "Scan"}.pdf`, type: "Passport Copy Scan", size: "1.2 MB" },
                 { name: `Medical_GAMCA_Certificate.pdf`, type: "GCC Medical Fit Certificate", size: "840 KB" },
@@ -971,7 +840,7 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
                 { name: `Air_Ticket_E_Ticket.pdf`, type: "Confirmed Flight Ticket", size: "1.1 MB" },
                 ...documents,
               ].map((doc: any, i: number) => (
-                <div
+                <div className="portal-card"
                   key={i}
                   style={{
                     background: "#f8fafc",
@@ -985,7 +854,7 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: "10px", overflow: "hidden" }}>
-                    <div style={{ width: "36px", height: "36px", borderRadius: "8px", background: "#f0edff", color: "#7258e8", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                    <div style={{ width: "36px", height: "36px", borderRadius: "8px", background: "#eaf2ff", color: "#007aff", display: "grid", placeItems: "center", flexShrink: 0 }}>
                       <FileText size={18} />
                     </div>
                     <div style={{ overflow: "hidden" }}>
@@ -997,15 +866,15 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
                   </div>
 
                   <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
-                    <button
+                    <button data-action-ui="secondary" data-action-size="normal"
                       type="button"
                       onClick={() => setPreviewDoc(doc)}
                       title="View Document"
                       style={{
                         padding: "6px 12px",
                         borderRadius: "8px",
-                        background: "#f0edff",
-                        color: "#7258e8",
+                        background: "#eaf2ff",
+                        color: "#007aff",
                         border: "none",
                         fontSize: "11.5px",
                         fontWeight: 700,
@@ -1027,24 +896,24 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
 
       {/* 5. SAFE DOCUMENT PREVIEW & DOWNLOAD MODAL */}
       {previewDoc && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.75)", backdropFilter: "blur(6px)", display: "grid", placeItems: "center", zIndex: 99999, padding: "20px" }}>
-          <div style={{ background: "#fff", borderRadius: "18px", maxWidth: "640px", width: "100%", padding: "24px", boxShadow: "0 25px 50px rgba(0,0,0,0.3)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+        <div role="dialog" aria-modal="true" aria-label="Dialog" className="master-modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.75)", backdropFilter: "blur(6px)", display: "grid", placeItems: "center", zIndex: 99999, padding: "20px" }}>
+          <div className="master-modal-card master-modal-inline-card master-modal-panel" style={{ background: "#fff", borderRadius: "18px", maxWidth: "640px", width: "100%", padding: "24px", boxShadow: "0 25px 50px rgba(0,0,0,0.3)" }}>
+            <div className="master-modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <div style={{ width: "36px", height: "36px", borderRadius: "8px", background: "#f0edff", color: "#7258e8", display: "grid", placeItems: "center" }}>
+                <div className="master-modal-accent master-modal-icon" style={{ width: "36px", height: "36px", borderRadius: "8px", background: "#eaf2ff", color: "#007aff", display: "grid", placeItems: "center" }}>
                   <FileText size={18} />
                 </div>
                 <div>
-                  <h3 style={{ fontSize: "15px", fontWeight: 800, margin: 0, color: "var(--ink)" }}>{previewDoc.name}</h3>
+                  <h3 style={{ fontSize: "15px", fontWeight: 600, margin: 0, color: "var(--ink)" }}>{previewDoc.name}</h3>
                   <span style={{ fontSize: "11px", color: "var(--muted)" }}>{previewDoc.type || "Document"}</span>
                 </div>
               </div>
-              <button type="button" onClick={() => setPreviewDoc(null)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--muted)" }}>
+              <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog" className="master-modal-close" type="button" onClick={() => setPreviewDoc(null)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--muted)" }}>
                 <X size={20} />
               </button>
             </div>
 
-            <div style={{ background: "#f8fafc", borderRadius: "12px", border: "1px dashed var(--line)", padding: "36px 20px", textAlign: "center", display: "grid", placeItems: "center", gap: "12px" }}>
+            <div className="master-modal-panel portal-card" style={{ background: "#f8fafc", borderRadius: "12px", border: "1px dashed var(--line)", padding: "36px 20px", textAlign: "center", display: "grid", placeItems: "center", gap: "12px" }}>
               {previewDoc.fileData && previewDoc.fileData.startsWith("data:image/") ? (
                 <Image
                   src={previewDoc.fileData}
@@ -1071,7 +940,7 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
               </span>
               <div style={{ display: "flex", gap: "8px" }}>
                 {previewDoc.fileData && (
-                  <a
+                  <a data-action-ui="neutral" data-action-size="normal"
                     href={previewDoc.fileData}
                     download={previewDoc.name}
                     style={{
@@ -1080,17 +949,17 @@ export function AgentCandidateDossierPage({ fileId }: { fileId: string }) {
                       gap: "6px",
                       padding: "8px 16px",
                       borderRadius: "8px",
-                      background: "#7258e8",
+                      background: "#007aff",
                       color: "#fff",
                       textDecoration: "none",
                       fontSize: "12px",
-                      fontWeight: 800,
+                      fontWeight: 600,
                     }}
                   >
                     <Download size={14} /> Download File
                   </a>
                 )}
-                <button
+                <button data-action-ui="neutral" data-action-size="normal"
                   type="button"
                   onClick={() => setPreviewDoc(null)}
                   style={{ padding: "8px 16px", borderRadius: "8px", background: "#f1f5f9", border: "none", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}

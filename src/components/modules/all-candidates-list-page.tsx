@@ -179,6 +179,18 @@ function getCountryFlag(name: string): string {
   return "🌍";
 }
 
+function getCountryAbbr(name: string): string {
+  const n = name.toLowerCase();
+  if (n.includes("saudi") || n.includes("ksa")) return "KSA";
+  if (n.includes("dubai") || n.includes("uae") || n.includes("emirates")) return "Dubai";
+  if (n.includes("oman")) return "Oman";
+  if (n.includes("bahrain")) return "Bahrain";
+  if (n.includes("qatar")) return "Qatar";
+  if (n.includes("kuwait")) return "Kuwait";
+  if (n.includes("malaysia")) return "Malaysia";
+  return name.split(" ")[0] || "Global";
+}
+
 function formatDate(val?: string | null): string {
   if (!val || val === "—") return "—";
   const d = new Date(val);
@@ -279,6 +291,23 @@ function getCountryStages(countryName: string): string[] {
     "Hold File",
     "No File",
   ];
+}
+
+function directoryStageStyle(stage: string) {
+  const name = stage.toLowerCase();
+  if (name.includes("flight")) return { background: "#e5f8eb", color: "#34c759" };
+  if (name.includes("police") || name.includes("medical")) return { background: "#ecfdf5", color: "#15803d" };
+  if (name.includes("takamul")) return { background: "#fdf4ff", color: "#a21caf" };
+  if (name.includes("manpower")) return { background: "#fff7ed", color: "#c2410c" };
+  if (name.includes("visa") || name.includes("mofa")) return { background: "#f5f3ff", color: "#6d28d9" };
+  return { background: "#eaf2ff", color: "#007aff" };
+}
+
+function DirectoryAvatar({ name, imageUrl }: { name: string; imageUrl?: string | null }) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  return <div className="candidate-mobile-avatar">
+    {imageUrl && imageUrl !== failedUrl ? <img src={imageUrl} alt={name} onError={() => setFailedUrl(imageUrl)} /> : name.slice(0, 2).toUpperCase()}
+  </div>;
 }
 
 export function AllCandidatesListPage({ initialData }: { initialData?: ApiResponse } = {}) {
@@ -616,612 +645,235 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
   };
 
   return (
-    <div style={{ maxWidth: "1600px", margin: "0 auto", paddingBottom: "40px" }}>
-      {/* 1. PAGE HEADER */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "18px", flexWrap: "wrap", gap: "12px" }}>
+    <div className="country-design-page directory-design-page" aria-busy={query.isFetching}>
+      <nav className="country-design-breadcrumb" aria-label="Breadcrumb"><Link href="/dashboard">Dashboard</Link> / Candidate Directory</nav>
+      <header className="country-design-heading">
         <div>
-          <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-            Candidates / Candidate Directory
-          </div>
-          <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--ink)", margin: "4px 0" }}>
-            All Candidates Directory
-          </h1>
-          <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0 }}>
-            Central database of all registered candidates, overseas file pipelines, and interview registrations.
-          </p>
+          <h1>All Candidates Directory</h1>
+          <p>Central database of all registered candidates, overseas file pipelines, and interview registrations.</p>
         </div>
-
-        <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-          <button
-            type="button"
-            onClick={downloadCsv}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "9px 16px",
-              borderRadius: "10px",
-              background: "#fff",
-              border: "1px solid var(--line)",
-              color: "var(--ink)",
-              fontSize: "12.5px",
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-          >
-            <Download size={15} /> Export CSV
-          </button>
-
-          <Link
-            href={moduleItemPath("call-center", "Create Candidate")}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "9px 18px",
-              borderRadius: "10px",
-              background: "#7258e8",
-              color: "#fff",
-              fontSize: "12.5px",
-              fontWeight: 800,
-              textDecoration: "none",
-              boxShadow: "0 2px 8px rgba(114,88,232,0.3)",
-            }}
-          >
-            <Plus size={16} /> Create Candidate
-          </Link>
+        <div className="country-design-actions directory-design-actions">
+          <button data-action-ui="neutral" data-action-size="normal" type="button" onClick={downloadCsv}><Download size={14} /> Export CSV</button>
+          <Link data-action-ui="primary" data-action-size="normal" href={moduleItemPath("call-center", "Create Candidate")} className="directory-design-create"><Plus size={14} /> Create Candidate</Link>
         </div>
-      </div>
+      </header>
 
-      {/* 2. SUMMARY KPI STATS CARDS */}
-      <section className="responsive-kpi-grid" style={{ marginBottom: "18px" }}>
-        <div style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "14px", padding: "16px 18px", display: "flex", alignItems: "center", gap: "14px", boxShadow: "var(--shadow)" }}>
-          <div style={{ width: "42px", height: "42px", borderRadius: "10px", background: "#eff6ff", color: "#2563eb", display: "grid", placeItems: "center" }}>
-            <UsersRound size={22} />
-          </div>
-          <div>
-            <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase" }}>Total Candidates</div>
-            <div style={{ fontSize: "22px", fontWeight: 900, color: "var(--ink)" }}>{summary.totalCandidates}</div>
-            <span style={{ fontSize: "11px", color: "#2563eb", fontWeight: 700 }}>In System Registry</span>
-          </div>
-        </div>
-
-        <div style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "14px", padding: "16px 18px", display: "flex", alignItems: "center", gap: "14px", boxShadow: "var(--shadow)" }}>
-          <div style={{ width: "42px", height: "42px", borderRadius: "10px", background: "#ecfdf5", color: "#059669", display: "grid", placeItems: "center" }}>
-            <Layers size={22} />
-          </div>
-          <div>
-            <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase" }}>In File Processing</div>
-            <div style={{ fontSize: "22px", fontWeight: 900, color: "#059669" }}>{summary.inProcessingFiles}</div>
-            <span style={{ fontSize: "11px", color: "#059669", fontWeight: 700 }}>Active Overseas Files</span>
-          </div>
-        </div>
-
-        <div style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "14px", padding: "16px 18px", display: "flex", alignItems: "center", gap: "14px", boxShadow: "var(--shadow)" }}>
-          <div style={{ width: "42px", height: "42px", borderRadius: "10px", background: "#fdf4ff", color: "#c026d3", display: "grid", placeItems: "center" }}>
-            <Calendar size={22} />
-          </div>
-          <div>
-            <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase" }}>Interview Registrations</div>
-            <div style={{ fontSize: "22px", fontWeight: 900, color: "#c026d3" }}>{summary.withInterviews}</div>
-            <span style={{ fontSize: "11px", color: "#c026d3", fontWeight: 700 }}>Drives & Walk-ins</span>
-          </div>
-        </div>
-
-        <div style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "14px", padding: "16px 18px", display: "flex", alignItems: "center", gap: "14px", boxShadow: "var(--shadow)" }}>
-          <div style={{ width: "42px", height: "42px", borderRadius: "10px", background: "#f8fafc", color: "#64748b", display: "grid", placeItems: "center" }}>
-            <FileText size={22} />
-          </div>
-          <div>
-            <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase" }}>Standalone Candidates</div>
-            <div style={{ fontSize: "22px", fontWeight: 900, color: "var(--ink)" }}>{summary.withoutFiles}</div>
-            <span style={{ fontSize: "11px", color: "#64748b", fontWeight: 700 }}>Awaiting File Open</span>
-          </div>
-        </div>
-      </section>
-
-      {/* 3. DYNAMIC COUNTRY TABS (from Country Setup) */}
-      <section className="scrollable-tabs-bar" style={{ display: "flex", gap: "8px", overflowX: "auto", paddingBottom: "8px", marginBottom: "16px" }}>
+      <section className="country-design-metrics directory-design-metrics" aria-label="Candidate summary">
         {[
-          { id: "", label: "All Countries", flag: "🌍" },
-          ...countries.map((cName) => ({
-            id: cName,
-            label: cName,
-            flag: getCountryFlag(cName),
-          })),
-        ].map((c) => {
-          const isSelected = country === c.id;
-          return (
-            <button
-              key={c.id || "all"}
-              type="button"
-              onClick={() => handleSelectCountry(c.id)}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "8px 16px",
-                borderRadius: "10px",
-                border: "2px solid",
-                borderColor: isSelected ? "#7258e8" : "var(--line)",
-                background: isSelected ? "#7258e8" : "#fff",
-                color: isSelected ? "#fff" : "var(--ink)",
-                fontSize: "12px",
-                fontWeight: 700,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-                transition: "all 0.15s ease",
-                boxShadow: isSelected ? "0 2px 8px rgba(114,88,232,0.25)" : "none",
-              }}
-            >
-              <span style={{ fontSize: "13px" }}>{c.flag}</span> {c.label}
-            </button>
-          );
-        })}
+          { label: "Total Candidates", value: summary.totalCandidates, description: "In System Registry", Icon: UsersRound, tone: "blue" },
+          { label: "File Processing", value: summary.inProcessingFiles, description: "Active Overseas Files", Icon: Layers, tone: "green" },
+          { label: "Interviews", value: summary.withInterviews, description: "Drives & Walk-ins", Icon: Calendar, tone: "purple" },
+          { label: "Standalone", value: summary.withoutFiles, description: "Awaiting File Open", Icon: FileText, tone: "orange" },
+        ].map(({ label, value, description, Icon, tone }) => (
+          <article key={label} className="country-design-metric">
+            <div><span>{label}</span><Icon size={16} className={`directory-icon-${tone}`} /></div>
+            <b>{value}</b><p>{description}</p>
+          </article>
+        ))}
       </section>
 
-      {/* 4. SEARCH & FILTER CONTROLS */}
-      <section style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "16px", padding: "18px 22px", marginBottom: "16px", boxShadow: "var(--shadow)" }}>
-        <form onSubmit={handleSearch} className="candidate-search-form">
-          <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px", fontWeight: 700, color: "var(--ink)" }}>
-            Search Candidate
-            <div style={{ position: "relative" }}>
-              <Search size={15} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--muted)" }} />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Name, phone, passport, ID or file..."
-                style={{
-                  width: "100%",
-                  height: "40px",
-                  padding: "0 12px 0 36px",
-                  borderRadius: "10px",
-                  border: "1px solid var(--line)",
-                  background: "#fafafd",
-                  fontSize: "12.5px",
-                  color: "var(--ink)",
-                  outline: "none",
-                  boxSizing: "border-box",
-                }}
-              />
-            </div>
-          </label>
-
-          <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px", fontWeight: 700, color: "var(--ink)" }}>
-            Candidate Status
-            <select
-              value={status}
-              onChange={(e) => {
-                setStatus(e.target.value);
-                setPage(1);
-              }}
-              style={{
-                height: "40px",
-                padding: "0 12px",
-                borderRadius: "10px",
-                border: "1px solid var(--line)",
-                background: "#fafafd",
-                fontSize: "12.5px",
-                color: "var(--ink)",
-                outline: "none",
-              }}
-            >
-              <option value="">All Statuses</option>
-              <option value="ACTIVE">Active</option>
-              <option value="PENDING">Pending</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="HOLD">Hold</option>
-              <option value="RETURNED">Returned</option>
-            </select>
-          </label>
-
-          <div className="candidate-search-actions" style={{ display: "flex", gap: "8px" }}>
-            <button
-              type="submit"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                height: "40px",
-                padding: "0 20px",
-                borderRadius: "10px",
-                background: "#7258e8",
-                color: "#fff",
-                border: "none",
-                fontSize: "12.5px",
-                fontWeight: 700,
-                cursor: "pointer",
-                boxShadow: "0 2px 6px rgba(114,88,232,0.25)",
-              }}
-            >
-              <Search size={15} /> Apply
-            </button>
-            <button
-              type="button"
-              onClick={clearFilters}
-              style={{
-                height: "40px",
-                padding: "0 14px",
-                borderRadius: "10px",
-                background: "#f1f5f9",
-                border: "1px solid var(--line)",
-                color: "var(--muted)",
-                fontSize: "12.5px",
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              Clear
-            </button>
-          </div>
-        </form>
-      </section>
-
-      {/* 5. CANDIDATES DATA TABLE */}
-      <section style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "16px", overflow: "hidden", boxShadow: "var(--shadow)" }}>
-        <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--line)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fbfbfd", flexWrap: "wrap", gap: "10px" }}>
-          <div style={{ fontSize: "12.5px", fontWeight: 800, color: "var(--ink)" }}>
-            Showing {data.length > 0 ? (meta.page - 1) * meta.pageSize + 1 : 0} to{" "}
-            {Math.min(meta.page * meta.pageSize, meta.total)} of {meta.total} candidates
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 600 }}>Rows per page:</span>
-            <select
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(Number(e.target.value));
-                setPage(1);
-              }}
-              style={{
-                padding: "4px 8px",
-                borderRadius: "6px",
-                border: "1px solid var(--line)",
-                fontSize: "12px",
-                background: "#fff",
-                fontWeight: 700,
-                outline: "none",
-              }}
-            >
-              <option value={10}>10</option>
-              <option value={20}>20</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-          </div>
+      <section className="country-design-workspace directory-design-workspace" aria-label="All candidates directory">
+        <div className="country-design-tabs directory-design-country-tabs" role="group" aria-label="Filter by country">
+          {[{ id: "", label: "All Countries", flag: "🌍" }, ...countries.map(cName => ({ id: cName, label: cName, flag: getCountryFlag(cName) }))].map(c => (
+            <button key={c.id || "all"} type="button" aria-pressed={country === c.id}
+              className={country === c.id ? "selected" : ""} onClick={() => handleSelectCountry(c.id)}>{c.flag} {c.label}</button>
+          ))}
         </div>
-
-        <div className="table-responsive-container" style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
-            <thead>
-              <tr style={{ background: "#f8fafc", borderBottom: "1px solid var(--line)", color: "var(--muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                <th style={{ padding: "12px 14px", width: "50px" }}>SL</th>
-                <th style={{ padding: "12px 14px", width: "100px" }}>Action</th>
-                <th style={{ padding: "12px 14px" }}>Candidate</th>
-                <th style={{ padding: "12px 14px" }}>Contact</th>
-                <th style={{ padding: "12px 14px" }}>Passport / NID</th>
-                <th style={{ padding: "12px 14px" }}>Target Country</th>
-                <th style={{ padding: "12px 14px" }}>Trade / Profession</th>
-                <th style={{ padding: "12px 14px" }}>Processing File</th>
-                <th style={{ padding: "12px 14px" }}>Recruitment Stage</th>
-                <th style={{ padding: "12px 14px" }}>Source</th>
-              </tr>
-            </thead>
-            <tbody style={{ opacity: query.isFetching ? 0.75 : 1, transition: "opacity 0.15s ease" }}>
-              {data.map((row, index) => (
-                <tr
-                  key={row.id}
-                  style={{ borderBottom: "1px solid var(--line)", transition: "background 0.15s ease" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "#fcfaff")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                >
-                  <td style={{ padding: "12px 14px", color: "var(--muted)", fontWeight: 600 }}>
-                    {(meta.page - 1) * meta.pageSize + index + 1}
-                  </td>
-
-                  <td style={{ padding: "12px 14px" }}>
-                    <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                      <button
-                        type="button"
-                        onClick={() => openCandidateProfile(row)}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "4px",
-                          padding: "5px 10px",
-                          borderRadius: "6px",
-                          background: "#f0edff",
-                          border: "1px solid #dcd5fb",
-                          color: "#7258e8",
-                          fontSize: "11px",
-                          fontWeight: 700,
-                          cursor: "pointer",
-                        }}
-                      >
-                        <Eye size={12} /> Details
-                      </button>
-
-                      {row.activeFile && (
-                        <Link
-                          href={`/file/${row.activeFile.id}?view=pipeline`}
-                          title="Open Interactive Stage Processing Pipeline"
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "4px",
-                            padding: "5px 10px",
-                            borderRadius: "6px",
-                            background: "#7258e8",
-                            color: "#fff",
-                            fontSize: "11px",
-                            fontWeight: 800,
-                            textDecoration: "none",
-                            boxShadow: "0 2px 4px rgba(114,88,232,0.25)",
-                          }}
-                        >
-                          <Layers size={11} /> ⚡ Pipeline
-                        </Link>
-                      )}
+        <form onSubmit={handleSearch} className="country-design-filters directory-design-filters">
+          <div className="country-design-filter-fields">
+            <label className="country-design-search directory-design-search"><Search size={14} aria-hidden="true" /><input
+              aria-label="Search Candidate" value={search} onChange={e => setSearch(e.target.value)} placeholder="Name, phone, passport, ID or file..." /></label>
+            <div className="country-design-select"><select aria-label="Candidate Status" value={status} onChange={e => {setStatus(e.target.value);setPage(1);}}>
+              <option value="">All Statuses</option><option value="ACTIVE">Active</option><option value="PENDING">Pending</option>
+              <option value="COMPLETED">Completed</option><option value="HOLD">Hold</option><option value="RETURNED">Returned</option>
+            </select><span className="directory-select-arrow" aria-hidden="true">⌄</span></div>
+            <button data-action-ui="primary" data-action-size="normal" type="submit" className="directory-design-filter-button">Apply</button>
+            <button data-action-ui="neutral" data-action-size="normal" type="button" className="directory-design-filter-button" onClick={clearFilters}>Clear</button>
+          </div>
+          <label className="country-design-page-size">Per Page:<span className="country-design-select"><select
+            aria-label="Candidates per page" value={pageSize} onChange={e => {setPageSize(Number(e.target.value));setPage(1);}}>
+            {[10,20,50,100].map(size => <option key={size} value={size}>{size}</option>)}</select><span className="directory-select-arrow" aria-hidden="true">⌄</span></span></label>
+        </form>
+        <div className="country-design-count">
+          Showing {data.length > 0 ? (meta.page - 1) * meta.pageSize + 1 : 0}–{Math.min(meta.page * meta.pageSize, meta.total)} of {meta.total} Total Candidates
+        </div>
+        <div className="desktop-candidates-table country-design-table directory-design-table">
+          <table>
+            <colgroup>{[50,170,210,135,150,125,150,140,215,175].map((width,i) => <col key={i} style={{width}} />)}</colgroup>
+            <thead><tr>{["SL","Actions","Candidate","Contact","Passport / NID","Target Country","Trade / Profession","Processing File","Recruitment Stage","Source"].map(label => <th key={label}>{label}</th>)}</tr></thead>
+            <tbody style={{opacity:query.isFetching ? .75 : 1}}>
+              {data.map((row,index) => (
+                <tr key={row.id}>
+                  <td className="country-design-serial">{(meta.page - 1) * meta.pageSize + index + 1}</td>
+                  <td><div className="directory-design-row-actions">
+                    <button data-action-ui="secondary" data-action-size="compact" type="button" className="country-design-dossier" onClick={() => openCandidateProfile(row)} aria-label={`Details for ${row.fullName}`}><Eye size={12} /> Details</button>
+                    {row.activeFile && <Link data-action-ui="secondary" data-action-size="compact" href={`/file/${row.activeFile.id}?view=pipeline`} title="Open Interactive Stage Processing Pipeline" className="country-design-dossier"><Layers size={12} /> Pipeline →</Link>}
+                  </div></td>
+                  <td><div className="country-design-cell client"><b>{row.fullName}</b><span className="country-design-candidate-id">{row.candidateNo}</span></div></td>
+                  <td><div className="country-design-cell"><b>{row.phone}</b><small>{row.district || "—"}</small></div></td>
+                  <td><div className="country-design-cell"><b>{row.passportNo}</b>{row.nationalId !== "—" && <small>NID: {row.nationalId}</small>}</div></td>
+                  <td><span className="directory-design-country">{getCountryFlag(row.preferredCountry)} {row.preferredCountry}</span></td>
+                  <td><div className="country-design-cell"><b>{row.profession}</b></div></td>
+                  <td>{row.activeFile ? <div className="country-design-cell"><Link href={`/file/${row.activeFile.id}`} className="country-design-candidate-id directory-design-file">{row.activeFile.fileNo}</Link><small>{row.activeFile.company}</small></div> : <span className="directory-design-muted">No File Yet</span>}</td>
+                  <td>{row.activeFile ? <div className="directory-design-stage-cell">
+                    <span className="country-design-stage" style={directoryStageStyle(row.activeFile.currentStage)}><CheckCircle2 size={12} /> {row.activeFile.currentStage}</span>
+                    <div className="directory-design-micro-badges">
+                      {row.activeFile.medicalResult && <span className={`directory-design-micro ${/fit/i.test(row.activeFile.medicalResult) ? "medical" : "warning"}`}>Med: {row.activeFile.medicalResult}</span>}
+                      {row.activeFile.visaResult && <span className="directory-design-micro visa">Visa: {row.activeFile.visaResult}</span>}
+                      {row.activeFile.manpowerResult && <span className="directory-design-micro manpower">BMET: {row.activeFile.manpowerResult}</span>}
+                      {row.totalPaid > 0 && <span className="directory-design-micro paid">৳ {(row.totalPaid / 1000).toFixed(0)}k Paid</span>}
                     </div>
-                  </td>
-
-                  <td style={{ padding: "12px 14px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                      <div
-                        style={{
-                          width: "34px",
-                          height: "34px",
-                          borderRadius: "50%",
-                          background: "#e0e7ff",
-                          color: "#4338ca",
-                          fontSize: "12px",
-                          fontWeight: 800,
-                          display: "grid",
-                          placeItems: "center",
-                          flexShrink: 0,
-                          overflow: "hidden",
-                          border: "1px solid rgba(0,0,0,0.06)",
-                        }}
-                      >
-                        {row.profileImageUrl ? (
-                          <img
-                            src={row.profileImageUrl}
-                            alt={row.fullName}
-                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                          />
-                        ) : (
-                          row.fullName.slice(0, 2).toUpperCase()
-                        )}
-                      </div>
-                      <div>
-                        <b style={{ color: "var(--ink)", fontSize: "13px", display: "block" }}>{row.fullName}</b>
-                        <small style={{ color: "#7258e8", fontWeight: 700, fontSize: "11px" }}>{row.candidateNo}</small>
-                      </div>
-                    </div>
-                  </td>
-
-                  <td style={{ padding: "12px 14px" }}>
-                    <div style={{ fontWeight: 700, color: "var(--ink)" }}>{row.phone}</div>
-                    <small style={{ color: "var(--muted)", fontSize: "11px" }}>{row.district || "—"}</small>
-                  </td>
-
-                  <td style={{ padding: "12px 14px" }}>
-                    <div style={{ fontWeight: 700, color: row.passportNo !== "—" ? "#0f172a" : "var(--muted)" }}>
-                      {row.passportNo}
-                    </div>
-                    {row.nationalId !== "—" && (
-                      <small style={{ color: "var(--muted)", fontSize: "10.5px" }}>NID: {row.nationalId}</small>
-                    )}
-                  </td>
-
-                  <td style={{ padding: "12px 14px" }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontWeight: 700, color: "var(--ink)" }}>
-                      {getCountryFlag(row.preferredCountry)} {row.preferredCountry}
-                    </span>
-                  </td>
-
-                  <td style={{ padding: "12px 14px", fontWeight: 600, color: "#334155" }}>
-                    {row.profession}
-                  </td>
-
-                  <td style={{ padding: "12px 14px" }}>
-                    {row.activeFile ? (
-                      <div>
-                        <Link
-                          href={`/file/${row.activeFile.id}`}
-                          style={{
-                            fontWeight: 800,
-                            color: "#7258e8",
-                            textDecoration: "none",
-                            fontSize: "12px",
-                            background: "#f5f3ff",
-                            padding: "3px 8px",
-                            borderRadius: "6px",
-                            display: "inline-block",
-                          }}
-                        >
-                          {row.activeFile.fileNo}
-                        </Link>
-                        <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>
-                          {row.activeFile.company}
-                        </div>
-                      </div>
-                    ) : (
-                      <span style={{ fontSize: "11.5px", color: "var(--muted)", fontStyle: "italic" }}>
-                        No File Yet
-                      </span>
-                    )}
-                  </td>
-
-                  <td style={{ padding: "12px 14px" }}>
-                    {row.activeFile ? (
-                      <div>
-                        <div
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "5px",
-                            fontSize: "11.5px",
-                            fontWeight: 800,
-                            padding: "4px 8px",
-                            borderRadius: "6px",
-                            background: "#ecfdf5",
-                            color: "#059669",
-                          }}
-                        >
-                          <CheckCircle2 size={13} /> {row.activeFile.currentStage}
-                        </div>
-
-                        {/* File Action Condition Indicators */}
-                        <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", marginTop: "4px" }}>
-                          {row.activeFile.medicalResult && (
-                            <span
-                              style={{
-                                fontSize: "10px",
-                                fontWeight: 700,
-                                padding: "1px 6px",
-                                borderRadius: "4px",
-                                background: /fit/i.test(row.activeFile.medicalResult) ? "#dcfce7" : "#fee2e2",
-                                color: /fit/i.test(row.activeFile.medicalResult) ? "#15803d" : "#b91c1c",
-                              }}
-                            >
-                              Med: {row.activeFile.medicalResult}
-                            </span>
-                          )}
-                          {row.activeFile.visaResult && (
-                            <span
-                              style={{
-                                fontSize: "10px",
-                                fontWeight: 700,
-                                padding: "1px 6px",
-                                borderRadius: "4px",
-                                background: "#e0e7ff",
-                                color: "#4338ca",
-                              }}
-                            >
-                              Visa: {row.activeFile.visaResult}
-                            </span>
-                          )}
-                          {row.activeFile.manpowerResult && (
-                            <span
-                              style={{
-                                fontSize: "10px",
-                                fontWeight: 700,
-                                padding: "1px 6px",
-                                borderRadius: "4px",
-                                background: "#fef3c7",
-                                color: "#b45309",
-                              }}
-                            >
-                              BMET: {row.activeFile.manpowerResult}
-                            </span>
-                          )}
-                          {row.totalPaid > 0 && (
-                            <span
-                              style={{
-                                fontSize: "10px",
-                                fontWeight: 700,
-                                padding: "1px 6px",
-                                borderRadius: "4px",
-                                background: "#f8fafc",
-                                border: "1px solid #e2e8f0",
-                                color: "#475569",
-                              }}
-                            >
-                              ৳ {(row.totalPaid / 1000).toFixed(0)}k Paid
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <span
-                        style={{
-                          fontSize: "11px",
-                          fontWeight: 600,
-                          padding: "3px 8px",
-                          borderRadius: "6px",
-                          background: "#f1f5f9",
-                          color: "#64748b",
-                        }}
-                      >
-                        Registered (No File)
-                      </span>
-                    )}
-                  </td>
-
-                  <td style={{ padding: "12px 14px" }}>
-                    <span style={{ fontSize: "12px", color: "#475569", fontWeight: 600 }}>
-                      {row.source || "Direct"}
-                    </span>
-                  </td>
+                  </div> : <span className="directory-design-micro paid">Registered (No File)</span>}</td>
+                  <td><span className="directory-design-source"><span className={`directory-source-dot tone-${index % 3}`} />{row.source || "Direct"}</span></td>
                 </tr>
               ))}
-
-              {!query.isLoading && data.length === 0 && (
-                <tr>
-                  <td colSpan={10} style={{ padding: "40px 20px", textAlign: "center", color: "var(--muted)" }}>
-                    <UsersRound size={36} style={{ opacity: 0.3, margin: "0 auto 8px" }} />
-                    <p style={{ margin: 0, fontWeight: 700 }}>No candidates found matching criteria.</p>
-                  </td>
-                </tr>
-              )}
+              {query.isLoading && <tr><td colSpan={10} className="country-design-empty">Loading candidates...</td></tr>}
+              {!query.isLoading && data.length === 0 && <tr><td colSpan={10} className="country-design-empty">No candidates found matching criteria.</td></tr>}
             </tbody>
           </table>
         </div>
 
-        {/* PAGINATION */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 20px", borderTop: "1px solid var(--line)" }}>
-          <div style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 600 }}>
-            Page {meta.page} of {meta.totalPages}
-          </div>
+        {/* Mobile Candidate Card Feed (Stitch Design Reference: 097f249f1dc6408c94f8b28aa2585c52) */}
+        <div className="mobile-candidates-stream">
+          {data.map((row) => (
+            <div className="candidate-mobile-card" key={row.id}>
+              {/* Top Row: Avatar, Full Name, ID, Trade, Country */}
+              <div className="candidate-mobile-top">
+                <div className="candidate-mobile-bio">
+                  <DirectoryAvatar name={row.fullName} imageUrl={row.profileImageUrl} />
+                  <div className="candidate-mobile-title-block">
+                    <h3 className="candidate-mobile-name">{row.fullName}</h3>
+                    <div className="candidate-mobile-id-row">
+                      <span className="candidate-mobile-id-badge">{row.candidateNo}</span>
+                      <span className="candidate-mobile-trade">• {row.profession}</span>
+                    </div>
+                  </div>
+                </div>
+                <span className="candidate-mobile-country-badge">
+                  <span>{getCountryFlag(row.preferredCountry)}</span>
+                  <span>{getCountryAbbr(row.preferredCountry)}</span>
+                </span>
+              </div>
 
-          <div style={{ display: "flex", gap: "6px" }}>
-            <button
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "4px",
-                padding: "6px 12px",
-                borderRadius: "8px",
-                border: "1px solid var(--line)",
-                background: page <= 1 ? "#f8fafc" : "#fff",
-                color: page <= 1 ? "#cbd5e1" : "var(--ink)",
-                cursor: page <= 1 ? "not-allowed" : "pointer",
-                fontSize: "12px",
-                fontWeight: 700,
-              }}
-            >
-              <ChevronLeft size={14} /> Previous
-            </button>
-            <button
-              disabled={page >= meta.totalPages}
-              onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "4px",
-                padding: "6px 12px",
-                borderRadius: "8px",
-                border: "1px solid var(--line)",
-                background: page >= meta.totalPages ? "#f8fafc" : "#fff",
-                color: page >= meta.totalPages ? "#cbd5e1" : "var(--ink)",
-                cursor: page >= meta.totalPages ? "not-allowed" : "pointer",
-                fontSize: "12px",
-                fontWeight: 700,
-              }}
-            >
-              Next <ChevronRight size={14} />
-            </button>
+              {/* Quick Data Points Grid (2-columns) */}
+              <div className="candidate-mobile-data-grid">
+                <div className="candidate-mobile-data-col">
+                  <span className="candidate-mobile-data-lbl">Contact &amp; Location</span>
+                  <span className="candidate-mobile-data-val">{row.phone}</span>
+                  <span className="candidate-mobile-data-sub">{row.district || "Direct Intake"}</span>
+                </div>
+                <div className="candidate-mobile-data-col">
+                  <span className="candidate-mobile-data-lbl">National ID / Passport</span>
+                  <span className="candidate-mobile-data-val">
+                    {row.passportNo !== "—" ? row.passportNo : (row.nationalId !== "—" ? row.nationalId : "Unverified")}
+                  </span>
+                  <span className="candidate-mobile-data-sub">
+                    {row.nationalId !== "—" && row.passportNo !== "—" ? `NID: ${row.nationalId}` : "Registry ID Verified"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Processing File Stack */}
+              {row.activeFile ? (
+                <div className="candidate-mobile-file-strip">
+                  <div className="candidate-mobile-file-meta">
+                    <span style={{ fontSize: "14px" }}>📁</span>
+                    <span className="candidate-mobile-file-no">{row.activeFile.fileNo}</span>
+                    <span className="candidate-mobile-file-company">{row.activeFile.company}</span>
+                  </div>
+                  {row.totalPaid > 0 && (
+                    <span className="candidate-mobile-paid-badge">
+                      ৳ {(row.totalPaid / 1000).toFixed(0)}k
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <div className="candidate-mobile-file-strip empty">
+                  <span className="candidate-mobile-no-file-text">Awaiting Overseas File Opening</span>
+                </div>
+              )}
+
+              {/* Stage Micro Badges */}
+              <div className="candidate-mobile-micro-badges">
+                {row.activeFile ? (
+                  <>
+                    <span className="micro-badge stage-badge" style={{
+                      "--directory-stage-bg": directoryStageStyle(row.activeFile.currentStage).background,
+                      "--directory-stage-color": directoryStageStyle(row.activeFile.currentStage).color,
+                    } as React.CSSProperties}>
+                      {row.activeFile.currentStage}
+                    </span>
+                    {row.activeFile.medicalResult && (
+                      <span className="micro-badge med-badge">
+                        Med: {row.activeFile.medicalResult}
+                      </span>
+                    )}
+                    {row.activeFile.visaResult && (
+                      <span className="micro-badge visa-badge">
+                        Visa: {row.activeFile.visaResult}
+                      </span>
+                    )}
+                    {row.activeFile.manpowerResult && (
+                      <span className="micro-badge bmet-badge">
+                        BMET: {row.activeFile.manpowerResult}
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span className="micro-badge direct-badge">
+                    Registry Intake
+                  </span>
+                )}
+              </div>
+
+              {/* Action Footer */}
+              <div className="candidate-mobile-footer">
+                <span className="candidate-mobile-src">Src: {row.source || "Direct Intake"}</span>
+                <div className="candidate-mobile-actions">
+                  <button data-action-ui="secondary" data-action-size="normal"
+                    type="button"
+                    className="candidate-mobile-btn details"
+                    onClick={() => openCandidateProfile(row)}
+                  >
+                    <Eye size={14} /> Details
+                  </button>
+                  {row.activeFile && (
+                    <Link data-action-ui="secondary" data-action-size="normal"
+                      href={`/file/${row.activeFile.id}?view=pipeline`}
+                      className="candidate-mobile-btn pipeline"
+                    >
+                      <Layers size={14} /> Pipeline
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {!query.isLoading && data.length === 0 && (
+            <div style={{ padding: "32px 16px", textAlign: "center", color: "var(--muted)", background: "#ffffff", borderRadius: "16px", border: "1px solid var(--line)" }}>
+              <UsersRound size={32} style={{ opacity: 0.3, margin: "0 auto 8px" }} />
+              <p style={{ margin: 0, fontWeight: 700, fontSize: "13px" }}>No candidates found matching criteria.</p>
+            </div>
+          )}
+        </div>
+
+        <div className="country-design-pagination">
+          <span>{meta.total} Total Candidates</span>
+          <div>
+            <button data-action-ui="neutral" data-action-size="normal" type="button" disabled={page <= 1} onClick={() => setPage(p => Math.max(1,p - 1))}>← Previous</button>
+            <span className="country-design-page-indicator">Page {meta.page} of {meta.totalPages}</span>
+            <button data-action-ui="neutral" data-action-size="normal" type="button" disabled={page >= meta.totalPages} onClick={() => setPage(p => Math.min(meta.totalPages,p + 1))}>Next →</button>
           </div>
         </div>
       </section>
 
       {/* 6. CANDIDATE 360° DETAILS MODAL */}
       {selectedCandidate && (
-        <div
+        <div className="master-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Candidate details"
           style={{
             position: "fixed",
             inset: 0,
@@ -1235,7 +887,7 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
           }}
           onClick={() => setSelectedCandidate(null)}
         >
-          <div
+          <div className="master-modal-card master-modal-inline-card master-modal-panel"
             style={{
               width: "100%",
               maxWidth: "760px",
@@ -1250,9 +902,9 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--line)", background: "#fafafd", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+            <div className="master-modal-header" style={{ padding: "20px 24px", borderBottom: "1px solid var(--line)", background: "#fafafd", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                <div
+                <div className="master-modal-accent master-modal-icon"
                   style={{
                     width: "48px",
                     height: "48px",
@@ -1281,7 +933,7 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
                 </div>
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
-                    <span style={{ fontSize: "11px", fontWeight: 800, background: "#f0edff", color: "#7258e8", padding: "3px 8px", borderRadius: "6px" }}>
+                    <span className="master-modal-accent" style={{ fontSize: "11px", fontWeight: 800, background: "#f0edff", color: "#7258e8", padding: "3px 8px", borderRadius: "6px" }}>
                       {selectedCandidate.candidateNo}
                     </span>
                     {selectedCandidate.activeFile && (
@@ -1299,8 +951,9 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
                 </div>
               </div>
 
-              <button
+              <button data-action-ui="neutral" data-action-size="icon" className="master-modal-close"
                 onClick={() => setSelectedCandidate(null)}
+                aria-label="Close candidate details"
                 style={{
                   background: "transparent",
                   border: "none",
@@ -1316,7 +969,7 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
             {/* Modal Body */}
             <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "20px", overflowY: "auto", flex: 1 }}>
               {/* Profile Photo Editor */}
-              <div style={{ background: "#f8fafc", padding: "16px", borderRadius: "12px", border: "1px solid var(--line)" }}>
+              <div className="master-modal-panel" style={{ background: "#f8fafc", padding: "16px", borderRadius: "12px", border: "1px solid var(--line)" }}>
                 <CandidateProfileImageField
                   candidateName={selectedCandidate.fullName}
                   imageUrl={selectedCandidate.profileImageUrl}
@@ -1333,95 +986,50 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
               </div>
 
               {/* Quick Call & Actions */}
-              <div style={{ display: "flex", gap: "10px" }}>
+              <div className="candidate-detail-actions">
                 <a
+                  className="candidate-detail-action"
+                  data-action-ui="success"
                   href={`tel:${selectedCandidate.phone.replace(/[^+\d]/g, "")}`}
-                  style={{
-                    flex: 1,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "6px",
-                    padding: "10px",
-                    borderRadius: "10px",
-                    background: "#ecfdf5",
-                    color: "#059669",
-                    fontWeight: 700,
-                    fontSize: "12.5px",
-                    textDecoration: "none",
-                  }}
                 >
-                  <Phone size={15} /> Call Candidate
+                  <Phone size={16} aria-hidden="true" />
+                  <span>Call Candidate</span>
                 </a>
 
                 {selectedCandidate.activeFile ? (
-                  <div style={{ display: "flex", gap: "10px", flex: 1 }}>
+                  <>
                     <Link
+                      className="candidate-detail-action"
+                      data-action-ui="primary"
                       href={`/file/${selectedCandidate.activeFile.id}?view=pipeline`}
-                      style={{
-                        flex: 1.3,
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "6px",
-                        padding: "10px 14px",
-                        borderRadius: "10px",
-                        background: "#7258e8",
-                        color: "#fff",
-                        fontWeight: 800,
-                        fontSize: "12.5px",
-                        textDecoration: "none",
-                        boxShadow: "0 2px 8px rgba(114, 88, 232, 0.3)",
-                      }}
+                      aria-label="Open Stage Processing Pipeline"
                     >
-                      <Layers size={15} /> ⚡ Open Stage Processing Pipeline
+                      <Layers size={16} aria-hidden="true" />
+                      <span>Processing Pipeline</span>
                     </Link>
                     <Link
+                      className="candidate-detail-action"
+                      data-action-ui="secondary"
                       href={`/file/${selectedCandidate.activeFile.id}?view=dossier`}
-                      style={{
-                        flex: 0.7,
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "6px",
-                        padding: "10px 14px",
-                        borderRadius: "10px",
-                        background: "#f0edff",
-                        color: "#7258e8",
-                        border: "1px solid #dcd5fb",
-                        fontWeight: 700,
-                        fontSize: "12px",
-                        textDecoration: "none",
-                      }}
                     >
-                      <Sparkles size={14} /> Master Dossier
+                      <Sparkles size={16} aria-hidden="true" />
+                      <span>Master Dossier</span>
                     </Link>
-                  </div>
+                  </>
                 ) : (
                   <Link
+                    className="candidate-detail-action"
+                    data-action-ui="primary"
                     href={moduleItemPath("call-center", "Create Candidate")}
-                    style={{
-                      flex: 1,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "6px",
-                      padding: "10px",
-                      borderRadius: "10px",
-                      background: "#7258e8",
-                      color: "#fff",
-                      fontWeight: 800,
-                      fontSize: "12.5px",
-                      textDecoration: "none",
-                    }}
                   >
-                    <Plus size={15} /> Open File
+                    <Plus size={16} aria-hidden="true" />
+                    <span>Open File</span>
                   </Link>
                 )}
               </div>
 
               {/* Basic Information */}
-              <div style={{ background: "#f8fafc", padding: "16px", borderRadius: "12px", border: "1px solid var(--line)" }}>
+              <div className="master-modal-panel" style={{ background: "#f8fafc", padding: "16px", borderRadius: "12px", border: "1px solid var(--line)" }}>
                 <h3 style={{ fontSize: "12px", fontWeight: 800, color: "var(--ink)", textTransform: "uppercase", letterSpacing: "0.5px", margin: "0 0 12px", display: "flex", alignItems: "center", gap: "6px" }}>
                   <User size={14} className="text-indigo-600" /> Basic &amp; Contact Details
                 </h3>
@@ -1436,7 +1044,7 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
               </div>
 
               {/* Passport & Identity */}
-              <div style={{ background: "#f8fafc", padding: "16px", borderRadius: "12px", border: "1px solid var(--line)" }}>
+              <div className="master-modal-panel" style={{ background: "#f8fafc", padding: "16px", borderRadius: "12px", border: "1px solid var(--line)" }}>
                 <h3 style={{ fontSize: "12px", fontWeight: 800, color: "var(--ink)", textTransform: "uppercase", letterSpacing: "0.5px", margin: "0 0 12px", display: "flex", alignItems: "center", gap: "6px" }}>
                   <FileCheck size={14} className="text-emerald-600" /> Passport &amp; Legal Identity
                 </h3>
@@ -1450,12 +1058,12 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
 
               {/* Processing File & Recruitment Stage Status */}
               {selectedCandidate.activeFile ? (
-                <div style={{ background: "#f5f3ff", padding: "16px", borderRadius: "12px", border: "1px solid #ddd6fe" }}>
+                <div className="master-modal-panel" style={{ background: "#f5f3ff", padding: "16px", borderRadius: "12px", border: "1px solid #ddd6fe" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "8px" }}>
                     <h3 style={{ fontSize: "12px", fontWeight: 800, color: "#5b21b6", textTransform: "uppercase", letterSpacing: "0.5px", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
                       <Layers size={14} /> Stage Processing Pipeline (Interactive Workflow)
                     </h3>
-                    <Link
+                    <Link data-action-ui="secondary" data-action-size="normal" className="master-modal-accent"
                       href={`/file/${selectedCandidate.activeFile.id}?view=pipeline`}
                       style={{
                         fontSize: "11px",
@@ -1476,7 +1084,7 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
                   </div>
 
                   {/* Visual Stage Pipeline Progression Bar */}
-                  <div style={{ background: "#fff", padding: "12px", borderRadius: "10px", border: "1px solid #e9d5ff", marginBottom: "14px" }}>
+                  <div className="master-modal-panel" style={{ background: "#fff", padding: "12px", borderRadius: "10px", border: "1px solid #e9d5ff", marginBottom: "14px" }}>
                     <div style={{ fontSize: "11px", fontWeight: 700, color: "#6b21a8", marginBottom: "8px", display: "flex", justifyContent: "space-between" }}>
                       <span>Progress Stages ({selectedCandidate.preferredCountry})</span>
                       <span style={{ color: "#059669", fontWeight: 800 }}>
@@ -1571,7 +1179,7 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
                   </div>
                 </div>
               ) : (
-                <div style={{ background: "#f8fafc", padding: "16px", borderRadius: "12px", border: "1px dashed var(--line)", textAlign: "center" }}>
+                <div className="master-modal-panel" style={{ background: "#f8fafc", padding: "16px", borderRadius: "12px", border: "1px dashed var(--line)", textAlign: "center" }}>
                   <p style={{ margin: 0, fontSize: "12.5px", color: "var(--muted)", fontWeight: 600 }}>
                     Candidate is registered in system but has no active overseas processing file opened yet.
                   </p>
@@ -1579,7 +1187,7 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
               )}
 
               {/* Interview & Drive Options — optional at registration, editable here later */}
-              <div style={{ background: "#fdf4ff", padding: "16px", borderRadius: "12px", border: "1px solid #f5d0fe" }}>
+              <div className="master-modal-panel" style={{ background: "#fdf4ff", padding: "16px", borderRadius: "12px", border: "1px solid #f5d0fe" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", marginBottom: "12px" }}>
                   <div>
                     <h3 style={{ fontSize: "12px", fontWeight: 800, color: "#86198f", textTransform: "uppercase", letterSpacing: "0.5px", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
@@ -1590,7 +1198,7 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
                     </p>
                   </div>
                   {!editingInterviewOptions && (
-                    <button
+                    <button data-action-ui="secondary" data-action-size="normal"
                       type="button"
                       onClick={() => setEditingInterviewOptions(true)}
                       style={{ padding: "6px 11px", borderRadius: "7px", border: "1px solid #e9d5ff", background: "#fff", color: "#86198f", fontSize: "11px", fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}
@@ -1687,7 +1295,7 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
                       </select>
                     </label>
                     <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "2px" }}>
-                      <button
+                      <button data-action-ui="neutral" data-action-size="normal"
                         type="button"
                         disabled={savingInterviewOptions}
                         onClick={() => {
@@ -1702,7 +1310,7 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
                       >
                         Cancel
                       </button>
-                      <button
+                      <button data-action-ui="primary" data-action-size="normal" className="master-modal-primary"
                         type="button"
                         disabled={savingInterviewOptions}
                         onClick={saveInterviewOptions}
@@ -1723,7 +1331,7 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
                     <div><span style={{ color: "#701a75", display: "block", fontSize: "11px" }}>File Status:</span><b>{selectedCandidate.interviewOptions.fileStatus || "—"}</b></div>
                   </div>
                 ) : (
-                  <div style={{ padding: "12px", borderRadius: "9px", border: "1px dashed #e9d5ff", background: "rgba(255,255,255,0.65)", color: "#a21caf", fontSize: "12px", fontWeight: 600, textAlign: "center" }}>
+                  <div className="master-modal-panel" style={{ padding: "12px", borderRadius: "9px", border: "1px dashed #e9d5ff", background: "rgba(255,255,255,0.65)", color: "#a21caf", fontSize: "12px", fontWeight: 600, textAlign: "center" }}>
                     No interview or drive details added yet.
                   </div>
                 )}

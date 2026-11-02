@@ -43,7 +43,7 @@ export async function ModulePage({ moduleId, initialTab }: { moduleId: string; i
 }
 
 function renderModuleContent(moduleId: string, initialTab: string, officerName: string) {
-  // Call Center / Candidates module routes
+  // Office Operations / Candidates module routes
   if (moduleId === "call-center" || moduleId === "candidates") {
     if (initialTab === "Create Candidate" || initialTab === "Create Work Call") return <CreateWorkCallPage officerName={officerName} />;
     if (initialTab === "Candidate List" || initialTab === "Candidates List" || initialTab === "All Candidates" || initialTab === "Work Call List") return <AllCandidatesListPage />;

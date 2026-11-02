@@ -1,30 +1,19 @@
 "use client";
 import { useAccess } from "@/hooks/use-access";
+import { AgentsDesignIcon } from "@/components/layout/agents-design-icon";
+import { CountryDesignIcon } from "@/components/layout/country-design-icon";
 import { AgentProfileImageField } from "@/components/modules/agent-profile-image-field";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Briefcase,
-  Building2,
   Check,
   ChevronRight,
-  CreditCard,
   Edit,
-  ExternalLink,
   Eye,
-  FileCheck2,
-  FileSpreadsheet,
-  Globe,
-  Mail,
   MapPin,
   Phone,
-  Plane,
-  Plus,
-  RefreshCw,
   Search,
-  ShieldCheck,
   Trash2,
-  UserCheck,
   UserPlus,
   Users,
   X,
@@ -105,6 +94,12 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [unavailableImageUrls, setUnavailableImageUrls] = useState<string[]>([]);
+  const showImageFallback = (url: string) => {
+    setUnavailableImageUrls((urls) => urls.includes(url) ? urls : [...urls, url]);
+  };
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createPortalLogin, setCreatePortalLogin] = useState(true);
@@ -119,20 +114,25 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
   const [editImageFile, setEditImageFile] = useState<File | null>(null);
   const [removeEditImage, setRemoveEditImage] = useState(false);
 
-  const isDefaultQuery = !searchQuery && statusFilter === "All";
+  const isDefaultQuery = !searchQuery && statusFilter === "All" && page === 1 && pageSize === 10;
 
   // Fetch agents list
   const { data, isLoading, isRefetching, refetch } = useQuery({
-    queryKey: ["agents-list", searchQuery, statusFilter],
-    initialData: isDefaultQuery ? initialData : undefined,
+    queryKey: ["agents-list", searchQuery, statusFilter, page, pageSize],
+    initialData: isDefaultQuery && initialData ? {
+      ...initialData,
+      data: initialData.data.slice(0, pageSize),
+      meta: { ...initialData.meta, page, pageSize, totalPages: Math.max(1, Math.ceil((initialData.meta?.total ?? initialData.data.length) / pageSize)) },
+    } : undefined,
     queryFn: async () => {
-      const params = new URLSearchParams();
+      const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
       if (searchQuery) params.set("q", searchQuery);
       if (statusFilter !== "All") params.set("status", statusFilter);
       const res = await fetch(`/api/agents?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to load agents list");
       return res.json() as Promise<{
         data: AgentItem[];
+        meta: { page: number; pageSize: number; total: number; totalPages: number };
         stats: {
           totalAgents: number;
           activeAgents: number;
@@ -298,7 +298,12 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
     }
   };
 
+  useEffect(() => {
+    if (data?.meta && page > data.meta.totalPages) setPage(Math.max(1, data.meta.totalPages));
+  }, [data?.meta, page]);
+
   const agentsList = data?.data || [];
+  const meta = data?.meta || { page, pageSize, total: 0, totalPages: 1 };
   const stats = data?.stats || {
     totalAgents: 0,
     activeAgents: 0,
@@ -307,603 +312,338 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
   };
 
   return (
-    <div className="agents-page" style={{ maxWidth: "1550px", margin: "0 auto", paddingBottom: "60px" }}>
-      {/* 1. Header Banner */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "22px",
-          flexWrap: "wrap",
-          gap: "14px",
-        }}
-      >
+    <div className="agents-page country-design-page channel-partners-design">
+      <div className="country-design-breadcrumb">Dashboard / Agency Network / Partners</div>
+      <div className="country-design-heading">
         <div>
-          <div
-            className="breadcrumb"
-            style={{
-              fontSize: "11px",
-              fontWeight: 700,
-              color: "var(--muted)",
-              textTransform: "uppercase",
-              letterSpacing: "0.5px",
-              marginBottom: "4px",
-            }}
-          >
-            Dashboard / Agency Network / Partners
-          </div>
-          <h1
-            style={{
-              fontSize: "24px",
-              fontWeight: 800,
-              color: "var(--ink)",
-              margin: 0,
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-            }}
-          >
-            <span
-              style={{
-                display: "inline-grid",
-                placeItems: "center",
-                width: "38px",
-                height: "38px",
-                borderRadius: "10px",
-                background: "#f0edff",
-                color: "#7258e8",
-              }}
-            >
-              <Users size={22} />
-            </span>
-            Agents &amp; Channel Partners
-          </h1>
-          <p style={{ fontSize: "13px", color: "var(--muted)", margin: "4px 0 0" }}>
-            Manage agency brokers, sub-agents, candidate referrals, agreements, and partner profiles.
-          </p>
+          <h1>🤝 Agents &amp; Channel Partners</h1>
+          <p>Manage agency brokers, sub-agents, candidate referrals, agreements, and partner profiles.</p>
         </div>
-
-        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-          <button
-            type="button"
-            onClick={() => refetch()}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "10px 16px",
-              borderRadius: "10px",
-              background: "#fff",
-              border: "1px solid var(--line)",
-              color: "var(--ink)",
-              fontSize: "13px",
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-            title="Refresh agents"
-          >
-            <RefreshCw size={14} className={isRefetching ? "animate-spin" : ""} /> Refresh
+        <div className="country-design-actions">
+          <button data-action-ui="neutral" data-action-size="normal" type="button" onClick={() => refetch()} title="Refresh agents">
+            <CountryDesignIcon name="Refresh" className={isRefetching ? "animate-spin" : ""} /> Refresh
           </button>
-          <button
+          <button data-action-ui="primary" data-action-size="normal"
+            className="channel-create-action"
             type="button"
             disabled={!allows("agents", "create")}
             title={!allows("agents", "create") ? "Create permission is required" : undefined}
-            onClick={() => {
-              setCreateImageFile(null);
-              setShowCreateModal(true);
-            }}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "11px 22px",
-              borderRadius: "10px",
-              background: "#7258e8",
-              color: "#fff",
-              fontSize: "13px",
-              fontWeight: 700,
-              border: "none",
-              cursor: "pointer",
-              boxShadow: "0 4px 14px rgba(114,88,232,0.3)",
-              transition: "all 0.15s ease",
-            }}
+            onClick={() => { setCreateImageFile(null); setShowCreateModal(true); }}
           >
-            <UserPlus size={16} /> + Create New Agent
+            + Create New Agent
           </button>
         </div>
       </div>
 
-      {/* 2. Orbit 4 Metric Stats Cards */}
-      <div
-        className="responsive-kpi-grid"
-        style={{
-          marginBottom: "24px",
-        }}
-      >
-        <div
-          style={{
-            background: "#fff",
-            borderRadius: "14px",
-            padding: "18px 20px",
-            border: "1px solid var(--line)",
-            boxShadow: "var(--shadow)",
-            display: "flex",
-            alignItems: "center",
-            gap: "14px",
-          }}
-        >
-          <div
-            style={{
-              width: "46px",
-              height: "46px",
-              borderRadius: "12px",
-              background: "#f0edff",
-              color: "#7258e8",
-              display: "grid",
-              placeItems: "center",
-              flexShrink: 0,
-            }}
-          >
-            <Users size={24} />
+      <div className="country-design-metrics channel-partner-metrics">
+        {([
+          ["Total Registered Agents", stats.totalAgents, "Registered", "Registered partners"],
+          ["Active Partner Agents", stats.activeAgents, "Partners", "Active agency partners"],
+          ["Total Referred Candidates", stats.totalReferredCandidates, "Candidates", "Referred candidate files"],
+          ["Active Pipeline Dossiers", stats.activeDossiers, "Pipeline", "Active in pipeline"],
+        ] as const).map(([label, value, icon, caption]) => (
+          <div className="country-design-metric" key={label}>
+            <div><span>{label}</span><AgentsDesignIcon name={icon} /></div>
+            <b>{value}</b><p>{caption}</p>
           </div>
-          <div>
-            <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase" }}>
-              Total Registered Agents
-            </span>
-            <div style={{ fontSize: "22px", fontWeight: 800, color: "var(--ink)", marginTop: "2px" }}>
-              {stats.totalAgents}
-            </div>
-          </div>
-        </div>
-
-        <div
-          style={{
-            background: "#fff",
-            borderRadius: "14px",
-            padding: "18px 20px",
-            border: "1px solid var(--line)",
-            boxShadow: "var(--shadow)",
-            display: "flex",
-            alignItems: "center",
-            gap: "14px",
-          }}
-        >
-          <div
-            style={{
-              width: "46px",
-              height: "46px",
-              borderRadius: "12px",
-              background: "#ecfdf5",
-              color: "#059669",
-              display: "grid",
-              placeItems: "center",
-              flexShrink: 0,
-            }}
-          >
-            <UserCheck size={24} />
-          </div>
-          <div>
-            <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase" }}>
-              Active Partner Agents
-            </span>
-            <div style={{ fontSize: "22px", fontWeight: 800, color: "#059669", marginTop: "2px" }}>
-              {stats.activeAgents}
-            </div>
-          </div>
-        </div>
-
-        <div
-          style={{
-            background: "#fff",
-            borderRadius: "14px",
-            padding: "18px 20px",
-            border: "1px solid var(--line)",
-            boxShadow: "var(--shadow)",
-            display: "flex",
-            alignItems: "center",
-            gap: "14px",
-          }}
-        >
-          <div
-            style={{
-              width: "46px",
-              height: "46px",
-              borderRadius: "12px",
-              background: "#eff6ff",
-              color: "#2563eb",
-              display: "grid",
-              placeItems: "center",
-              flexShrink: 0,
-            }}
-          >
-            <FileSpreadsheet size={24} />
-          </div>
-          <div>
-            <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase" }}>
-              Total Referred Candidates
-            </span>
-            <div style={{ fontSize: "22px", fontWeight: 800, color: "var(--ink)", marginTop: "2px" }}>
-              {stats.totalReferredCandidates}
-            </div>
-          </div>
-        </div>
-
-        <div
-          style={{
-            background: "#fff",
-            borderRadius: "14px",
-            padding: "18px 20px",
-            border: "1px solid var(--line)",
-            boxShadow: "var(--shadow)",
-            display: "flex",
-            alignItems: "center",
-            gap: "14px",
-          }}
-        >
-          <div
-            style={{
-              width: "46px",
-              height: "46px",
-              borderRadius: "12px",
-              background: "#fef3c7",
-              color: "#d97706",
-              display: "grid",
-              placeItems: "center",
-              flexShrink: 0,
-            }}
-          >
-            <Briefcase size={24} />
-          </div>
-          <div>
-            <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase" }}>
-              Active Pipeline Dossiers
-            </span>
-            <div style={{ fontSize: "22px", fontWeight: 800, color: "#d97706", marginTop: "2px" }}>
-              {stats.activeDossiers}
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
 
-      {/* 3. Search & Filter Bar */}
-      <div
-        style={{
-          background: "#fff",
-          border: "1px solid var(--line)",
-          borderRadius: "14px",
-          padding: "14px 18px",
-          marginBottom: "18px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: "12px",
-          boxShadow: "var(--shadow)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, minWidth: "260px" }}>
-          <div style={{ position: "relative", width: "100%", maxWidth: "360px" }}>
-            <Search size={15} style={{ position: "absolute", left: 12, top: 12, color: "var(--muted)" }} />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search agent name, phone, code, district..."
-              style={{
-                width: "100%",
-                height: "38px",
-                padding: "0 12px 0 34px",
-                borderRadius: "8px",
-                border: "1px solid var(--line)",
-                fontSize: "12px",
-                outline: "none",
-              }}
-            />
+      <div className="agents-results-panel country-design-workspace channel-partner-workspace">
+        <div className="country-design-filters channel-partner-toolbar">
+          <div className="channel-partner-filter-fields">
+            <form className="channel-partner-search-form" onSubmit={(event) => { event.preventDefault(); refetch(); }}>
+              <label className="country-design-search channel-partner-search">
+                <CountryDesignIcon name="Search" />
+                <input type="text" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }} aria-label="Search agents" placeholder="Search agent name, phone, code, district..." />
+                {searchQuery && <button data-action-ui="ghost" data-action-size="icon" type="button" aria-label="Clear agent search" onClick={() => { setSearchQuery(""); setPage(1); }}><X size={14} /></button>}
+              </label>
+              <button data-action-ui="primary" data-action-size="normal" className="channel-partner-search-submit" type="submit">Search</button>
+            </form>
+            <div className="channel-partner-status-filters" aria-label="Agent status filters">
+              {["All", "Active", "Inactive"].map((status) => (
+                <button key={status} type="button" aria-pressed={statusFilter === status} onClick={() => { setStatusFilter(status); setPage(1); }}>{status}</button>
+              ))}
+            </div>
           </div>
+          <label className="country-design-page-size">
+            Per Page:
+            <span className="country-design-select">
+              <select aria-label="Agents per page" value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}>
+                <option value="10">10</option><option value="20">20</option><option value="50">50</option>
+              </select>
+              <CountryDesignIcon name="ChevronDown" />
+            </span>
+          </label>
         </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--muted)" }}>Status:</span>
-          {["All", "Active", "Inactive"].map((st) => (
-            <button
-              key={st}
-              type="button"
-              onClick={() => setStatusFilter(st)}
-              style={{
-                padding: "6px 14px",
-                borderRadius: "8px",
-                fontSize: "12px",
-                fontWeight: statusFilter === st ? 800 : 600,
-                background: statusFilter === st ? "#7258e8" : "#f8fafc",
-                color: statusFilter === st ? "#fff" : "var(--muted)",
-                border: statusFilter === st ? "1px solid #7258e8" : "1px solid var(--line)",
-                cursor: "pointer",
-                transition: "all 0.15s ease",
-              }}
-            >
-              {st}
-            </button>
-          ))}
+        <div className="country-design-count">
+          Showing {meta.total ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, meta.total)} of {meta.total} Total Agents &amp; Channel Partners
         </div>
-      </div>
-
-      {/* 4. Agents Master Table */}
-      <div
-        style={{
-          background: "#fff",
-          borderRadius: "16px",
-          border: "1px solid var(--line)",
-          boxShadow: "var(--shadow)",
-          overflow: "hidden",
-        }}
-      >
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
+        <div className="desktop-agents-table country-design-table channel-partner-table">
+          <table>
+            <colgroup>
+              {[50, 115, 285, 230, 160, 170, 110, 220].map((width, index) => <col key={index} style={{ width }} />)}
+            </colgroup>
             <thead>
-              <tr style={{ background: "#f8fafc", borderBottom: "1px solid var(--line)" }}>
-                <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px", width: "50px" }}>
-                  SL
-                </th>
-                <th style={{ padding: "14px 14px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px", width: "110px" }}>
-                  Agent Code
-                </th>
-                <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px", minWidth: "220px" }}>
-                  Agent &amp; Agency Name
-                </th>
-                <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px", minWidth: "160px" }}>
-                  Contact &amp; Phone
-                </th>
-                <th style={{ padding: "14px 14px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px" }}>
-                  District / Location
-                </th>
-                <th style={{ padding: "14px 14px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px", textAlign: "center" }}>
-                  Referred Candidates
-                </th>
-                <th style={{ padding: "14px 14px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px", textAlign: "center" }}>
-                  Status
-                </th>
-                <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px", textAlign: "right", width: "160px" }}>
-                  Actions
-                </th>
+              <tr>
+                {["SL", "Agent Code", "Agent & Agency Name", "Contact & Phone", "District / Location", "Referred Candidates", "Status", "Actions"].map((heading) => <th key={heading} scope="col">{heading}</th>)}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr>
-                  <td colSpan={8} style={{ padding: "40px", textAlign: "center", color: "var(--muted)" }}>
-                    Loading agent network...
-                  </td>
-                </tr>
+                <tr><td colSpan={8} className="channel-partner-empty">Loading agent network...</td></tr>
               ) : agentsList.length === 0 ? (
-                <tr>
-                  <td colSpan={8} style={{ padding: "40px", textAlign: "center", color: "var(--muted)" }}>
-                    No agent partners found matching your search.
-                  </td>
-                </tr>
-              ) : (
-                agentsList.map((agent: AgentItem, index: number) => {
-                  const isActive = agent.status === "Active";
-                  return (
-                    <tr
-                      key={agent.id}
-                      style={{
-                        borderBottom: "1px solid #f1f5f9",
-                        transition: "background 0.1s ease",
-                      }}
-                      className="hover:bg-slate-50"
-                    >
-                      <td style={{ padding: "14px 16px", color: "var(--muted)", fontWeight: 700 }}>
-                        {index + 1}
-                      </td>
-
-                      <td style={{ padding: "14px" }}>
-                        <span
-                          style={{
-                            fontFamily: "monospace",
-                            fontWeight: 800,
-                            color: "#7258e8",
-                            background: "#f0edff",
-                            padding: "3px 8px",
-                            borderRadius: "6px",
-                            fontSize: "11px",
-                          }}
-                        >
-                          {agent.code}
-                        </span>
-                      </td>
-
-                      <td style={{ padding: "14px 16px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                          <div
-                            style={{
-                              width: "36px",
-                              height: "36px",
-                              borderRadius: "10px",
-                              background: "#f0edff",
-                              color: "#7258e8",
-                              display: "grid",
-                              placeItems: "center",
-                              fontWeight: 800,
-                              fontSize: "13px",
-                              flexShrink: 0,
-                            }}
-                          >
-                            {agent.profileImageUrl ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={agent.profileImageUrl} alt={`${agent.name} profile`} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "10px" }} />
-                            ) : (
-                              agent.name.slice(0, 2).toUpperCase()
-                            )}
-                          </div>
-                          <div>
-                            <Link
-                              href={`/agent/${agent.id}`}
-                              style={{
-                                fontSize: "13px",
-                                fontWeight: 800,
-                                color: "var(--ink)",
-                                display: "block",
-                                textDecoration: "none",
-                              }}
-                              className="hover:text-indigo-600 hover:underline"
-                            >
-                              {agent.name}
-                            </Link>
-                            <span style={{ fontSize: "11px", color: "var(--muted)" }}>
-                              {agent.contactPerson !== "N/A" ? `Owner: ${agent.contactPerson}` : agent.address}
-                            </span>
-                          </div>
+                <tr><td colSpan={8} className="channel-partner-empty">No agent partners found matching your search.</td></tr>
+              ) : agentsList.map((agent: AgentItem, index: number) => {
+                const isActive = agent.status === "Active";
+                const tone = agent.code === "AGT-999" ? "blue" : agent.code === "AGT-105" ? "purple" : agent.code === "AGT-104" ? "orange" : agent.code === "AGT-103" ? "green" : ["blue", "purple", "orange", "green"][Number(agent.code.replace(/\D/g, "")) % 4 || 0];
+                return (
+                  <tr key={agent.id} className={`channel-partner-row tone-${tone}`}>
+                    <td className="channel-partner-serial">{(page - 1) * pageSize + index + 1}</td>
+                    <td><span className="channel-partner-code">{agent.code}</span></td>
+                    <td>
+                      <div className="channel-partner-identity">
+                        <div className="channel-partner-avatar">
+                          {agent.profileImageUrl && !unavailableImageUrls.includes(agent.profileImageUrl) ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={agent.profileImageUrl} onError={() => showImageFallback(agent.profileImageUrl!)} alt={`${agent.name} profile`} />
+                          ) : agent.name.slice(0, 2).toUpperCase()}
                         </div>
-                      </td>
-
-                      <td style={{ padding: "14px 16px" }}>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                          <a
-                            href={`tel:${agent.phone}`}
-                            style={{ color: "#0284c7", fontWeight: 700, fontSize: "12px", textDecoration: "none" }}
-                          >
-                            📞 {agent.phone}
-                          </a>
-                          {agent.email !== "N/A" && (
-                            <span style={{ fontSize: "11px", color: "var(--muted)" }}>{agent.email}</span>
-                          )}
-                          {agent.hasPortalAccess && (
-                            <span
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "3px",
-                                fontSize: "10px",
-                                fontWeight: 700,
-                                color: "#059669",
-                                background: "#ecfdf5",
-                                border: "1px solid #a7f3d0",
-                                padding: "1px 6px",
-                                borderRadius: "4px",
-                                width: "fit-content",
-                                marginTop: "2px",
-                              }}
-                            >
-                              🔑 Portal Active
-                            </span>
-                          )}
+                        <div>
+                          <Link href={`/agent/${agent.id}`}>{agent.name}</Link>
+                          <small>{agent.contactPerson !== "N/A" ? `Owner: ${agent.contactPerson}` : agent.address}</small>
                         </div>
-                      </td>
-
-                      <td style={{ padding: "14px", color: "var(--ink)", fontWeight: 600 }}>
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                          <MapPin size={13} color="#64748b" /> {agent.district || "Dhaka"}
-                        </span>
-                      </td>
-
-                      <td style={{ padding: "14px", textAlign: "center" }}>
-                        <Link
-                          href={`/agent/${agent.id}`}
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "5px",
-                            padding: "4px 10px",
-                            borderRadius: "9999px",
-                            background: agent.totalCandidates > 0 ? "#ecfdf5" : "#f1f5f9",
-                            color: agent.totalCandidates > 0 ? "#059669" : "var(--muted)",
-                            fontSize: "11px",
-                            fontWeight: 800,
-                            textDecoration: "none",
-                          }}
-                        >
-                          <Users size={12} /> {agent.totalCandidates} Candidates
-                        </Link>
-                      </td>
-
-                      <td style={{ padding: "14px", textAlign: "center" }}>
-                        <span
-                          style={{
-                            display: "inline-block",
-                            padding: "3px 9px",
-                            borderRadius: "6px",
-                            fontSize: "11px",
-                            fontWeight: 700,
-                            background: isActive ? "#ecfdf5" : "#fff1f2",
-                            color: isActive ? "#059669" : "#e11d48",
-                            border: isActive ? "1px solid #a7f3d0" : "1px solid #fecdd3",
-                          }}
-                        >
-                          {agent.status}
-                        </span>
-                      </td>
-
-                      <td style={{ padding: "14px 16px", textAlign: "right" }}>
-                        <div style={{ display: "inline-flex", gap: "6px", alignItems: "center" }}>
-                          <Link
-                            href={`/agent/${agent.id}`}
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px",
-                              padding: "6px 12px",
-                              borderRadius: "8px",
-                              background: "#f0edff",
-                              color: "#7258e8",
-                              border: "1px solid #dcd5fb",
-                              fontSize: "11px",
-                              fontWeight: 700,
-                              textDecoration: "none",
-                            }}
-                          >
-                            <Eye size={13} /> View Profile
-                          </Link>
-                          <Link
-                            href={`/portal/agent?agentId=${agent.id}`}
-                            title="Preview Agent Self-Service Portal"
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "3px",
-                              padding: "6px 9px",
-                              borderRadius: "8px",
-                              background: "#ecfdf5",
-                              color: "#059669",
-                              border: "1px solid #a7f3d0",
-                              fontSize: "11px",
-                              fontWeight: 700,
-                              textDecoration: "none",
-                            }}
-                          >
-                            <span>🔑</span> Portal
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteAgent(agent)}
-                            title="Delete Agent"
-                            style={{
-                              padding: "6px",
-                              borderRadius: "8px",
-                              background: "#fff1f2",
-                              color: "#e11d48",
-                              border: "1px solid #fecdd3",
-                              cursor: "pointer",
-                              display: "grid",
-                              placeItems: "center",
-                            }}
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="channel-partner-contact">
+                        <a href={`tel:${agent.phone}`}>{agent.phone}</a>
+                        {agent.email !== "N/A" && <small>{agent.email}</small>}
+                        {agent.hasPortalAccess && <span className="channel-partner-portal-status">Portal Active</span>}
+                      </div>
+                    </td>
+                    <td>
+                      <span className="channel-partner-district">
+                        <AgentsDesignIcon name={tone === "orange" ? "OrangeDot" : tone === "green" ? "GreenDot" : tone === "purple" ? "BlueDot" : "GrayDot"} />
+                        {agent.district || "Dhaka"}
+                      </span>
+                    </td>
+                    <td><Link href={`/agent/${agent.id}`} className={`channel-partner-referrals ${agent.totalCandidates > 0 ? "has-candidates" : ""}`}>{agent.totalCandidates} Candidates</Link></td>
+                    <td><span className={`channel-partner-status ${isActive ? "active" : "inactive"}`}>{agent.status}</span></td>
+                    <td>
+                      <div className="channel-partner-row-actions">
+                        <Link data-action-ui="secondary" data-action-size="compact" href={`/agent/${agent.id}`} className="channel-partner-profile">View Profile</Link>
+                        <Link data-action-ui="secondary" data-action-size="compact" href={`/portal/agent?agentId=${agent.id}`} title="Preview Agent Self-Service Portal" className="channel-partner-portal">Portal</Link>
+                        <button data-action-ui="danger" data-action-size="icon" type="button" onClick={() => handleDeleteAgent(agent)} title="Delete Agent" aria-label={`Delete ${agent.name}`}>
+                          <AgentsDesignIcon name="Trash" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
+        </div>
+
+        {/* Stitch Agents Mobile Stream */}
+        <div className="mobile-agents-stream">
+          {isLoading ? (
+            <div style={{ padding: "30px 16px", textAlign: "center", color: "var(--muted)", background: "#ffffff", borderRadius: "12px", border: "1px solid var(--line)" }}>
+              Loading agent network...
+            </div>
+          ) : agentsList.length === 0 ? (
+            <div style={{ padding: "30px 16px", textAlign: "center", color: "var(--muted)", background: "#ffffff", borderRadius: "12px", border: "1px solid var(--line)" }}>
+              No agent partners found matching your search.
+            </div>
+          ) : (
+            agentsList.map((agent: AgentItem) => {
+              const isActive = agent.status === "Active";
+              return (
+                <div key={agent.id} className="agent-mobile-card">
+                  {/* Top Bar: Code, Status, Delete action */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span
+                        style={{
+                          fontFamily: "monospace",
+                          fontWeight: 800,
+                          color: "#7258e8",
+                          background: "#f0edff",
+                          padding: "3px 8px",
+                          borderRadius: "6px",
+                          fontSize: "11px",
+                        }}
+                      >
+                        {agent.code}
+                      </span>
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          padding: "3px 8px",
+                          borderRadius: "6px",
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          background: isActive ? "#ecfdf5" : "#fff1f2",
+                          color: isActive ? "#059669" : "#e11d48",
+                          border: isActive ? "1px solid #a7f3d0" : "1px solid #fecdd3",
+                        }}
+                      >
+                        {isActive && <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#10b981" }} />}
+                        {agent.status}
+                      </span>
+                    </div>
+
+                    <button data-action-ui="danger" data-action-size="icon"
+                      type="button"
+                      onClick={() => handleDeleteAgent(agent)}
+                      title="Delete Agent"
+                      style={{
+                        width: "28px",
+                        height: "28px",
+                        borderRadius: "7px",
+                        background: "#fff1f2",
+                        color: "#e11d48",
+                        border: "1px solid #fecdd3",
+                        cursor: "pointer",
+                        display: "grid",
+                        placeItems: "center",
+                      }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+
+                  {/* Profile info: Avatar + Name + Owner */}
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
+                    <div
+                      style={{
+                        width: "40px",
+                        height: "40px",
+                        borderRadius: "10px",
+                        background: "#f0edff",
+                        color: "#7258e8",
+                        display: "grid",
+                        placeItems: "center",
+                        fontWeight: 800,
+                        fontSize: "13px",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {agent.profileImageUrl && !unavailableImageUrls.includes(agent.profileImageUrl) ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={agent.profileImageUrl} onError={() => showImageFallback(agent.profileImageUrl!)} alt={`${agent.name} profile`} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "10px" }} />
+                      ) : (
+                        agent.name.slice(0, 2).toUpperCase()
+                      )}
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <Link
+                        href={`/agent/${agent.id}`}
+                        style={{
+                          fontSize: "14px",
+                          fontWeight: 800,
+                          color: "var(--ink)",
+                          display: "block",
+                          textDecoration: "none",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        {agent.name}
+                      </Link>
+                      <span style={{ fontSize: "11px", color: "var(--muted)", display: "block" }}>
+                        {agent.contactPerson !== "N/A" ? `Owner: ${agent.contactPerson}` : agent.address}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Location & Referrals Metadata */}
+                  <div className="agent-mobile-meta-grid">
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "11.5px", color: "var(--ink)", fontWeight: 600 }}>
+                        <MapPin size={13} color="#64748b" /> {agent.district || "Dhaka"}
+                      </span>
+                      <Link
+                        href={`/agent/${agent.id}`}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          padding: "2px 8px",
+                          borderRadius: "999px",
+                          background: agent.totalCandidates > 0 ? "#ecfdf5" : "#f1f5f9",
+                          color: agent.totalCandidates > 0 ? "#059669" : "var(--muted)",
+                          fontSize: "10.5px",
+                          fontWeight: 800,
+                          textDecoration: "none",
+                        }}
+                      >
+                        <Users size={11} /> {agent.totalCandidates} Candidates
+                      </Link>
+                    </div>
+
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "1px dashed #e2e8f0", paddingTop: "6px" }}>
+                      <a
+                        href={`tel:${agent.phone}`}
+                        style={{ color: "#0284c7", fontWeight: 700, fontSize: "11.5px", textDecoration: "none" }}
+                      >
+                        📞 {agent.phone}
+                      </a>
+                      {agent.hasPortalAccess ? (
+                        <span style={{ fontSize: "10px", fontWeight: 700, color: "#059669", background: "#ecfdf5", border: "1px solid #a7f3d0", padding: "1px 6px", borderRadius: "4px" }}>
+                          🔑 Portal Active
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: "10px", color: "var(--muted)" }}>No Portal</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="agent-mobile-actions">
+                    <Link data-action-ui="secondary" data-action-size="normal"
+                      href={`/agent/${agent.id}`}
+                      style={{
+                        background: "#f0edff",
+                        color: "#7258e8",
+                        border: "1px solid #dcd5fb",
+                      }}
+                    >
+                      <Eye size={13} /> View Profile
+                    </Link>
+                    <Link data-action-ui="secondary" data-action-size="normal"
+                      href={`/portal/agent?agentId=${agent.id}`}
+                      style={{
+                        background: "#ecfdf5",
+                        color: "#059669",
+                        border: "1px solid #a7f3d0",
+                      }}
+                    >
+                      <span>🔑</span> Portal Login
+                    </Link>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+        <div className="country-design-pagination">
+          <span>{meta.total} Total Agents &amp; Channel Partners</span>
+          <div>
+            <button data-action-ui="neutral" data-action-size="normal" type="button" disabled={page <= 1} onClick={() => setPage(page - 1)}>← Previous</button>
+            <span className="country-design-page-indicator">Page {page} of {Math.max(1, meta.totalPages)}</span>
+            <button data-action-ui="neutral" data-action-size="normal" type="button" disabled={page >= meta.totalPages} onClick={() => setPage(page + 1)}>Next →</button>
+          </div>
         </div>
       </div>
 
       {/* 5. Create Agent Modal Dialog */}
       {showCreateModal && (
-        <div
+        <div role="dialog" aria-modal="true" aria-label="Create New Agent Partner" className="master-modal-overlay"
           style={{
             position: "fixed",
             inset: 0,
@@ -921,7 +661,7 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
             }
           }}
         >
-          <div
+          <div className="master-modal-card master-modal-inline-card master-modal-panel"
             style={{
               background: "#fff",
               borderRadius: "16px",
@@ -933,7 +673,7 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div
+            <div className="master-modal-header"
               style={{
                 display: "flex",
                 justifyContent: "space-between",
@@ -944,7 +684,7 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <div
+                <div className="master-modal-accent master-modal-icon"
                   style={{
                     width: "36px",
                     height: "36px",
@@ -966,7 +706,7 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
                   </p>
                 </div>
               </div>
-              <button
+              <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog" className="master-modal-close"
                 type="button"
                 onClick={() => {
                   setCreateImageFile(null);
@@ -1176,7 +916,7 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
                 </div>
 
                 {/* 🔐 AGENT PORTAL LOGIN CREDENTIALS */}
-                <div
+                <div className="master-modal-panel"
                   style={{
                     background: "linear-gradient(135deg, #f8f7ff 0%, #f5f3ff 100%)",
                     border: "1px solid #ddd6fe",
@@ -1200,7 +940,7 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
                         </span>
                       </div>
                     </div>
-                    <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "12px", fontWeight: 700, color: "#7258e8" }}>
+                    <label className="master-modal-accent" style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "12px", fontWeight: 700, color: "#7258e8" }}>
                       <input
                         type="checkbox"
                         name="enablePortalLogin"
@@ -1241,7 +981,7 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
                           <label style={{ fontSize: "11.5px", fontWeight: 700, color: "var(--ink)" }}>
                             Portal Password
                           </label>
-                          <button
+                          <button data-action-ui="secondary" data-action-size="normal" className="master-modal-accent"
                             type="button"
                             onClick={() => {
                               const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$";
@@ -1296,7 +1036,7 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
                   borderTop: "1px solid var(--line)",
                 }}
               >
-                <button
+                <button data-action-ui="neutral" data-action-size="normal"
                   type="button"
                   disabled={creating}
                   onClick={() => {
@@ -1316,7 +1056,7 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
                 >
                   Cancel
                 </button>
-                <button
+                <button data-action-ui="primary" data-action-size="normal" className="master-modal-primary"
                   type="submit"
                   disabled={creating}
                   style={{
@@ -1344,7 +1084,7 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
 
       {/* 6. Agent 360 Profile Modal / Drawer View */}
       {selectedAgentId && (
-        <div
+        <div role="dialog" aria-modal="true" aria-label="Dialog" className="master-modal-overlay"
           style={{
             position: "fixed",
             inset: 0,
@@ -1357,7 +1097,7 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
           }}
           onClick={() => setSelectedAgentId(null)}
         >
-          <div
+          <div className="master-modal-card master-modal-inline-card master-modal-panel"
             style={{
               background: "#fff",
               borderRadius: "18px",
@@ -1394,7 +1134,7 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
                   }}
                 >
                   <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
-                    <div
+                    <div className="master-modal-icon"
                       style={{
                         width: "56px",
                         height: "56px",
@@ -1421,7 +1161,7 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
                         <h2 style={{ fontSize: "19px", fontWeight: 800, color: "var(--ink)", margin: 0 }}>
                           {agentDetailQuery.data.name}
                         </h2>
-                        <span
+                        <span className="master-modal-accent"
                           style={{
                             fontFamily: "monospace",
                             fontWeight: 800,
@@ -1457,7 +1197,7 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
                     </div>
                   </div>
 
-                  <button
+                  <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog" className="master-modal-close"
                     type="button"
                     onClick={() => setSelectedAgentId(null)}
                     style={{
@@ -1484,27 +1224,27 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
                     background: "#fff",
                   }}
                 >
-                  <div style={{ padding: "10px 14px", borderRadius: "10px", background: "#f8fafc", border: "1px solid var(--line)" }}>
+                  <div className="master-modal-panel" style={{ padding: "10px 14px", borderRadius: "10px", background: "#f8fafc", border: "1px solid var(--line)" }}>
                     <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 700 }}>Total Referred Candidates</span>
                     <div style={{ fontSize: "18px", fontWeight: 800, color: "var(--ink)", marginTop: "2px" }}>
                       {agentDetailQuery.data.metrics.totalCandidates}
                     </div>
                   </div>
-                  <div style={{ padding: "10px 14px", borderRadius: "10px", background: "#f8fafc", border: "1px solid var(--line)" }}>
+                  <div className="master-modal-panel" style={{ padding: "10px 14px", borderRadius: "10px", background: "#f8fafc", border: "1px solid var(--line)" }}>
                     <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 700 }}>Active in Pipeline</span>
                     <div style={{ fontSize: "18px", fontWeight: 800, color: "#d97706", marginTop: "2px" }}>
                       {agentDetailQuery.data.metrics.activeDossiers}
                     </div>
                   </div>
-                  <div style={{ padding: "10px 14px", borderRadius: "10px", background: "#f8fafc", border: "1px solid var(--line)" }}>
+                  <div className="master-modal-panel" style={{ padding: "10px 14px", borderRadius: "10px", background: "#f8fafc", border: "1px solid var(--line)" }}>
                     <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 700 }}>Visa Done / Flown</span>
                     <div style={{ fontSize: "18px", fontWeight: 800, color: "#059669", marginTop: "2px" }}>
                       {agentDetailQuery.data.metrics.completedFlights + agentDetailQuery.data.metrics.visaStamped}
                     </div>
                   </div>
-                  <div style={{ padding: "10px 14px", borderRadius: "10px", background: "#f8fafc", border: "1px solid var(--line)" }}>
+                  <div className="master-modal-panel" style={{ padding: "10px 14px", borderRadius: "10px", background: "#f8fafc", border: "1px solid var(--line)" }}>
                     <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 700 }}>Total Payments Received</span>
-                    <div style={{ fontSize: "18px", fontWeight: 800, color: "#7258e8", marginTop: "2px" }}>
+                    <div className="master-modal-accent" style={{ fontSize: "18px", fontWeight: 800, color: "#7258e8", marginTop: "2px" }}>
                       ৳ {agentDetailQuery.data.metrics.totalPaymentsReceived.toLocaleString()} BDT
                     </div>
                   </div>
@@ -1512,7 +1252,7 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
 
                 {/* Profile Tabs Navigation */}
                 <div style={{ display: "flex", gap: "10px", padding: "12px 24px 0", borderBottom: "1px solid var(--line)", background: "#fafafa" }}>
-                  <button
+                  <button data-action-ui="secondary" data-action-size="normal"
                     type="button"
                     onClick={() => setActiveProfileTab("candidates")}
                     style={{
@@ -1531,7 +1271,7 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
                   >
                     <Users size={15} /> Referred Candidates ({agentDetailQuery.data.candidates.length})
                   </button>
-                  <button
+                  <button data-action-ui="danger" data-action-size="normal"
                     type="button"
                     onClick={() => {
                       setEditImageFile(null);
@@ -1561,7 +1301,7 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
                   {activeProfileTab === "candidates" ? (
                     <div>
                       {agentDetailQuery.data.candidates.length === 0 ? (
-                        <div style={{ padding: "40px", textAlign: "center", color: "var(--muted)", background: "#f8fafc", borderRadius: "12px" }}>
+                        <div className="master-modal-panel" style={{ padding: "40px", textAlign: "center", color: "var(--muted)", background: "#f8fafc", borderRadius: "12px" }}>
                           <Users size={32} style={{ margin: "0 auto 10px", color: "#cbd5e1" }} />
                           <h4 style={{ margin: "0 0 4px", fontSize: "14px", fontWeight: 700, color: "var(--ink)" }}>
                             No Candidate Files Referred Yet
@@ -1598,7 +1338,7 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
                                     <span style={{ fontSize: "11px", color: "var(--muted)", display: "block" }}>🌍 {cand.country}</span>
                                   </td>
                                   <td style={{ padding: "12px 14px" }}>
-                                    <span style={{ padding: "3px 8px", borderRadius: "6px", background: "#f0edff", color: "#7258e8", fontWeight: 700, fontSize: "11px" }}>
+                                    <span className="master-modal-accent" style={{ padding: "3px 8px", borderRadius: "6px", background: "#f0edff", color: "#7258e8", fontWeight: 700, fontSize: "11px" }}>
                                       {cand.currentStage}
                                     </span>
                                   </td>
@@ -1606,7 +1346,7 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
                                     ৳ {cand.totalPaid.toLocaleString()} BDT
                                   </td>
                                   <td style={{ padding: "12px 14px", textAlign: "right" }}>
-                                    <Link
+                                    <Link data-action-ui="secondary" data-action-size="compact"
                                       href={`/file/${cand.fileId}`}
                                       style={{
                                         display: "inline-flex",
@@ -1809,7 +1549,7 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
                       </div>
 
                       {/* 🔐 AGENT PORTAL SELF-SERVICE LOGIN */}
-                      <div
+                      <div className="master-modal-panel"
                         style={{
                           background: "linear-gradient(135deg, #f8f7ff 0%, #f5f3ff 100%)",
                           border: "1px solid #ddd6fe",
@@ -1833,7 +1573,7 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
                               </span>
                             </div>
                           </div>
-                          <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "12px", fontWeight: 700, color: "#7258e8" }}>
+                          <label className="master-modal-accent" style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "12px", fontWeight: 700, color: "#7258e8" }}>
                             <input
                               type="checkbox"
                               name="enablePortalLogin"
@@ -1875,7 +1615,7 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
                                 <label style={{ fontSize: "11.5px", fontWeight: 700, color: "var(--ink)" }}>
                                   Reset Password
                                 </label>
-                                <button
+                                <button data-action-ui="secondary" data-action-size="normal" className="master-modal-accent"
                                   type="button"
                                   onClick={() => {
                                     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$";
@@ -1921,7 +1661,7 @@ export function AgentsPage({ initialData }: { initialData?: any } = {}) {
                       </div>
 
                       <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "20px" }}>
-                        <button
+                        <button data-action-ui="primary" data-action-size="normal" className="master-modal-primary"
                           type="submit"
                           disabled={updatingAgent}
                           style={{

@@ -1,22 +1,22 @@
 "use client";
 
 import {
-  Bell,
   Building2,
   ChevronDown,
   Command,
-  Database,
+  FileText,
   Globe,
-  Headphones,
+  Layers,
   LogOut,
   Menu,
+  MoreHorizontal,
   Search,
-  Settings,
   ShieldCheck,
   Users,
   X,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { moduleItemPath, moduleItemSlug, modules } from "@/lib/modules";
@@ -27,6 +27,7 @@ import { NavigationPending } from "@/components/layout/navigation-pending";
 import { countriesQueryOptions } from "@/lib/queries/countries";
 import { getCountryFlagEmoji } from "@/lib/country-pipeline";
 
+import { DashboardIcon, DashboardBrandMark, type DashboardIconName } from "@/components/layout/dashboard-icon";
 import { meQueryOptions } from "@/lib/queries/me";
 type SearchResult = {
   id: string;
@@ -39,6 +40,7 @@ type SearchResult = {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [moduleQuery, setModuleQuery] = useState("");
   const [globalQuery, setGlobalQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -60,6 +62,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   });
   const { data: dbCountries = [] } = useQuery(countriesQueryOptions());
   const path = usePathname();
+  const isDesignDashboard = path === "/dashboard";
+  const dashboardNavIcons: Record<string, DashboardIconName> = {
+    dashboard: "LayoutDashboard", "call-center": "Users", "office-vendor": "Handshake",
+    agents: "Contact", "payment-collection": "Wallet", document: "Files",
+    "country-setup": "Globe", tutorials: "GraduationCap",
+  };
   const isPortalRoute = path.startsWith("/portal");
   const routeParts = path.split("/").filter(Boolean);
   const selectedModule = routeParts[0] === "module" ? routeParts[1] : null;
@@ -195,7 +203,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (isPortalRoute) {
     return (
-      <div
+      <div className="agent-portal-shell"
         style={{
           minHeight: "100vh",
           background: "#f8fafc",
@@ -203,7 +211,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           flexDirection: "column",
         }}
       >
-        <header
+        <header className="portal-shell-header"
           style={{
             background: "#ffffff",
             borderBottom: "1px solid var(--line)",
@@ -230,12 +238,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 overflow: "hidden",
               }}
             >
-              <img
+              <Image
                 src="/logo.png"
                 alt="Logo"
                 width={32}
                 height={32}
                 style={{ objectFit: "contain" }}
+                priority
+                unoptimized
               />
             </div>
             <div>
@@ -253,7 +263,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 style={{
                   fontSize: "10.5px",
                   fontWeight: 800,
-                  color: "#7258e8",
+                  color: "#007aff",
                   textTransform: "uppercase",
                   letterSpacing: "0.05em",
                 }}
@@ -315,7 +325,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </div>
             </div>
 
-            <button
+            <button data-action-ui="neutral" data-action-size="normal"
               type="button"
               onClick={logout}
               title="Logout from Portal"
@@ -346,7 +356,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell home-sidebar-shell ${isDesignDashboard ? "figma-dashboard-shell" : ""}`}>
       {open && (
         <div className="sidebar-backdrop" onClick={() => setOpen(false)} />
       )}
@@ -361,24 +371,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               overflow: "hidden",
             }}
           >
-            <img
-              src="/logo.png"
-              alt="Logo"
-              width={28}
-              height={28}
-              style={{ objectFit: "contain" }}
-            />
+            <DashboardBrandMark />
           </span>
           <span>
-            <b>StoreRepublic</b>
+            <b>ORBIT</b>
             <small>Requirements PANEL</small>
           </span>
-          <button className="icon mobile" onClick={() => setOpen(false)}>
+          <button className="icon mobile" aria-label="Close navigation menu" onClick={() => setOpen(false)}>
             <X size={20} />
           </button>
         </div>
         <div className="side-search">
-          <Search size={16} />
+          <DashboardIcon name="Search" />
           <input
             value={moduleQuery}
             onChange={(event) => setModuleQuery(event.target.value)}
@@ -394,12 +398,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               ) : profileQuery.data?.data === null ? (
                 <p role="alert">
                   Your session has expired.{" "}
-                  <Link href="/login">Sign in again</Link>
+                  <Link data-action-ui="primary" data-action-size="normal" href="/login">Sign in again</Link>
                 </p>
               ) : (
                 <div role="alert">
                   <p>Unable to load navigation.</p>
-                  <button
+                  <button data-action-ui="neutral" data-action-size="normal"
                     type="button"
                     disabled={profileQuery.isFetching}
                     onClick={() => void profileQuery.refetch()}
@@ -417,15 +421,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 : selectedModule === module.id;
             const expanded =
               expandedModule === module.id || Boolean(moduleQuery);
-            const accent = ["#5ca8ec", "#f7bd23", "#8368ef", "#4fd3a1"][
-              index % 4
-            ];
+            const accent = ["#5ca8ec", "#f7bd23", "#8368ef", "#4fd3a1"][index % 4];
+            const navSection = (item: typeof module) => item.id === "dashboard" || item.id === "call-center" ? "RECRUITMENT" : (item as any).isCountry ? "COUNTRIES" : ["payment-collection", "document"].includes(item.id) ? "OPERATIONS" : ["country-setup", "tutorials"].includes(item.id) ? "ADMINISTRATION" : "COUNTRIES";
+            const sectionHeading = (index === 0 || navSection(module) !== navSection(visible[index - 1])) ? navSection(module) : undefined;
 
             if (module.id === "dashboard") {
               return (
                 <div
                   className="nav-group"
                   key={module.id}
+                  data-module={module.id}
+                  data-section={sectionHeading}
                   style={{ "--nav-accent": accent } as React.CSSProperties}
                 >
                   <Link
@@ -435,7 +441,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     className={`nav-main dashboard-link ${activeModule ? "active" : ""}`}
                   >
                     <span className="nav-icon">
-                      <module.icon size={19} />
+                      {dashboardNavIcons[module.id] ? <DashboardIcon name={dashboardNavIcons[module.id]} /> : <module.icon size={19} />}
                     </span>
                     <span>{module.label}</span>
                     <NavigationPending />
@@ -471,6 +477,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <div
                   className="nav-group"
                   key={module.id}
+                  data-module={module.id}
+                  data-section={sectionHeading}
                   style={{ "--nav-accent": accent } as React.CSSProperties}
                 >
                   <Link
@@ -489,24 +497,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   >
                     <span className="nav-main-content">
                       <span
-                        className="nav-icon"
-                        style={
-                          (module as any).flag
-                            ? {
-                                fontSize: "17px",
-                                lineHeight: 1,
-                                display: "inline-flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                              }
-                            : undefined
-                        }
+                        className={`nav-icon ${(module as any).isCountry ? "nav-country-icon" : ""}`}
+                        aria-hidden="true"
                       >
                         {(module as any).flag ? (
-                          (module as any).flag
-                        ) : (
-                          <module.icon size={19} />
-                        )}
+                          (module as any).flag === "🌐" ? <DashboardIcon name="Globe" /> : (module as any).flag
+                        ) : dashboardNavIcons[module.id] ? <DashboardIcon name={dashboardNavIcons[module.id]} /> : <module.icon size={19} />}
+
                       </span>
                       <span>{module.label}</span>
                     </span>
@@ -523,6 +520,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <div
                 className={`nav-group ${expanded ? "expanded" : ""}`}
                 key={module.id}
+                data-module={module.id}
+                data-section={sectionHeading}
                 style={{ "--nav-accent": accent } as React.CSSProperties}
               >
                 <button
@@ -536,27 +535,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   }
                 >
                   <span
-                    className="nav-icon"
-                    style={
-                      (module as any).flag
-                        ? {
-                            fontSize: "17px",
-                            lineHeight: 1,
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }
-                        : undefined
-                    }
+                    className={`nav-icon ${(module as any).isCountry ? "nav-country-icon" : ""}`}
+                    aria-hidden="true"
                   >
                     {(module as any).flag ? (
-                      (module as any).flag
-                    ) : (
-                      <module.icon size={19} />
-                    )}
+                      (module as any).flag === "🌐" ? <DashboardIcon name="Globe" /> : (module as any).flag
+                    ) : dashboardNavIcons[module.id] ? <DashboardIcon name={dashboardNavIcons[module.id]} /> : <module.icon size={19} />}
+
                   </span>
                   <span>{module.label}</span>
-                  <ChevronDown className="nav-chevron" size={16} />
+                  <DashboardIcon name="ChevronDown" className="nav-chevron" />
                 </button>
                 <div className="nav-children">
                   {module.items.map((item) => {
@@ -594,6 +582,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <>
               <div
                 className="nav-group"
+                data-module="candidate-options"
                 style={{ "--nav-accent": "#8368ef" } as React.CSSProperties}
               >
                 <Link
@@ -608,7 +597,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 >
                   <span className="nav-main-content">
                     <span className="nav-icon">
-                      <Database size={19} />
+                      <DashboardIcon name="Database" />
                     </span>
                     <span>Candidate Form Options</span>
                   </span>
@@ -618,6 +607,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
               <div
                 className="nav-group"
+                data-module="permissions"
                 style={{ "--nav-accent": "#8368ef" } as React.CSSProperties}
               >
                 <Link
@@ -643,7 +633,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     }}
                   >
                     <span className="nav-icon">
-                      <ShieldCheck size={19} />
+                      <DashboardIcon name="ShieldCheck" />
                     </span>
                     <span
                       style={{
@@ -681,32 +671,68 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
         <div className="sidebar-foot">
           <div className="support-card">
-            <div className="pulse-dot" />
+            <DashboardIcon name="ConnectionIndicator" className="pulse-dot" />
             <b>Office Online</b>
-            <span>Call Center Active</span>
+            <span>Control Center Active</span>
           </div>
         </div>
       </aside>
 
       <div className="main">
-        <header>
-          <button className="icon menu-button" onClick={() => setOpen(true)}>
-            <Menu />
+        <header className="app-header">
+          <button className="icon menu-button" aria-label="Open navigation menu" onClick={() => setOpen(true)}>
+            <Menu size={22} />
           </button>
           <Link className="mobile-header-brand" href="/dashboard">
-            <b>ORBIT</b>
-            <small>OFFICE PANEL</small>
+            <span
+              className="brand-mark mobile-brand-icon"
+              style={{
+                display: "grid",
+                placeItems: "center",
+                background: "transparent",
+                overflow: "hidden",
+              }}
+            >
+              <Image
+                src="/logo.png"
+                alt="Logo"
+                width={26}
+                height={26}
+                style={{ objectFit: "contain" }}
+                priority
+                unoptimized
+              />
+            </span>
+            <div className="mobile-brand-text">
+              <b className="mobile-brand-title">ORBIT</b>
+              <small className="mobile-brand-sub">Requirements PANEL</small>
+            </div>
           </Link>
-          <div className="global-search">
-            <Search size={18} />
+          <div className={`global-search ${mobileSearchOpen ? "mobile-search-active" : ""}`}>
+            <DashboardIcon name="Search" />
             <input
               value={globalQuery}
               onChange={(event) => setGlobalQuery(event.target.value)}
               placeholder="Search candidate, phone, lead..."
+              autoFocus={mobileSearchOpen}
             />
-            <span>
+            <span className="search-shortcut">
               <Command size={13} /> K
             </span>
+            {mobileSearchOpen && (
+              <button
+                type="button"
+                className="mobile-search-close"
+                aria-label="Close search"
+                onClick={() => {
+                  setMobileSearchOpen(false);
+                  setGlobalQuery("");
+                  setResults([]);
+                }}
+              >
+                <X size={18} />
+              </button>
+            )}
             {results.length > 0 && (
               <div className="search-results">
                 {results.map((result) => (
@@ -716,6 +742,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     onClick={() => {
                       setResults([]);
                       setGlobalQuery("");
+                      setMobileSearchOpen(false);
                     }}
                   >
                     <b>
@@ -731,15 +758,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )}
           </div>
           <div className="header-actions">
-            <button className="icon">
-              <Settings size={19} />
+            <button className="icon dashboard-header-search" aria-label="Focus candidate search" onClick={() => document.querySelector<HTMLInputElement>(".global-search input")?.focus()}><DashboardIcon name="Search1" /></button>
+            <button
+              className="icon mobile-search-btn"
+              aria-label="Toggle search"
+              onClick={() => setMobileSearchOpen((prev) => !prev)}
+            >
+              <Search size={20} />
             </button>
-            <button className="icon notification">
-              <Bell size={19} />
+            <button className="icon desktop-only-action" aria-label="Settings">
+              <DashboardIcon name="Settings" />
+            </button>
+            <button className="icon notification" aria-label="Notifications">
+              <DashboardIcon name="Bell" />
               {Boolean(profile?.unreadNotifications) && (
                 <i>{profile?.unreadNotifications}</i>
               )}
             </button>
+            <span className="header-divider" aria-hidden="true" />
             <div className="profile">
               <div className="avatar">{initials}</div>
               <span>
@@ -749,14 +785,53 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     (profileQuery.isPending ? "Loading…" : "Unavailable")}
                 </small>
               </span>
-              <ChevronDown size={16} />
+              <DashboardIcon name="ChevronDown" />
             </div>
-            <button className="icon" title="Logout" onClick={logout}>
-              <LogOut size={18} />
+            <button data-action-ui="neutral" data-action-size="icon" className="icon logout-btn" title="Logout" aria-label="Logout" onClick={logout}>
+              <DashboardIcon name="LogOut" />
             </button>
           </div>
         </header>
         <main>{children}</main>
+        <nav className="mobile-bottom-nav" aria-label="Mobile navigation">
+          <Link
+            href="/dashboard"
+            className={`mobile-tab-item ${path === "/dashboard" ? "active" : ""}`}
+          >
+            <Layers size={21} />
+            <span>Pipelines</span>
+          </Link>
+          <Link
+            href="/candidates"
+            className={`mobile-tab-item ${path.startsWith("/candidate") ? "active" : ""}`}
+          >
+            <Users size={21} />
+            <span>Candidates</span>
+          </Link>
+          <Link
+            href="/module/country-setup"
+            className={`mobile-tab-item ${path.startsWith("/module/country-setup") || path.startsWith("/country-pipeline") || path.startsWith("/module/ksa") ? "active" : ""}`}
+          >
+            <Globe size={21} />
+            <span>Routing</span>
+          </Link>
+          <Link
+            href="/demands"
+            className={`mobile-tab-item ${path.startsWith("/demands") || path.startsWith("/payments") ? "active" : ""}`}
+          >
+            <FileText size={21} />
+            <span>Demands</span>
+          </Link>
+          <button
+            type="button"
+            className={`mobile-tab-item ${open ? "active" : ""}`}
+            onClick={() => setOpen(true)}
+            aria-label="Open full menu"
+          >
+            <MoreHorizontal size={21} />
+            <span>More</span>
+          </button>
+        </nav>
       </div>
     </div>
   );

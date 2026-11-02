@@ -18,5 +18,5 @@ export function FileTransition({ fileId, currentStage, stages }: { fileId: strin
     if (!response.ok) { toast.error(body.error?.message ?? body.error ?? "Unable to advance file"); return; }
     toast.success(`File moved to ${next}`); router.refresh();
   }
-  return <div className="transition-box"><div><span>CURRENT STAGE</span><b>{currentStage}</b></div><div className="transition-arrow">→</div><div><span>NEXT ALLOWED STAGE</span><b>{next || "Workflow complete"}</b></div><input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Mandatory transition reason" /><button className="button primary" onClick={advance} disabled={!next || saving}>{saving ? "Updating..." : next ? "Advance file" : "Completed"}</button></div>;
+  return <div className="transition-box"><div><span>CURRENT STAGE</span><b>{currentStage}</b></div><div className="transition-arrow">→</div><div><span>NEXT ALLOWED STAGE</span><b>{next || "Workflow complete"}</b></div><input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Mandatory transition reason" /><button data-action-ui="primary" data-action-size="normal" className="button primary" onClick={advance} disabled={!next || saving}>{saving ? "Updating..." : next ? "Advance file" : "Completed"}</button></div>;
 }

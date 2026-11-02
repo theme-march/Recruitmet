@@ -41,7 +41,8 @@ export async function recordDeposit(raw: unknown, key: string, session: Session)
       const previous = await tx.payment.findUnique({ where: { idempotencyKey: identity.idempotencyKey } });
       if (previous) return replay(previous);
       const current = await tx.processingFile.findUniqueOrThrow({ where: { id: file.id } });
-      if (["COMPLETED", "RETURNED", "EXPIRED"].includes(current.status)) {
+      // Flight completion does not close the receivables ledger.
+      if (["RETURNED", "EXPIRED", "ARCHIVED"].includes(current.status)) {
         throw new AppError("TERMINAL_FILE", "Financial updates are not allowed on this terminal file.", 409);
       }
       const number = randomUUID().replaceAll("-", "").toUpperCase();
@@ -60,7 +61,7 @@ export async function recordDeposit(raw: unknown, key: string, session: Session)
         url: input.voucher,
       } });
       await tx.processingFile.update({ where: { id: file.id }, data: {
-        updatedAt: new Date(), ...(input.nextStage ? { currentStage: input.nextStage, status: "ACTIVE" } : {}),
+        updatedAt: new Date(), ...(input.nextStage && current.status !== "COMPLETED" ? { currentStage: input.nextStage, status: "ACTIVE" } : {}),
       } });
       await tx.activityLog.create({ data: { userId: session.userId, module: "Accounts", recordId: payment.id, action: "PAYMENT_COLLECTED", summary: `${input.currency} ${input.amount} collected` } });
       await tx.auditLog.create({ data: { userId: session.userId, role: session.user.role.name, module: "Accounts", recordId: payment.id, action: "PAYMENT_COLLECTED", newValue: { paymentNo: payment.paymentNo, amount: input.amount, currency: input.currency }, correlationId: randomUUID() } });

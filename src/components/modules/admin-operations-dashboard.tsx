@@ -183,9 +183,9 @@ export function AdminOperationsDashboard({
         </div>
         <div className="admin-head-actions">
           <Link href="/module/call-center/officer-dashboard">
-            Call center overview
+            Office Operations overview
           </Link>
-          <Link className="primary" href="/module/call-center/work-call-list">
+          <Link data-action-ui="primary" data-action-size="normal" className="primary" href="/module/call-center/work-call-list">
             Review leads
           </Link>
         </div>
@@ -235,7 +235,7 @@ export function AdminOperationsDashboard({
             <div>
               <h2>Candidates awaiting file opening</h2>
               <p>
-                Created by Call Center conversion or registration; Admin starts
+                Created by Office Operations conversion or registration; Admin starts
                 country processing.
               </p>
             </div>
@@ -272,7 +272,7 @@ export function AdminOperationsDashboard({
                     <td>{candidate.profession ?? "Not selected"}</td>
                     <td>{candidate.source ?? "Direct"}</td>
                     <td>
-                      <button
+                      <button data-action-ui="secondary" data-action-size="compact"
                         onClick={() => {
                           setSelected(candidate);
                           setNotice(null);
@@ -359,7 +359,7 @@ export function AdminOperationsDashboard({
       </section>
       {selected && (
         <div
-          className="operations-modal"
+          className="operations-modal master-modal-overlay"
           role="dialog"
           aria-modal="true"
           aria-label="Open processing file"
@@ -369,8 +369,8 @@ export function AdminOperationsDashboard({
             onClick={() => setSelected(null)}
             aria-label="Close"
           />
-          <form onSubmit={submit}>
-            <header>
+          <form className="master-modal-card master-modal-inline-card" onSubmit={submit}>
+            <header className="master-modal-header">
               <div>
                 <span>OPEN COUNTRY FILE</span>
                 <h2>{selected.name}</h2>
@@ -378,7 +378,7 @@ export function AdminOperationsDashboard({
                   {selected.candidateNo} · {selected.phone}
                 </p>
               </div>
-              <button type="button" onClick={() => setSelected(null)}>
+              <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog" className="master-modal-close" type="button" onClick={() => setSelected(null)}>
                 ×
               </button>
             </header>
@@ -437,11 +437,11 @@ export function AdminOperationsDashboard({
                 />
               </label>
             </div>
-            <footer>
-              <button type="button" onClick={() => setSelected(null)}>
+            <footer className="master-modal-footer">
+              <button data-action-ui="neutral" data-action-size="normal" type="button" onClick={() => setSelected(null)}>
                 Cancel
               </button>
-              <button className="primary" disabled={saving}>
+              <button data-action-ui="primary" data-action-size="normal" className="primary master-modal-primary" disabled={saving}>
                 <BriefcaseBusiness size={16} />
                 {saving ? "Opening…" : "Open processing file"}
               </button>

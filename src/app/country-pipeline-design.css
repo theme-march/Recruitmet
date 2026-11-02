@@ -1,0 +1,97 @@
+/* Country workflow setup shares the candidate master list's design language. */
+.country-pipeline-design-page { --purple: #007aff; max-width: 1600px; }
+.country-pipeline-title-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.country-pipeline-code, .country-pipeline-status { padding: 4px 8px; border-radius: 8px; font-size: 10px; line-height: 12px; font-weight: 600; white-space: nowrap; }
+.country-pipeline-code { background: #eaf2ff; color: #007aff; }
+.country-pipeline-status.active { background: #e5f8eb; color: #34c759; }
+.country-pipeline-status.inactive { background: #fff2f0; color: #ff3b30; }
+.country-pipeline-design-page .country-pipeline-heading { flex-wrap: wrap; }
+.country-pipeline-heading > div:first-child { flex: 1 1 650px; }
+.country-pipeline-design-page .country-pipeline-actions { flex-wrap: wrap; }
+.country-pipeline-actions a, .country-pipeline-design-page .country-bottom-bar a { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 34px; padding: 0 14px; border: 0; border-radius: 17px; background: #ebebed; color: #1d1d1f; font-size: 12px; font-weight: 500; text-decoration: none; white-space: nowrap; }
+.country-pipeline-design-page .country-pipeline-primary, .country-pipeline-design-page .country-design-actions .country-pipeline-primary { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 34px; padding: 0 14px; border: 0; border-radius: 17px; background: #007aff; color: white; font-size: 12px; font-weight: 600; white-space: nowrap; cursor: pointer; box-shadow: none; }
+.country-pipeline-design-page .country-pipeline-primary:disabled { opacity: .5; cursor: not-allowed; }
+.country-pipeline-design-page .country-pipeline-metrics { grid-template-columns: repeat(4,minmax(0,1fr)); }
+.country-pipeline-design-page .country-pipeline-text-metric > b { font-size: 22px; line-height: 39px; max-width: 100%; overflow-wrap: anywhere; }
+.country-pipeline-blue { color: #007aff; }
+.country-pipeline-purple { color: #5856d6; }
+.country-pipeline-green { color: #34c759; }
+.country-pipeline-orange { color: #ff9500; }
+.country-pipeline-design-page .country-pipeline-panel { padding: 20px; border: 1px solid #e5e5ea; border-radius: 18px; background: white; color: #1d1d1f; box-shadow: none; min-width: 0; }
+.country-pipeline-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.country-pipeline-design-page .country-pipeline-panel-heading h2 { margin: 0; font-size: 15px; line-height: 20px; color: #1d1d1f; font-weight: 700; }
+.country-pipeline-panel-heading p { margin: 5px 0 0; color: #6b6b73; font-size: 12px; line-height: 17px; }
+.country-pipeline-badge { display: inline-flex; align-items: center; padding: 4px 8px; border-radius: 8px; background: #eaf2ff; color: #007aff; font-size: 10px; line-height: 12px; font-weight: 600; white-space: nowrap; }
+.country-pipeline-design-page .country-template-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; }
+.country-template-card { display: flex; flex-direction: column; gap: 12px; padding: 18px; min-width: 0; border: 1px solid #e5e5ea; border-radius: 14px; background: white; color: #1d1d1f; text-align: left; cursor: pointer; }
+.country-template-card.selected { background: #eaf2ff; border-color: #007aff; }
+.country-template-card:hover { border-color: #007aff; }
+.country-template-title { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.country-template-title strong { font-size: 13px; line-height: 18px; font-weight: 600; }
+.country-template-card.selected strong { color: #007aff; }
+.country-template-active { padding: 3px 8px; border-radius: 6px; background: #007aff; color: white; font-size: 10px; line-height: 12px; font-weight: 600; }
+.country-template-card p { margin: 0; color: #6b6b73; font-size: 12px; line-height: 18px; }
+.country-pipeline-sequence { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; max-width: 100%; overscroll-behavior-x: contain; }
+.country-pipeline-sequence-step { display: flex; align-items: center; gap: 8px; flex-shrink: 0; padding: 10px 14px; border-radius: 10px; background: #eaf2ff; color: #007aff; }
+.country-pipeline-step-number { display: grid; place-items: center; width: 22px; height: 22px; flex-shrink: 0; border-radius: 11px; background: #007aff; color: white; font-size: 11px; font-weight: 600; }
+.country-pipeline-sequence-step strong { color: #1d1d1f; font-size: 12px; line-height: 16px; font-weight: 600; }
+.country-pipeline-stage-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.country-pipeline-enabled, .country-pipeline-disabled { font-size: 11px; line-height: 15px; font-weight: 500; white-space: nowrap; }
+.country-pipeline-enabled { color: #34c759; }
+.country-pipeline-disabled { color: #8e8e93; }
+.country-pipeline-design-page .country-stage-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(280px,1fr)); gap: 12px; }
+.country-pipeline-design-page .country-stage-card { display: flex; flex-direction: column; gap: 12px; padding: 16px; min-width: 0; border: 1px solid #e5e5ea; border-radius: 14px; background: white; box-shadow: none; }
+.country-pipeline-design-page .country-stage-card.disabled { background: #fafafb; }
+.country-stage-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.country-stage-identity { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.country-stage-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: #eaf2ff; color: #007aff; flex-shrink: 0; }
+.country-stage-card.disabled .country-stage-icon { background: #ebebed; color: #8e8e93; }
+.country-stage-title { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.country-pipeline-design-page .country-stage-title h3 { margin: 0; color: #1d1d1f; font-size: 13px; line-height: 18px; font-weight: 600; }
+.country-stage-title .country-pipeline-badge { font-size: 9px; padding: 2px 5px; }
+.country-stage-identity small { display: block; margin-top: 2px; color: #8e8e93; font-size: 10px; line-height: 14px; }
+.country-stage-required, .country-stage-toggle { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; padding: 4px 8px; border: 0; border-radius: 8px; font-size: 10px; line-height: 12px; font-weight: 600; }
+.country-stage-required { background: #fff3e0; color: #ff9500; }
+.country-stage-toggle { background: #ebebed; color: #8e8e93; cursor: pointer; }
+.country-stage-toggle[aria-pressed=true] { background: #e5f8eb; color: #34c759; }
+.country-stage-card > p { margin: 0; color: #6b6b73; font-size: 12px; line-height: 18px; }
+.country-stage-field-count { align-self: flex-start; white-space: normal; }
+.country-stage-card-footer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; padding-top: 12px; margin-top: auto; border-top: 1px solid #e5e5ea; }
+.country-stage-reorder, .country-stage-edit-actions { display: flex; align-items: center; gap: 6px; }
+.country-stage-reorder button { display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 6px; background: #ebebed; color: #1d1d1f; cursor: pointer; }
+.country-stage-reorder button:disabled { opacity: .4; cursor: not-allowed; }
+.country-stage-reorder span { margin-left: 2px; color: #8e8e93; font-size: 10px; }
+.country-stage-edit-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 26px; padding: 0 8px; border: 0; border-radius: 8px; background: #eaf2ff; color: #007aff; font-size: 10px; font-weight: 600; cursor: pointer; }
+.country-stage-edit-actions .country-stage-delete { background: #fff2f0; color: #ff3b30; }
+.country-pipeline-design-page .country-bottom-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 20px; background: #ebebed; border: 1px solid #e5e5ea; border-radius: 18px; box-shadow: none; }
+.country-pipeline-design-page .country-modal-card { font-family: inherit; color: #1d1d1f; }
+.country-pipeline-design-page :is(button,a,input,select,textarea,[tabindex]):focus-visible { outline: 2px solid #007aff; outline-offset: 2px; }
+@media (max-width:1200px) {
+  .country-pipeline-design-page .country-pipeline-heading > div:first-child { flex-basis: 100%; }
+  .country-pipeline-design-page .country-template-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .country-pipeline-design-page .country-pipeline-text-metric > b { font-size: 18px; }
+}
+@media (max-width:768px) {
+  .main main .country-pipeline-design-page { padding: 0 !important; gap: 16px !important; }
+  .main main .country-pipeline-design-page .country-pipeline-heading { align-items: stretch !important; flex-direction: column !important; }
+  .main main .country-pipeline-design-page .country-pipeline-heading > div:first-child { flex: 0 1 auto; }
+  .main main .country-pipeline-design-page .country-pipeline-actions { margin: 0; display: flex; align-items: center; justify-content: flex-start; gap: 8px; }
+  .main main .country-pipeline-design-page .country-pipeline-actions :is(button,a) { width: auto !important; height: 34px !important; min-height: 34px !important; padding: 0 12px !important; border: 0 !important; border-radius: 17px !important; box-shadow: none !important; font-size: 11px !important; background: #ebebed !important; color: #1d1d1f !important; }
+  .main main .country-pipeline-design-page .country-pipeline-primary { width: auto !important; min-height: 34px !important; height: 34px !important; padding: 0 12px !important; border: 0 !important; border-radius: 17px !important; box-shadow: none !important; background: #007aff !important; color: white !important; font-size: 11px !important; }
+  .main main .country-pipeline-design-page .country-pipeline-actions .country-pipeline-primary { background: #007aff !important; color: white !important; }
+  .main main .country-pipeline-design-page .country-pipeline-metrics { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+  .main main .country-pipeline-design-page .country-pipeline-text-metric > b { font-size: 16px; line-height: 20px; }
+  .main main .country-pipeline-design-page .country-pipeline-panel { padding: 16px !important; border-radius: 18px !important; background: white !important; color: #1d1d1f !important; box-shadow: none !important; }
+  .main main .country-pipeline-design-page .country-template-grid { grid-template-columns: 1fr !important; }
+  .main main .country-pipeline-design-page .country-template-card { padding: 16px !important; border-radius: 14px !important; border: 1px solid #e5e5ea !important; min-height: 0 !important; height: auto !important; font-size: 13px !important; background: white !important; color: #1d1d1f !important; }
+  .main main .country-pipeline-design-page .country-template-card.selected { border-color: #007aff !important; background: #eaf2ff !important; }
+  .main main .country-pipeline-design-page .country-stage-grid { grid-template-columns: 1fr !important; }
+  .main main .country-pipeline-design-page .country-stage-card { padding: 16px !important; border-radius: 14px !important; }
+  .main main .country-pipeline-design-page .country-stage-toggle { width: auto !important; height: auto !important; min-height: 0 !important; padding: 4px 8px !important; border-radius: 8px !important; font-size: 10px !important; background: #ebebed !important; color: #8e8e93 !important; box-shadow: none !important; }
+  .main main .country-pipeline-design-page .country-stage-toggle[aria-pressed=true] { background: #e5f8eb !important; color: #34c759 !important; }
+  .main main .country-pipeline-design-page .country-stage-reorder button { width: 26px !important; height: 26px !important; min-height: 0 !important; padding: 0 !important; border-radius: 6px !important; background: #ebebed !important; color: #1d1d1f !important; }
+  .main main .country-pipeline-design-page .country-stage-edit-actions button { width: auto !important; height: 26px !important; min-height: 0 !important; padding: 0 8px !important; border-radius: 8px !important; background: #eaf2ff !important; color: #007aff !important; font-size: 10px !important; box-shadow: none !important; }
+  .main main .country-pipeline-design-page .country-stage-edit-actions .country-stage-delete { background: #fff2f0 !important; color: #ff3b30 !important; }
+  .main main .country-pipeline-design-page .country-bottom-bar { padding: 16px !important; flex-wrap: wrap; border-radius: 18px !important; }
+  .main main .country-pipeline-design-page .country-bottom-bar a { padding: 0 12px; font-size: 11px; }
+}

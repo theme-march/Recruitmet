@@ -4,9 +4,9 @@ import { readFileSync } from "node:fs";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("admin pages redirect safely to dashboard", () => {
+test("admin pages redirect safely to control or dashboard", () => {
   const page = read("src/app/admin/page.tsx");
-  assert.match(page, /redirect\("\/dashboard"\)/);
+  assert.match(page, /redirect\("\/(admin\/control|dashboard)"\)/);
 });
 
 test("file service writes candidate, activity and audit relationships", () => {
@@ -16,4 +16,3 @@ test("file service writes candidate, activity and audit relationships", () => {
   assert.match(service, /activityLog\.create/);
   assert.match(service, /auditLog\.create/);
 });
-

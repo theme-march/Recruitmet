@@ -64,7 +64,7 @@ export function SuperAdminInterviewView({ initialSchedules }: { initialSchedules
       ]);
 
       setShowModal(false);
-      toast.success("Interview Drive created & published to Office Panel!");
+      toast.success("Interview Drive created & published to Office Operations!");
     } catch (err: any) {
       toast.error(err.message || "Failed to create interview schedule");
     } finally {
@@ -78,10 +78,10 @@ export function SuperAdminInterviewView({ initialSchedules }: { initialSchedules
         <div>
           <span>RECRUITMENT DRIVES</span>
           <h1>Interview Drives & Assessments</h1>
-          <p>Create recruitment interview drives. Office panel officers can book interested candidates directly.</p>
+          <p>Create recruitment interview drives. Office Operations officers can book interested candidates directly.</p>
         </div>
         <div className="admin-head-actions">
-          <button
+          <button data-action-ui="primary" data-action-size="normal"
             onClick={() => setShowModal(true)}
             style={{
               display: "inline-flex",
@@ -149,16 +149,16 @@ export function SuperAdminInterviewView({ initialSchedules }: { initialSchedules
       </div>
 
       {showModal && (
-        <div className="operations-modal">
+        <div role="dialog" aria-modal="true" aria-label="Schedule Interview Drive" className="operations-modal master-modal-overlay">
           <button className="operations-modal-backdrop" onClick={() => setShowModal(false)} />
-          <form onSubmit={createSchedule}>
-            <header>
+          <form className="master-modal-card master-modal-inline-card" onSubmit={createSchedule}>
+            <header className="master-modal-header">
               <div>
                 <span>INTERVIEW DRIVE SETUP</span>
                 <h2>Schedule Interview Drive</h2>
-                <p>Call Center officers can immediately view and register eligible candidates.</p>
+                <p>Office Operations officers can immediately view and register eligible candidates.</p>
               </div>
-              <button type="button" onClick={() => setShowModal(false)}>
+              <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog" className="master-modal-close" type="button" onClick={() => setShowModal(false)}>
                 ×
               </button>
             </header>
@@ -205,11 +205,11 @@ export function SuperAdminInterviewView({ initialSchedules }: { initialSchedules
                 />
               </label>
             </div>
-            <footer>
-              <button type="button" onClick={() => setShowModal(false)}>
+            <footer className="master-modal-footer">
+              <button data-action-ui="neutral" data-action-size="normal" type="button" onClick={() => setShowModal(false)}>
                 Cancel
               </button>
-              <button type="submit" className="primary" disabled={saving}>
+              <button data-action-ui="primary" data-action-size="normal" type="submit" className="primary master-modal-primary" disabled={saving}>
                 {saving ? "Scheduling..." : "Publish Interview Drive"}
               </button>
             </footer>

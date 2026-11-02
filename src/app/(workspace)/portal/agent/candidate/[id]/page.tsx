@@ -15,13 +15,16 @@ export async function generateMetadata({
 
 export default async function CandidateDossierPortalPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ agentId?: string }>;
 }) {
   await connection();
   const session = await getSession();
   if (!session) redirect("/login");
 
   const { id } = await params;
-  return <AgentCandidateDossierPage fileId={id} />;
+  const query = await searchParams;
+  return <AgentCandidateDossierPage fileId={id} agentId={query?.agentId} />;
 }

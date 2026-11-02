@@ -14,7 +14,7 @@ async function GETHandler() {
 
     const scope = officeScope(session);
 
-    // Live counts for all country pipelines and call center
+    // Live counts for all country pipelines and office operations
     const [ksaFiles, dubaiFiles, otherFiles, workCalls, interviews, demands, agentsCount, countriesCount, totalCandidatesCount] = await Promise.all([
       prisma.processingFile.findMany({
         where: { ...scope, country: { contains: "Saudi" } },

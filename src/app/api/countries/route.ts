@@ -193,11 +193,7 @@ async function POSTHandler(req: Request) {
             active: active !== undefined ? Boolean(active) : true,
           },
         });
-        await prisma.$executeRawUnsafe(
-          "UPDATE Country SET flag = ? WHERE id = ?",
-          cleanFlag,
-          newCountry.id
-        ).catch(() => {});
+        await prisma.$executeRaw`UPDATE Country SET flag = ${cleanFlag} WHERE id = ${newCountry.id}`.catch(() => {});
       } else {
         throw err;
       }
@@ -284,11 +280,7 @@ async function PATCHHandler(req: Request) {
           data: rest,
         });
         if (flag) {
-          await prisma.$executeRawUnsafe(
-            "UPDATE Country SET flag = ? WHERE id = ?",
-            flag,
-            id
-          ).catch(() => {});
+          await prisma.$executeRaw`UPDATE Country SET flag = ${flag} WHERE id = ${id}`.catch(() => {});
         }
       } else {
         throw err;

@@ -1,5 +1,6 @@
 import { PrismaClient, RecordStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { APP_ROLES, officeRoleNames } from "../src/lib/roles.ts";
 
 const db = new PrismaClient();
 const modules = ["dashboard", "call-center", "registration", "common", "notifications"];
@@ -7,14 +8,15 @@ const actions = ["View", "Add", "Edit", "Delete", "Export", "Assign", "Print", "
 
 const seedUsers = [
   ["admin@orbit.com", "admin", "EMP-000", "Ahmed Rahman", "Admin@123", "Super Administrator"],
-  ["callcenter@orbit.com", "callcenter", "EMP-001", "Call Center Officer", "Admin@123", "Call Center"],
+  ["callcenter@orbit.com", "callcenter", "EMP-001", "Office Operations Officer", "Admin@123", "Office Operations"],
+  ["sadia@orbit.com", "sadia", "EMP-002", "Sadia Islam", "Orbit@2026Demo", "Office Operations"],
 ];
 
 const candidates = [
   { candidateNo: "CAN-260001", registrationNo: "REG-260001", fullName: "Md. Rakib Hasan", phone: "01712448821", passportNo: "A09384721", nationalId: "1998456201101", profession: "Electrician", preferredCountry: "Saudi Arabia", source: "Facebook Campaign" },
   { candidateNo: "CAN-260002", registrationNo: "REG-260002", fullName: "Arif Hossain", phone: "01816204997", passportNo: "B01592743", nationalId: "1999145102231", profession: "Warehouse Assistant", preferredCountry: "Dubai", source: "Agent Referral" },
   { candidateNo: "CAN-260003", registrationNo: "REG-260003", fullName: "Jahidul Islam", phone: "01922017486", passportNo: "A08674219", nationalId: "1997054103412", profession: "Plumber", preferredCountry: "Saudi Arabia", source: "Walk-in" },
-  { candidateNo: "CAN-260004", registrationNo: "REG-260004", fullName: "Nur Alam", phone: "01768342190", passportNo: "B02917465", nationalId: "1996047202312", profession: "Heavy Driver", preferredCountry: "Oman", source: "Call Center" },
+  { candidateNo: "CAN-260004", registrationNo: "REG-260004", fullName: "Nur Alam", phone: "01768342190", passportNo: "B02917465", nationalId: "1996047202312", profession: "Heavy Driver", preferredCountry: "Oman", source: "Office Operations" },
   { candidateNo: "CAN-260005", registrationNo: "REG-260005", fullName: "Imran Hossain", phone: "01618834312", passportNo: "A07183465", nationalId: "1998135109023", profession: "Welder", preferredCountry: "Saudi Arabia", source: "Website" },
   { candidateNo: "CAN-260006", registrationNo: "REG-260006", fullName: "Kamal Uddin", phone: "01831622085", passportNo: "B01346820", nationalId: "1995054706321", profession: "Cleaner", preferredCountry: "Dubai", source: "Agent Referral" },
 ];
@@ -92,25 +94,28 @@ async function main() {
     });
   }
 
-  // Create single role: Call Center
-  // Create exactly 2 roles: Super Administrator and Call Center
+  // Create the built-in office role without replacing existing role IDs or grants.
   const superAdminRole = await db.role.upsert({
     where: { name: "Super Administrator" },
     update: { description: "Full system, role and permission access" },
     create: { name: "Super Administrator", description: "Full system, role and permission access" },
   });
 
-  const callCenterRole = await db.role.upsert({
-    where: { name: "Call Center" },
-    update: { description: "Office Call Center Panel Access" },
-    create: { name: "Call Center", description: "Office Call Center Panel Access" },
+  const existingOfficeRole = await db.role.findFirst({
+    where: { name: { in: [...officeRoleNames] } },
+    orderBy: { createdAt: "asc" },
+  });
+  const officeOperationsRole = await db.role.upsert({
+    where: { name: existingOfficeRole?.name ?? APP_ROLES.CALL_CENTER },
+    update: { description: "Office Operations Panel Access" },
+    create: { name: APP_ROLES.CALL_CENTER, description: "Office Operations Panel Access" },
   });
 
   // Never remove custom roles or their grants when rerunning seed.
   // Initialize permissions only on first creation of the default role.
-  const initializePermissions = (await db.rolePermission.count({ where: { roleId: callCenterRole.id } })) === 0 && (await db.user.count()) === 0;
+  const initializePermissions = (await db.rolePermission.count({ where: { roleId: officeOperationsRole.id } })) === 0 && (await db.user.count()) === 0;
   if (initializePermissions) {
-  // Set permissions for Call Center role
+  // Set permissions for Office Operations role
 
   for (const module of modules) {
     for (const action of actions) {
@@ -120,9 +125,9 @@ async function main() {
         create: { module, page: "*", action },
       });
       await db.rolePermission.upsert({
-        where: { roleId_permissionId: { roleId: callCenterRole.id, permissionId: permission.id } },
+        where: { roleId_permissionId: { roleId: officeOperationsRole.id, permissionId: permission.id } },
         update: {},
-        create: { roleId: callCenterRole.id, permissionId: permission.id },
+        create: { roleId: officeOperationsRole.id, permissionId: permission.id },
       });
     }
   }
@@ -130,8 +135,11 @@ async function main() {
   }
   // Seed default 2 users
   for (const [email, username, employeeId, name, plainPassword, roleName] of seedUsers) {
+    // Provision the owner only on an uninitialized installation. Rerunning seed
+    // must never add a second privileged account to an existing system.
+    if (roleName === "Super Administrator" && await db.user.findFirst({ where: { role: { name: { in: ["SUPER_ADMIN", APP_ROLES.SUPER_ADMIN] } } } })) continue;
     const passwordHash = await bcrypt.hash(plainPassword, 12);
-    const assignedRoleId = roleName === "Super Administrator" ? superAdminRole.id : callCenterRole.id;
+    const assignedRoleId = roleName === "Super Administrator" ? superAdminRole.id : officeOperationsRole.id;
     await db.user.upsert({
       where: { email },
       update: {},
@@ -141,7 +149,7 @@ async function main() {
 
   // Preserve staff accounts and their access assignments.
   // Seed candidates, interviews, and work calls
-  const defaultOfficer = await db.user.findFirst({ where: { roleId: callCenterRole.id } });
+  const defaultOfficer = await db.user.findFirst({ where: { roleId: officeOperationsRole.id } });
 
   const schedule1 = await db.interviewSchedule.upsert({
     where: { id: "sched-demo-1" },
@@ -204,7 +212,7 @@ async function main() {
         status: i === 0 ? "New" : i === 1 ? "Follow-up" : i === 2 ? "Interview Scheduled" : "Converted",
         followUpAt: new Date(Date.now() + (i % 2 === 0 ? 0 : (i + 1) * 24 * 60 * 60 * 1000)),
         assignedToId: defaultOfficer?.id,
-        notes: [{ by: "Call Center", text: "Contacted candidate, verified interest in overseas employment" }],
+        notes: [{ by: "Office Operations", text: "Contacted candidate, verified interest in overseas employment" }],
       },
     });
 
@@ -245,5 +253,5 @@ async function main() {
 }
 
 main()
-  .then(() => console.log("Database seeded with single role: Call Center"))
+  .then(() => console.log("Database seeded with Super Administrator and Office Operations roles"))
   .finally(() => db.$disconnect());

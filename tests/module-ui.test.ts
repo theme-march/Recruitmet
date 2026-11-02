@@ -22,18 +22,18 @@ test("interview pages use schedule fields instead of candidate registration", ()
 });
 
 test("registration and interviews keeps list, detail, export and schedule handoff connected", () => {
-  const list = readFileSync("src/components/interview-list-page.tsx", "utf8");
-  const detail = readFileSync("src/components/interview-detail-page.tsx", "utf8");
-  const create = readFileSync("src/components/create-work-call-page.tsx", "utf8");
+  const list = readFileSync("src/components/modules/interview-list-page.tsx", "utf8");
+  const detail = readFileSync("src/components/modules/interview-detail-page.tsx", "utf8");
+  const create = readFileSync("src/components/modules/create-work-call-page.tsx", "utf8");
   assert.match(list, /Upcoming interviews/);
-  assert.match(detail, /Filters \(this interview\)/);
-  assert.match(detail, /export:"1"/);
+  assert.match(detail, /Clear Agent Filter/);
+  assert.match(detail, /export=1/);
   assert.match(detail, /scheduleId=/);
   assert.match(create, /selectedScheduleId/);
 });
 
 test("events reports can switch between Saudi, Dubai and Other Country data", () => {
-  const report = readFileSync("src/components/ksa-events-report-page.tsx", "utf8");
+  const report = readFileSync("src/components/ksa/ksa-events-report-page.tsx", "utf8");
   const api = readFileSync("src/app/api/ksa/events-report/route.ts", "utf8");
   assert.match(report, /Saudi Arabia/);
   assert.match(report, /Dubai/);
@@ -59,10 +59,17 @@ test("every sidebar option has a unique page route", () => {
   }
 });
 
-test("call center exposes only the four connected workflow pages", () => {
+test("call center exposes the candidate workflow pages", () => {
   const callCenter = modules.find((item) => item.id === "call-center");
-  assert.deepEqual(callCenter?.items.map((item) => item.label), ["Create Work Call", "Work Call List", "Officer Dashboard", "Registration & Interviews"]);
-  assert.equal(moduleItemPath("call-center", "Registration & Interviews"), "/module/call-center/registration-and-interviews");
+  assert.deepEqual(callCenter?.items.map((item) => item.label), [
+    "Create Candidate",
+    "Candidate List",
+    "Registration & interviews",
+  ]);
+  assert.equal(
+    moduleItemPath("call-center", "Registration & interviews"),
+    "/module/call-center/registration-and-interviews"
+  );
 });
 
 test("legacy registration routes stay available without a duplicate sidebar group", () => {
@@ -71,9 +78,21 @@ test("legacy registration routes stay available without a duplicate sidebar grou
   assert.equal(getModuleItemBySlug("registration", "interview-schedule")?.label, "Interview Schedule");
 });
 
-test("sidebar keeps only the operational groups for Call Center Office Panel", () => {
-  assert.deepEqual(modules.filter((module) => !module.hidden).map((module) => module.id), [
-    "dashboard", "call-center",
-  ]);
+test("sidebar keeps all operational groups for Recruitment OS", () => {
+  assert.deepEqual(
+    modules.filter((module) => !module.hidden).map((module) => module.id),
+    [
+      "dashboard",
+      "call-center",
+      "ksa",
+      "dubai",
+      "other-country",
+      "office-vendor",
+      "agents",
+      "payment-collection",
+      "document",
+      "country-setup",
+      "tutorials",
+    ]
+  );
 });
-

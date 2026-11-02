@@ -354,7 +354,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
           </p>
         </div>
 
-        <Link
+        <Link data-action-ui="neutral" data-action-size="normal"
           href={moduleItemPath("call-center", "Registration & interviews")}
           style={{
             display: "inline-flex",
@@ -393,7 +393,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
         <>
           {/* Action Buttons Toolbar */}
           <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "18px", flexWrap: "wrap" }}>
-            <button
+            <button data-action-ui="primary" data-action-size="normal"
               type="button"
               onClick={() => setAddOpen(true)}
               style={{
@@ -414,7 +414,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
               <UserPlus size={15} /> Add Candidate To This Interview
             </button>
 
-            <Link
+            <Link data-action-ui="primary" data-action-size="normal"
               href={`${moduleItemPath("call-center", "Create Candidate")}?scheduleId=${scheduleId}`}
               style={{
                 display: "inline-flex",
@@ -433,7 +433,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
               <Plus size={14} /> Create Candidate (this schedule)
             </Link>
 
-            <Link
+            <Link data-action-ui="neutral" data-action-size="normal"
               href={moduleItemPath("call-center", "Registration & interviews")}
               style={{
                 display: "inline-flex",
@@ -744,7 +744,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
                 </div>
 
                 {applied.agent && (
-                  <button
+                  <button data-action-ui="neutral" data-action-size="normal"
                     type="button"
                     onClick={() => filterAgent("")}
                     style={{
@@ -815,7 +815,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
                             </span>
                           </td>
                           <td style={{ padding: "10px 14px", textAlign: "right" }}>
-                            <button
+                            <button  
                               type="button"
                               onClick={() => filterAgent(ag.agent)}
                               style={{
@@ -923,7 +923,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
               </label>
 
               <div style={{ display: "flex", gap: "8px" }}>
-                <button
+                <button data-action-ui="primary" data-action-size="normal"
                   type="button"
                   onClick={apply}
                   style={{
@@ -944,7 +944,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
                 >
                   <Search size={15} /> Apply
                 </button>
-                <button
+                <button data-action-ui="neutral" data-action-size="normal"
                   type="button"
                   onClick={reset}
                   style={{
@@ -996,7 +996,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
                 )}
               </div>
 
-              <button
+              <button data-action-ui="neutral" data-action-size="normal"
                 type="button"
                 onClick={downloadCsv}
                 style={{
@@ -1087,7 +1087,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
                       {/* AGENT / SOURCE COLUMN */}
                       <td style={{ padding: "12px 14px" }}>
                         {person.agent && person.agent !== "Direct" ? (
-                          <button
+                          <button  
                             type="button"
                             onClick={() => filterAgent(person.agent)}
                             title={`Filter candidates for ${person.agent}`}
@@ -1193,7 +1193,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", flexWrap: "wrap" }}>
                           {editing === person.id ? (
                             <div style={{ display: "flex", gap: "4px" }}>
-                              <button
+                              <button data-action-ui="primary" data-action-size="icon"
                                 disabled={saving}
                                 onClick={() => void saveResult(person.id)}
                                 style={{
@@ -1207,7 +1207,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
                               >
                                 <Save size={13} />
                               </button>
-                              <button
+                              <button data-action-ui="secondary" data-action-size="icon"
                                 onClick={() => setEditing(null)}
                                 style={{
                                   padding: "6px 10px",
@@ -1222,7 +1222,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
                               </button>
                             </div>
                           ) : (
-                            <button
+                            <button data-action-ui="secondary" data-action-size="compact"
                               type="button"
                               onClick={() => {
                                 setEditing(person.id);
@@ -1272,7 +1272,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
                               <FolderOpen size={12} /> {person.fileNo || "Dossier ➔"}
                             </Link>
                           ) : (
-                            <button
+                            <button data-action-ui="secondary" data-action-size="compact"
                               type="button"
                               disabled={convertingId === person.id}
                               onClick={() => handleStartProcessing(person)}
@@ -1318,7 +1318,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
                 {Math.min(data.meta.page * data.meta.pageSize, data.meta.total)} of {data.meta.total} candidates
               </span>
               <div style={{ display: "flex", gap: "6px" }}>
-                <button
+                <button data-action-ui="neutral" data-action-size="normal"
                   disabled={page <= 1}
                   onClick={() => setPage(page - 1)}
                   style={{
@@ -1332,7 +1332,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
                 >
                   Previous
                 </button>
-                <button
+                <button data-action-ui="neutral" data-action-size="normal"
                   disabled={page >= data.meta.totalPages}
                   onClick={() => setPage(page + 1)}
                   style={{
@@ -1354,7 +1354,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
 
       {/* Modal for adding candidates to interview */}
       {addOpen && (
-        <div
+        <div role="dialog" aria-modal="true" aria-label="Add Candidate To Interview" className="master-modal-overlay"
           style={{
             position: "fixed",
             inset: 0,
@@ -1367,7 +1367,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
           }}
           onClick={() => setAddOpen(false)}
         >
-          <div
+          <div className="master-modal-card master-modal-inline-card master-modal-panel"
             onClick={(e) => e.stopPropagation()}
             style={{
               background: "#fff",
@@ -1378,16 +1378,16 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
               boxShadow: "0 20px 40px rgba(0,0,0,0.15)",
             }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
+            <div className="master-modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
               <div>
                 <h2 style={{ fontSize: "18px", fontWeight: 800, color: "var(--ink)", margin: 0 }}>
                   Add Candidate To Interview
                 </h2>
                 <p style={{ fontSize: "12px", color: "var(--muted)", margin: "4px 0 0 0" }}>
-                  Select a candidate lead from Call Center to assign into this schedule.
+                  Select a candidate lead from Office Operations to assign into this schedule.
                 </p>
               </div>
-              <button
+              <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog" className="master-modal-close"
                 onClick={() => setAddOpen(false)}
                 style={{
                   background: "#f1f5f9",
@@ -1407,7 +1407,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
 
             <div style={{ marginBottom: "18px" }}>
               <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px", fontWeight: 700, color: "var(--ink)" }}>
-                Choose Candidate from Call Center Leads
+                Choose Candidate from Office Operations Leads
                 <select
                   value={candidatePhone}
                   onChange={(e) => setCandidatePhone(e.target.value)}
@@ -1424,7 +1424,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
-              <button
+              <button data-action-ui="neutral" data-action-size="normal"
                 type="button"
                 onClick={() => setAddOpen(false)}
                 style={{
@@ -1440,7 +1440,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
               >
                 Cancel
               </button>
-              <button
+              <button data-action-ui="primary" data-action-size="normal" className="master-modal-primary"
                 type="button"
                 disabled={adding || !candidatePhone}
                 onClick={() => handleAddCandidate(candidatePhone)}

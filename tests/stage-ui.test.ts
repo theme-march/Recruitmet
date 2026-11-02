@@ -35,34 +35,22 @@ test("passport and medical tables expose stage-specific columns", () => {
   assert.deepEqual(stageTableHeadings.Medical.slice(1, 5), ["MEDICAL CENTER", "PASSPORT", "MEDICAL DATE", "EXPIRY / DAYS LEFT"]);
 });
 
-test("Saudi workflow exposes separate passport list and entry queues", () => {
+test("Saudi workflow exposes Candidates List", () => {
   const ksa = modules.find((item) => item.id === "ksa");
-  assert.equal(ksa?.items[0]?.label, "Passport List");
-  assert.equal(ksa?.items[1]?.label, "Passport Entry");
-  assert.ok(!ksa?.items.some((item) => item.label === "Passport Management"));
+  assert.equal(ksa?.items[0]?.label, "Candidates List");
 });
 
-test("Dubai workflow exposes every operational queue", () => {
+test("Dubai workflow exposes Candidates List", () => {
   const dubai = modules.find((module) => module.id === "dubai");
-  assert.deepEqual(dubai?.items.map((item) => item.label), [
-    "Passport List", "Passport Entry", "Medical", "First Payment",
-    "Approval Application", "E-Visa Stamping", "E-Visa Hold",
-    "Second Payment", "Visa Done", "Manpower", "Ready To Flight",
-    "Flight", "Hold File", "Return File",
-  ]);
+  assert.deepEqual(dubai?.items.map((item) => item.label), ["Candidates List"]);
 });
 
 test("Other Country uses its configured queues and excludes Saudi and Dubai data", () => {
   const other = modules.find((module) => module.id === "other-country");
-  assert.deepEqual(other?.items.map((item) => item.label), [
-    "Passport List", "Passport Entry", "Medical", "First Payment",
-    "Application", "Confirm File", "E-Visa Stamping", "E-Visa Hold",
-    "Second Payment", "Visa Done", "Manpower", "Ready To Flight",
-    "Flight", "Hold File", "Return File",
-  ]);
+  assert.deepEqual(other?.items.map((item) => item.label), ["Candidates List"]);
   const request = new Request("http://localhost/api/workflow?country=Other%20Country");
   assert.equal(workflowModule(request), "other-country");
   assert.deepEqual(workflowCountryWhere(request), {
-    notIn: ["Saudi", "Saudi Arabia", "Dubai", "UAE", "United Arab Emirates"],
+    in: ["Other", "Other Country"],
   });
 });

@@ -1,6 +1,13 @@
 import type { NextConfig } from "next";
+import { networkInterfaces } from "node:os";
+
+const lanHosts = Object.values(networkInterfaces())
+  .flatMap((addresses) => addresses ?? [])
+  .filter((address) => address.family === "IPv4" && !address.internal)
+  .map((address) => address.address);
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: lanHosts,
   typedRoutes: false,
   agentRules: false,
   output: "standalone",
@@ -20,11 +27,6 @@ const nextConfig: NextConfig = {
       {
         source: "/super-admin/control",
         destination: "/permissions",
-        permanent: false,
-      },
-      {
-        source: "/super-admin/:path*",
-        destination: "/dashboard",
         permanent: false,
       },
       {

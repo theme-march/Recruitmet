@@ -18,20 +18,47 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = request.cookies.get("orbit_session")?.value;
+  let token = request.cookies.get("orbit_session")?.value;
+  if (!token) {
+    const auth = request.headers.get("authorization");
+    if (auth?.toLowerCase().startsWith("bearer ")) {
+      token = auth.slice(7).trim();
+    }
+  }
   try {
     if (!token) throw new Error("No session");
-    await jwtVerify(
+    const { payload } = await jwtVerify(
       token,
       authSecret(),
       { algorithms: ["HS256"] }
     );
+    if (!payload.userId || !payload.exp || Date.now() >= payload.exp * 1000) {
+      throw new Error("Expired or invalid session payload");
+    }
+    const requestHeaders = new Headers(request.headers);
+    if (token && !request.cookies.has("orbit_session")) {
+      const existingCookie = request.headers.get("cookie") || "";
+      const cookieAddition = `orbit_session=${token}`;
+      requestHeaders.set("cookie", existingCookie ? `${existingCookie}; ${cookieAddition}` : cookieAddition);
+      return NextResponse.next({
+        request: {
+          headers: requestHeaders,
+        },
+      });
+    }
     return NextResponse.next();
   } catch {
     if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      const response = NextResponse.json(
+        { error: { code: "UNAUTHORIZED", message: "Authentication required" } },
+        { status: 401 }
+      );
+      if (token) response.cookies.delete("orbit_session");
+      return response;
     }
-    return NextResponse.redirect(new URL("/login", request.url));
+    const response = NextResponse.redirect(new URL("/login", request.url));
+    if (token) response.cookies.delete("orbit_session");
+    return response;
   }
 }
 

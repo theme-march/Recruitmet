@@ -68,6 +68,7 @@ export function AgentProfileImageField({
 
   return (
     <div
+      className="profile-image-field"
       style={{
         display: "flex",
         alignItems: "center",
@@ -79,6 +80,7 @@ export function AgentProfileImageField({
       }}
     >
       <div
+        className="profile-image-avatar"
         style={{
           width: compact ? "58px" : "72px",
           height: compact ? "58px" : "72px",
@@ -119,7 +121,7 @@ export function AgentProfileImageField({
           style={{ display: "none" }}
         />
         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-          <button
+          <button data-action-ui="secondary" data-action-size="compact"
             type="button"
             disabled={disabled}
             onClick={() => inputRef.current?.click()}
@@ -141,7 +143,7 @@ export function AgentProfileImageField({
             {currentImage ? "Change Image" : "Upload Image"}
           </button>
           {currentImage && (
-            <button
+            <button data-action-ui="danger" data-action-size="compact"
               type="button"
               disabled={disabled}
               onClick={clearImage}

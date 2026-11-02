@@ -36,11 +36,11 @@ export function CreateRecordDialog({ moduleId, tab, onClose, onSaved }: { module
     onClose();
   }
 
-  return <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-    <form className="modal" onSubmit={submit}>
-      <div className="modal-head"><div><span>CREATE RECORD</span><h2>New {tab}</h2></div><button type="button" className="icon" onClick={onClose}><X /></button></div>
+  return <div role="dialog" aria-modal="true" aria-label="New" className="modal-backdrop master-modal-overlay" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <form className="modal master-modal-card" onSubmit={submit}>
+      <div className="modal-head master-modal-header"><div><span>CREATE RECORD</span><h2>New {tab}</h2></div><button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog" type="button" className="icon master-modal-close" onClick={onClose}><X /></button></div>
       <div className="modal-grid">{fields.map((field) => <label key={field.name} className={field.wide ? "wide" : undefined}>{field.label}<Control field={field} /></label>)}</div>
-      <div className="modal-actions"><button type="button" className="button secondary" onClick={onClose}>Cancel</button><button className="button primary" disabled={saving}>{saving ? "Saving..." : "Save record"}</button></div>
+      <div className="modal-actions master-modal-footer"><button data-action-ui="neutral" data-action-size="normal" type="button" className="button secondary" onClick={onClose}>Cancel</button><button data-action-ui="primary" data-action-size="normal" className="button primary master-modal-primary" disabled={saving}>{saving ? "Saving..." : "Save record"}</button></div>
     </form>
   </div>;
 }

@@ -190,7 +190,7 @@ async function GETHandler(request: Request) {
         passport: file.passport?.passportNumber ?? file.candidate.passportNo ?? "Not entered",
         country: normalizedCountry,
         rawCountry,
-        officer: file.assignedTo?.name ?? "Call Center Officer",
+        officer: file.assignedTo?.name ?? "Office Operations Officer",
         office: file.office?.name ?? "Dhaka Head Office",
         company: companyName,
         profession: professionName,

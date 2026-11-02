@@ -67,7 +67,7 @@ export function SuperAdminMasterView({
       ]);
 
       setShowModal(false);
-      toast.success("New Demand published to Office Panel!");
+      toast.success("New Demand published to Office Operations!");
     } catch (err: any) {
       toast.error(err.message || "Failed to create demand");
     } finally {
@@ -81,10 +81,10 @@ export function SuperAdminMasterView({
         <div>
           <span>MASTER CONFIGURATION</span>
           <h1>Master Demands & Vacancies</h1>
-          <p>Configure demands, partner companies and quotas. Data automatically feeds into the Office Panel.</p>
+          <p>Configure demands, partner companies and quotas. Data automatically feeds into the Office Operations.</p>
         </div>
         <div className="admin-head-actions">
-          <button
+          <button data-action-ui="primary" data-action-size="normal"
             onClick={() => setShowModal(true)}
             style={{
               display: "inline-flex",
@@ -152,16 +152,16 @@ export function SuperAdminMasterView({
       </div>
 
       {showModal && (
-        <div className="operations-modal">
+        <div role="dialog" aria-modal="true" aria-label="Create Recruitment Demand" className="operations-modal master-modal-overlay">
           <button className="operations-modal-backdrop" onClick={() => setShowModal(false)} />
-          <form onSubmit={createDemand}>
-            <header>
+          <form className="master-modal-card master-modal-inline-card" onSubmit={createDemand}>
+            <header className="master-modal-header">
               <div>
                 <span>MASTER DATA SYNC</span>
                 <h2>Create Recruitment Demand</h2>
-                <p>This demand will immediately appear in Office Panel call-center lead booking.</p>
+                <p>This demand will immediately appear in Office Operations lead booking.</p>
               </div>
-              <button type="button" onClick={() => setShowModal(false)}>
+              <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog" className="master-modal-close" type="button" onClick={() => setShowModal(false)}>
                 ×
               </button>
             </header>
@@ -200,12 +200,12 @@ export function SuperAdminMasterView({
                 <input name="quantity" type="number" min="1" required defaultValue={50} />
               </label>
             </div>
-            <footer>
-              <button type="button" onClick={() => setShowModal(false)}>
+            <footer className="master-modal-footer">
+              <button data-action-ui="neutral" data-action-size="normal" type="button" onClick={() => setShowModal(false)}>
                 Cancel
               </button>
-              <button type="submit" className="primary" disabled={saving}>
-                {saving ? "Publishing..." : "Publish to Office Panel"}
+              <button data-action-ui="primary" data-action-size="normal" type="submit" className="primary master-modal-primary" disabled={saving}>
+                {saving ? "Publishing..." : "Publish to Office Operations"}
               </button>
             </footer>
           </form>

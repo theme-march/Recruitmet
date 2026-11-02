@@ -122,7 +122,7 @@ export async function createLead(
       data: {
         userId: session.userId,
         role: session.user.role.name,
-        module: "Call Center",
+        module: "Office Operations",
         recordId: lead.id,
         action: "CREATE_LEAD",
         newValue: { leadNo, phone: input.phone, priority: input.priority },
@@ -316,7 +316,7 @@ export async function convertLeadToFile(
         data: {
           userId: session.userId,
           role: session.user.role.name,
-          module: "Call Center",
+          module: "Office Operations",
           recordId: lead.id,
           action: "CONVERT_LEAD_TO_FILE",
           oldValue: { status: lead.status },

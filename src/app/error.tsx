@@ -97,7 +97,7 @@ export default function Error({
             justifyContent: "center",
           }}
         >
-          <button
+          <button data-action-ui="neutral" data-action-size="normal"
             onClick={() => reset()}
             style={{
               height: "40px",

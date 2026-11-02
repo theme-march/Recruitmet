@@ -71,7 +71,7 @@ export async function convertLeadAction(
 }
 
 /**
- * Server Action: Update lead/call center follow-up and status
+ * Server Action: Update lead/office operations follow-up and status
  */
 export async function updateLeadStatusAction(
   leadId: string,

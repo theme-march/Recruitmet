@@ -47,7 +47,7 @@ export default function WorkspaceError({
       )}
 
       <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
-        <button
+        <button data-action-ui="neutral" data-action-size="normal"
           onClick={() => reset()}
           style={{
             height: "40px",

@@ -64,8 +64,8 @@ test("Dubai document uploads use private storage and pending verification", () =
 
 test("control plane links to the canonical versioned permissions workspace", () => {
   const control = read("src/components/modules/control-plane-page.tsx");
-  const shell = read("src/components/layout/admin-shell.tsx");
+  const shell = read("src/components/layout/app-shell.tsx");
   assert.doesNotMatch(control, /UPDATE_PERMISSIONS/);
   assert.match(control, /href="\/permissions"/);
-  assert.match(shell, /System Permissions["'], href: ["']\/permissions/);
+  assert.match(shell, /href="\/permissions"/);
 });

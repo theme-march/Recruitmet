@@ -31,7 +31,7 @@ async function GETHandler() {
   return new Response(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": "attachment; filename=call-center-leads.csv",
+      "Content-Disposition": "attachment; filename=office-operations-leads.csv",
     },
   });
 }

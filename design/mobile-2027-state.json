@@ -1,0 +1,50 @@
+{
+  "runId": "orbit-mobile-2027-20261015",
+  "scope": "full-library-and-mobile-redesign",
+  "step": "foundations",
+  "figmaFileKey": "r9x6h3rvgCTF8ypHLl2cxk",
+  "entities": {
+    "collections": {
+      "color": "VariableCollectionId:50:2",
+      "metrics": "VariableCollectionId:50:3"
+    },
+    "variables": {
+      "canvas": "VariableID:50:5",
+      "surface": "VariableID:50:7",
+      "surface-raised": "VariableID:50:9",
+      "surface-subtle": "VariableID:50:11",
+      "text-primary": "VariableID:50:13",
+      "text-secondary": "VariableID:50:15",
+      "border": "VariableID:50:17",
+      "accent": "VariableID:50:19",
+      "accent-soft": "VariableID:50:21",
+      "success": "VariableID:50:23",
+      "success-soft": "VariableID:50:25",
+      "warning": "VariableID:50:27",
+      "warning-soft": "VariableID:50:29",
+      "danger": "VariableID:50:31",
+      "danger-soft": "VariableID:50:33"
+    },
+    "styles": [
+      "S:052de4b1130cd996e0e155175c85fe635e97a940,",
+      "S:dc9aebecb808951715153888ac5668621e00a29c,",
+      "S:903cd0d562bdf072d0ca6f80756352956d3914bf,",
+      "S:f050cf5a356ce9951aba378decdb3c7da1e87b8f,",
+      "S:62134d8d2502a5625b1e6f573b35906fe93ede5f,",
+      "S:9df03bf2e7286ddd3e17c8d78476a4f6b661dc6e,",
+      "S:39f73bbe24437d3bf7f59b26fdd483bad9dbcc20,"
+    ]
+  },
+  "completedSteps": [
+    "audit",
+    "strategy",
+    "foundations-created"
+  ],
+  "pendingValidations": [
+    "tokens-readback",
+    "component-library",
+    "screen-rebuild",
+    "code-implementation",
+    "responsive-qa"
+  ]
+}

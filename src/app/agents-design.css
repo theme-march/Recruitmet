@@ -1,0 +1,48 @@
+/* Agents & Channel Partners shares the Works & Demands workspace design. */
+.channel-partners-design { padding-bottom: 40px; }
+.channel-partners-design .country-design-actions .channel-create-action { background: #007aff; color: white; font-weight: 600; }
+.channel-partner-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.channel-partner-filter-fields { display: flex; align-items: center; gap: 10px; min-width: 0; flex-wrap: wrap; }
+.channel-partner-search-form { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.channel-partner-search { width: 400px; }
+.channel-partner-search-submit { height: 32px; padding: 0 14px; border: 0; border-radius: 10px; background: #ebebed; color: #1d1d1f; font-size: 12px; font-weight: 500; }
+.channel-partner-status-filters { display: flex; align-items: center; gap: 8px; }
+.channel-partner-status-filters button { height: 32px; padding: 0 14px; border: 0; border-radius: 10px; background: #ebebed; color: #1d1d1f; font-size: 12px; font-weight: 500; }
+.channel-partner-status-filters button[aria-pressed="true"] { background: #007aff; color: white; font-weight: 600; }
+.channel-partner-table table { min-width: 1340px; }
+.channel-partner-table :is(th, td):last-child { padding-right: 16px; }
+.channel-partner-table .channel-partner-empty { padding: 40px 16px; text-align: center; color: #8e8e93; }
+.channel-partner-serial { color: #8e8e93; font-weight: 500; }
+.channel-partner-row { --partner-tone: #007aff; --partner-tint: #eaf2ff; }
+.channel-partner-row.tone-purple { --partner-tone: #6c4dff; --partner-tint: #f0edff; }
+.channel-partner-row.tone-orange { --partner-tone: #ff9500; --partner-tint: #fff4df; }
+.channel-partner-row.tone-green { --partner-tone: #34c759; --partner-tint: #e5f8eb; }
+.channel-partner-code { display: inline-block; max-width: 100%; overflow-wrap: anywhere; padding: 2px 6px; border-radius: 6px; background: #eaf2ff; color: #007aff; font-size: 10px; line-height: 12px; font-weight: 600; }
+.channel-partner-identity { display: flex; align-items: center; gap: 10px; }
+.channel-partner-avatar { display: grid; place-items: center; flex-shrink: 0; width: 32px; height: 32px; overflow: hidden; border-radius: 8px; background: var(--partner-tint); color: var(--partner-tone); font-size: 11px; font-weight: 600; }
+.channel-partner-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.channel-partner-identity > div:last-child { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.channel-partner-identity a { font-size: 13px; line-height: 16px; font-weight: 600; color: #1d1d1f; text-decoration: none; }
+.channel-partner-identity small, .channel-partner-contact small { font-size: 11px; line-height: 13px; color: #6b6b73; overflow-wrap: anywhere; }
+.channel-partner-contact { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; font-size: 12px; line-height: 15px; }
+.channel-partner-contact a { color: #1d1d1f; font-weight: 500; text-decoration: none; }
+.channel-partner-portal-status { padding: 2px 6px; border-radius: 6px; background: #e5f8eb; color: #34c759; font-size: 10px; line-height: 12px; font-weight: 600; }
+.channel-partner-district { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; line-height: 15px; }
+.channel-partner-referrals { display: inline-block; padding: 4px 8px; border-radius: 8px; background: #f2f2f7; color: #8e8e93; font-size: 11px; line-height: 13px; font-weight: 600; white-space: nowrap; text-decoration: none; }
+.channel-partner-referrals.has-candidates { background: #eaf2ff; color: #007aff; }
+.channel-partner-status { display: inline-block; padding: 4px 8px; border-radius: 8px; font-size: 11px; line-height: 13px; font-weight: 600; }
+.channel-partner-status.active { background: #e5f8eb; color: #34c759; }
+.channel-partner-status.inactive { background: #fff0f0; color: #ff3b30; }
+.channel-partner-row-actions { display: flex; align-items: center; gap: 6px; }
+.channel-partner-row-actions a { padding: 5px 8px; border-radius: 8px; font-size: 10px; line-height: 12px; font-weight: 600; white-space: nowrap; text-decoration: none; }
+.channel-partner-profile { background: #eaf2ff; color: #007aff; }
+.channel-partner-portal { background: #e5f8eb; color: #34c759; }
+.channel-partner-row-actions button { display: grid; place-items: center; flex-shrink: 0; width: 28px; height: 28px; border: 0; border-radius: 8px; background: #fff0f0; }
+.channel-partners-design :is(button, a, input):focus-visible { outline: 2px solid #007aff; outline-offset: 2px; }
+@media (max-width: 768px) {
+  .channel-partner-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .channel-partner-filter-fields, .channel-partner-search-form { width: 100%; }
+  .channel-partner-search { width: auto; flex: 1; }
+  .channel-partner-search-submit { height: 40px; flex-shrink: 0; }
+  .channel-partner-workspace .mobile-agents-stream { padding: 0 12px 12px; }
+}

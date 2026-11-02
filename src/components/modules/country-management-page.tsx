@@ -28,6 +28,7 @@ import {
   Settings2,
   Sparkles,
   X,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -390,186 +391,87 @@ export function CountryManagementPage() {
   const totalCandidatesAcrossAll = countries.reduce((acc, c) => acc + (c.candidateCount || 0), 0);
 
   return (
-    <div style={{ maxWidth: "1600px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "22px", paddingBottom: "40px" }}>
-      {/* 1. TOP HEADER & KPI CARDS */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "14px" }}>
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
-            <span style={{ fontSize: "11px", fontWeight: 800, background: "#f0edff", color: "#7258e8", border: "1px solid #dcd5fb", padding: "2px 8px", borderRadius: "6px" }}>
-              🌐 MASTER DATA &amp; PIPELINES
-            </span>
-          </div>
-          <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--ink)", margin: 0 }}>
-            Destination Country Management
-          </h1>
-          <p style={{ fontSize: "13px", color: "var(--muted)", margin: "4px 0 0" }}>
-            Create, update, and manage international destination countries. Changes automatically reflect in sidebar navigation and candidate forms.
-          </p>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <button
-            type="button"
-            onClick={fetchCountries}
-            disabled={countryQuery.isFetching}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "9px 14px",
-              borderRadius: "10px",
-              border: "1px solid var(--line)",
-              background: "#ffffff",
-              color: "var(--ink)",
-              fontSize: "13px",
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-          >
-            <RefreshCw size={14} className={countryQuery.isFetching ? "animate-spin" : ""} /> Refresh
-          </button>
-
-          <button
-            type="button"
-            onClick={openCreateModal}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "9px 18px",
-              borderRadius: "10px",
-              background: "#7258e8",
-              color: "#ffffff",
-              fontSize: "13px",
-              fontWeight: 800,
-              border: "none",
-              cursor: "pointer",
-              boxShadow: "0 2px 8px rgba(114,88,232,0.3)",
-            }}
-          >
-            <Plus size={16} /> + Add Destination Country
-          </button>
-        </div>
-      </div>
-
-      {/* 2. TOP KPI CARDS */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "16px" }}>
-        {/* KPI 1 */}
-        <div style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "14px", padding: "18px 20px", display: "flex", alignItems: "center", gap: "16px", boxShadow: "var(--shadow)" }}>
-          <div style={{ width: "46px", height: "46px", borderRadius: "12px", background: "#f0edff", color: "#7258e8", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Globe size={24} />
-          </div>
-          <div>
-            <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>TOTAL DESTINATIONS</span>
-            <div style={{ fontSize: "22px", fontWeight: 900, color: "var(--ink)", marginTop: "2px" }}>{totalCountries} Countries</div>
-          </div>
-        </div>
-
-        {/* KPI 2 */}
-        <div style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "14px", padding: "18px 20px", display: "flex", alignItems: "center", gap: "16px", boxShadow: "var(--shadow)" }}>
-          <div style={{ width: "46px", height: "46px", borderRadius: "12px", background: "#ecfdf5", color: "#059669", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <CheckCircle2 size={24} />
-          </div>
-          <div>
-            <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>ACTIVE PIPELINES</span>
-            <div style={{ fontSize: "22px", fontWeight: 900, color: "#059669", marginTop: "2px" }}>{activeCount} Active</div>
-          </div>
-        </div>
-
-        {/* KPI 3 */}
-        <div style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "14px", padding: "18px 20px", display: "flex", alignItems: "center", gap: "16px", boxShadow: "var(--shadow)" }}>
-          <div style={{ width: "46px", height: "46px", borderRadius: "12px", background: "#eff6ff", color: "#2563eb", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Users size={24} />
-          </div>
-          <div>
-            <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>TOTAL CANDIDATES PROCESSED</span>
-            <div style={{ fontSize: "22px", fontWeight: 900, color: "#2563eb", marginTop: "2px" }}>{totalCandidatesAcrossAll} Candidates</div>
-          </div>
-        </div>
-      </div>
+    <div className="country-management-page country-design-page management-design-page country-setup-design-page">
+      <div className="country-design-breadcrumb">Dashboard / Administration / Country Setup</div>
+      <header className="country-design-heading"><div><h1>Destination Country Management</h1><p>Create, update, and manage international destination countries. Changes automatically reflect in sidebar navigation and candidate forms.</p></div><div className="country-design-actions"><button data-action-ui="neutral" data-action-size="normal" type="button" onClick={fetchCountries} disabled={countryQuery.isFetching}><RefreshCw size={13} className={countryQuery.isFetching ? "animate-spin" : ""} /> Refresh</button><button data-action-ui="primary" data-action-size="normal" type="button" onClick={openCreateModal} className="management-primary"><Plus size={13} /> Add Destination Country</button></div></header>
+      <section className="country-design-metrics management-metrics-three">
+        <article className="country-design-metric"><div><span>Total Destinations</span><Globe size={16} color="#007aff" /></div><b>{totalCountries}</b><p>Registered countries</p></article>
+        <article className="country-design-metric"><div><span>Active Pipelines</span><CheckCircle2 size={16} color="#28c653" /></div><b>{activeCount}</b><p>Active destination pipelines</p></article>
+        <article className="country-design-metric"><div><span>Total Candidates</span><Users size={16} color="#6855e8" /></div><b>{totalCandidatesAcrossAll}</b><p>Candidate files across countries</p></article>
+      </section>
 
       {/* 3. CONTROLS TOOLBAR & COUNTRY GRID */}
-      <div style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "18px", padding: "20px 24px", boxShadow: "var(--shadow)", display: "flex", flexDirection: "column", gap: "18px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
-          {/* Filter tabs */}
-          <div style={{ display: "flex", gap: "6px", background: "#f8fafc", padding: "3px", borderRadius: "10px", border: "1px solid var(--line)" }}>
-            <button
+      <div className="country-controls-card country-design-workspace">
+        <div className="country-toolbar-row">
+          {/* Segmented Filter Tabs */}
+          <div className="country-filter-tabs">
+            <button  
               type="button"
               onClick={() => setFilterTab("ALL")}
-              style={{
-                padding: "6px 14px",
-                borderRadius: "8px",
-                border: "none",
-                background: filterTab === "ALL" ? "#7258e8" : "transparent",
-                color: filterTab === "ALL" ? "#ffffff" : "var(--muted)",
-                fontSize: "12px",
-                fontWeight: filterTab === "ALL" ? 800 : 600,
-                cursor: "pointer",
-              }}
+              className={`country-tab-btn ${filterTab === "ALL" ? "active all" : ""}`}
             >
-              All Countries ({totalCountries})
+              <span className="tab-label-full">All Countries</span>
+              <span className="tab-label-short">All</span>
+              <span className="country-tab-pill">{totalCountries}</span>
             </button>
-            <button
+            <button  
               type="button"
               onClick={() => setFilterTab("ACTIVE")}
-              style={{
-                padding: "6px 14px",
-                borderRadius: "8px",
-                border: "none",
-                background: filterTab === "ACTIVE" ? "#059669" : "transparent",
-                color: filterTab === "ACTIVE" ? "#ffffff" : "var(--muted)",
-                fontSize: "12px",
-                fontWeight: filterTab === "ACTIVE" ? 800 : 600,
-                cursor: "pointer",
-              }}
+              className={`country-tab-btn ${filterTab === "ACTIVE" ? "active active-corridors" : ""}`}
             >
-              Active ({activeCount})
+              <span className="tab-label-full">Active</span>
+              <span className="tab-label-short">Active</span>
+              <span className="country-tab-pill">{activeCount}</span>
             </button>
-            <button
+            <button  
               type="button"
               onClick={() => setFilterTab("INACTIVE")}
-              style={{
-                padding: "6px 14px",
-                borderRadius: "8px",
-                border: "none",
-                background: filterTab === "INACTIVE" ? "#e11d48" : "transparent",
-                color: filterTab === "INACTIVE" ? "#ffffff" : "var(--muted)",
-                fontSize: "12px",
-                fontWeight: filterTab === "INACTIVE" ? 800 : 600,
-                cursor: "pointer",
-              }}
+              className={`country-tab-btn ${filterTab === "INACTIVE" ? "active inactive-corridors" : ""}`}
             >
-              Inactive ({totalCountries - activeCount})
+              <span className="tab-label-full">Inactive</span>
+              <span className="tab-label-short">Inactive</span>
+              <span className="country-tab-pill">{totalCountries - activeCount}</span>
             </button>
           </div>
 
           {/* Search bar */}
-          <div style={{ position: "relative", minWidth: "280px" }}>
-            <Search size={15} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--muted)" }} />
+          <div className="country-search-wrap">
+            <Search size={16} className="country-search-icon" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by country name, code, currency..."
-              style={{
-                width: "100%",
-                height: "38px",
-                padding: "0 14px 0 34px",
-                borderRadius: "10px",
-                border: "1px solid var(--line)",
-                background: "#fafafd",
-                fontSize: "12.5px",
-                color: "var(--ink)",
-              }}
+              placeholder="Search by country, code, currency..."
+              className="country-search-input"
+              style={{ paddingLeft: "38px", paddingRight: "34px" }}
             />
+            {searchQuery && (
+              <button data-action-ui="ghost" data-action-size="icon"
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="country-search-clear"
+                aria-label="Clear search"
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
         </div>
 
+        <div className="country-design-count">Showing {filteredCountries.length} of {totalCountries} Total Destination Countries</div>
         {/* Countries Table / Cards */}
         {countryQuery.isError && !countryQuery.data ? (
-          <div role="alert" style={{ padding: 32 }}>
-            <p>{countryQuery.error.message}</p>
-            <button type="button" onClick={() => countryQuery.refetch()}>Retry</button>
+          <div role="alert" className="country-error-alert">
+            <div className="country-error-alert-content">
+              <AlertCircle size={22} style={{ flexShrink: 0 }} />
+              <div>
+                <p className="country-error-alert-title">Destination country data could not be loaded</p>
+                <p className="country-error-alert-desc">{countryQuery.error?.message || "Failed to fetch international corridors."}</p>
+              </div>
+            </div>
+            <button data-action-ui="neutral" data-action-size="normal" type="button" onClick={() => countryQuery.refetch()} className="country-error-retry-btn">
+              Retry
+            </button>
           </div>
         ) : loading ? (
           <div style={{ padding: "40px", textAlign: "center", color: "var(--muted)" }}>
@@ -581,189 +483,286 @@ export function CountryManagementPage() {
             <Globe size={32} style={{ color: "var(--muted)", margin: "0 auto 10px" }} />
             <b style={{ color: "var(--ink)", fontSize: "15px" }}>No Destination Countries Found</b>
             <p style={{ color: "var(--muted)", fontSize: "12px", marginTop: "4px" }}>
-              {searchQuery ? "No countries match your search query." : "Click '+ Add Destination Country' to create your first country pipeline."}
+              {searchQuery ? "No countries match your search query." : "Click 'Add Destination Country' to create your first country pipeline."}
             </p>
           </div>
         ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
-              <thead>
-                <tr style={{ borderBottom: "1px solid var(--line)", background: "#f8fafc", textAlign: "left" }}>
-                  <th style={{ padding: "12px 16px", fontWeight: 800, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>DESTINATION COUNTRY</th>
-                  <th style={{ padding: "12px 16px", fontWeight: 800, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>CODE &amp; PHONE</th>
-                  <th style={{ padding: "12px 16px", fontWeight: 800, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>CURRENCY &amp; TIMEZONE</th>
-                  <th style={{ padding: "12px 16px", fontWeight: 800, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>PIPELINE TYPE</th>
-                  <th style={{ padding: "12px 16px", fontWeight: 800, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>CANDIDATES</th>
-                  <th style={{ padding: "12px 16px", fontWeight: 800, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>STATUS</th>
-                  <th style={{ padding: "12px 16px", fontWeight: 800, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase", textAlign: "right" }}>ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredCountries.map((c) => {
-                  const flag = c.flag || getCountryFlagEmoji(c.code, c.name, c.flag);
-                  return (
-                    <tr
-                      key={c.id}
-                      style={{
-                        borderBottom: "1px solid #f1f5f9",
-                        transition: "background 0.15s ease",
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "#fafafd")}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                    >
-                      {/* Name & Flag */}
-                      <td style={{ padding: "14px 16px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                          <span style={{ fontSize: "22px" }}>{flag}</span>
-                          <div>
-                            <b style={{ fontSize: "14px", color: "var(--ink)", display: "block" }}>{c.name}</b>
-                            <span style={{ fontSize: "11px", color: "var(--muted)" }}>Destination Pipeline</span>
+          <>
+            {/* Desktop Table View */}
+            <div className="desktop-country-table management-table" style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid var(--line)", background: "#f8fafc", textAlign: "left" }}>
+                    <th style={{ padding: "12px 16px", fontWeight: 800, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>DESTINATION COUNTRY</th>
+                    <th style={{ padding: "12px 16px", fontWeight: 800, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>CODE &amp; PHONE</th>
+                    <th style={{ padding: "12px 16px", fontWeight: 800, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>CURRENCY &amp; TIMEZONE</th>
+                    <th style={{ padding: "12px 16px", fontWeight: 800, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>PIPELINE TYPE</th>
+                    <th style={{ padding: "12px 16px", fontWeight: 800, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>CANDIDATES</th>
+                    <th style={{ padding: "12px 16px", fontWeight: 800, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>STATUS</th>
+                    <th style={{ padding: "12px 16px", fontWeight: 800, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase", textAlign: "right" }}>ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredCountries.map((c) => {
+                    const flag = c.flag || getCountryFlagEmoji(c.code, c.name, c.flag);
+                    return (
+                      <tr
+                        key={c.id}
+                        style={{
+                          borderBottom: "1px solid #f1f5f9",
+                          transition: "background 0.15s ease",
+                        }}
+                      >
+                        {/* Name & Flag */}
+                        <td style={{ padding: "14px 16px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                            <span style={{ fontSize: "22px" }}>{flag}</span>
+                            <div>
+                              <b style={{ fontSize: "14px", color: "var(--ink)", display: "block" }}>{c.name}</b>
+                              <span style={{ fontSize: "11px", color: "var(--muted)" }}>Destination Pipeline</span>
+                            </div>
                           </div>
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* Code & Phone */}
-                      <td style={{ padding: "14px 16px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                          <span style={{ fontSize: "11.5px", fontWeight: 900, color: "#7258e8", background: "#f0edff", border: "1px solid #dcd5fb", padding: "2px 7px", borderRadius: "5px" }}>
-                            {c.code}
+                        {/* Code & Phone */}
+                        <td style={{ padding: "14px 16px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                            <span style={{ fontSize: "11.5px", fontWeight: 900, color: "#7258e8", background: "#f0edff", border: "1px solid #dcd5fb", padding: "2px 7px", borderRadius: "5px" }}>
+                              {c.code}
+                            </span>
+                            {c.phoneCode && <span style={{ fontSize: "11.5px", color: "var(--muted)", fontWeight: 600 }}>{c.phoneCode}</span>}
+                          </div>
+                        </td>
+
+                        {/* Currency & Timezone */}
+                        <td style={{ padding: "14px 16px" }}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontWeight: 700, color: "#059669" }}>
+                              <Coins size={12} /> {c.currency}
+                            </span>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "var(--muted)" }}>
+                              <Clock size={11} /> {c.timezone}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Workflow Type */}
+                        <td style={{ padding: "14px 16px" }}>
+                          <span style={{ fontSize: "11.5px", fontWeight: 800, color: "#334155", background: "#f1f5f9", padding: "3px 8px", borderRadius: "6px" }}>
+                            {c.workflowType}
                           </span>
-                          {c.phoneCode && <span style={{ fontSize: "11.5px", color: "var(--muted)", fontWeight: 600 }}>{c.phoneCode}</span>}
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* Currency & Timezone */}
-                      <td style={{ padding: "14px 16px" }}>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontWeight: 700, color: "#059669" }}>
-                            <Coins size={12} /> {c.currency}
-                          </span>
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "var(--muted)" }}>
-                            <Clock size={11} /> {c.timezone}
-                          </span>
-                        </div>
-                      </td>
+                        {/* Candidates Count */}
+                        <td style={{ padding: "14px 16px" }}>
+                          <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: c.candidateCount > 0 ? "#eff6ff" : "#f8fafc", color: c.candidateCount > 0 ? "#1d4ed8" : "var(--muted)", border: `1px solid ${c.candidateCount > 0 ? "#bfdbfe" : "#e2e8f0"}`, padding: "3px 10px", borderRadius: "6px", fontWeight: 800, fontSize: "12px" }}>
+                            <Users size={12} /> {c.candidateCount} Candidate{c.candidateCount === 1 ? "" : "s"}
+                          </div>
+                        </td>
 
-                      {/* Workflow Type */}
-                      <td style={{ padding: "14px 16px" }}>
-                        <span style={{ fontSize: "11.5px", fontWeight: 800, color: "#334155", background: "#f1f5f9", padding: "3px 8px", borderRadius: "6px" }}>
-                          {c.workflowType}
-                        </span>
-                      </td>
-
-                      {/* Candidates Count */}
-                      <td style={{ padding: "14px 16px" }}>
-                        <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: c.candidateCount > 0 ? "#eff6ff" : "#f8fafc", color: c.candidateCount > 0 ? "#1d4ed8" : "var(--muted)", border: `1px solid ${c.candidateCount > 0 ? "#bfdbfe" : "#e2e8f0"}`, padding: "3px 10px", borderRadius: "6px", fontWeight: 800, fontSize: "12px" }}>
-                          <Users size={12} /> {c.candidateCount} Candidate{c.candidateCount === 1 ? "" : "s"}
-                        </div>
-                      </td>
-
-                      {/* Status Toggle */}
-                      <td style={{ padding: "14px 16px" }}>
-                        <button
-                          type="button"
-                          disabled={pendingCountryIds.includes(c.id) || !allows("country-setup", "edit")}
-                          aria-busy={pendingCountryIds.includes(c.id)}
-                          aria-label={`${c.active ? "Deactivate" : "Activate"} ${c.name}`}
-                          onClick={() => handleToggleActive(c)}
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "5px",
-                            padding: "4px 10px",
-                            borderRadius: "6px",
-                            border: `1px solid ${c.active ? "#a7f3d0" : "#fecdd3"}`,
-                            background: c.active ? "#ecfdf5" : "#fff1f2",
-                            color: c.active ? "#059669" : "#e11d48",
-                            fontSize: "11.5px",
-                            fontWeight: 800,
-                            cursor: "pointer",
-                          }}
-                        >
-                          {c.active ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
-                          {pendingCountryIds.includes(c.id) ? "Saving…" : c.active ? "Active" : "Inactive"}
-                        </button>
-                      </td>
-
-                      {/* Actions */}
-                      <td style={{ padding: "14px 16px", textAlign: "right" }}>
-                        <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                          <Link
-                            href={`/country-pipeline/${c.id}`}
-                            title="Configure Custom Pipeline Stages & Workflow in Dedicated Page"
+                        {/* Status Toggle */}
+                        <td style={{ padding: "14px 16px" }}>
+                          <button  
+                            type="button"
+                            disabled={pendingCountryIds.includes(c.id) || !allows("country-setup", "edit")}
+                            aria-busy={pendingCountryIds.includes(c.id)}
+                            aria-label={`${c.active ? "Deactivate" : "Activate"} ${c.name}`}
+                            onClick={() => handleToggleActive(c)}
                             style={{
                               display: "inline-flex",
                               alignItems: "center",
                               gap: "5px",
-                              padding: "6px 11px",
-                              borderRadius: "7px",
-                              border: "1px solid #c7d2fe",
-                              background: "#eef2ff",
-                              color: "#4338ca",
-                              fontSize: "12px",
+                              padding: "4px 10px",
+                              borderRadius: "6px",
+                              border: `1px solid ${c.active ? "#a7f3d0" : "#fecdd3"}`,
+                              background: c.active ? "#ecfdf5" : "#fff1f2",
+                              color: c.active ? "#059669" : "#e11d48",
+                              fontSize: "11.5px",
                               fontWeight: 800,
-                              textDecoration: "none",
                               cursor: "pointer",
                             }}
                           >
-                            <SlidersHorizontal size={13} /> {c.workflow ? c.workflow.filter((w) => w.active).length : 7} Stages
-                          </Link>
-
-                          <button
-                            type="button"
-                            onClick={() => openEditModal(c)}
-                            title="Edit Country Name & Details"
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px",
-                              padding: "6px 10px",
-                              borderRadius: "7px",
-                              border: "1px solid #dcd5fb",
-                              background: "#f0edff",
-                              color: "#7258e8",
-                              fontSize: "12px",
-                              fontWeight: 700,
-                              cursor: "pointer",
-                            }}
-                          >
-                            <Edit2 size={13} /> Edit
+                            {c.active ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
+                            {pendingCountryIds.includes(c.id) ? "Saving…" : c.active ? "Active" : "Inactive"}
                           </button>
+                        </td>
 
-                          <button
-                            type="button"
-                            onClick={() => setDeletingCountry(c)}
-                            title="Delete or Deactivate Country"
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px",
-                              padding: "6px 10px",
-                              borderRadius: "7px",
-                              border: "1px solid #fecdd3",
-                              background: "#fff1f2",
-                              color: "#e11d48",
-                              fontSize: "12px",
-                              fontWeight: 700,
-                              cursor: "pointer",
-                            }}
-                          >
-                            <Trash2 size={13} /> Delete
-                          </button>
+                        {/* Actions */}
+                        <td style={{ padding: "14px 16px", textAlign: "right" }}>
+                          <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                            <Link
+                              href={`/country-pipeline/${c.id}`}
+                              title="Configure Custom Pipeline Stages & Workflow in Dedicated Page"
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "5px",
+                                padding: "6px 11px",
+                                borderRadius: "7px",
+                                border: "1px solid #c7d2fe",
+                                background: "#eef2ff",
+                                color: "#4338ca",
+                                fontSize: "12px",
+                                fontWeight: 800,
+                                textDecoration: "none",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <SlidersHorizontal size={13} /> {c.workflow ? c.workflow.filter((w) => w.active).length : 7} Stages
+                            </Link>
+
+                            <button data-action-ui="secondary" data-action-size="compact"
+                              type="button"
+                              onClick={() => openEditModal(c)}
+                              title="Edit Country Name & Details"
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                padding: "6px 10px",
+                                borderRadius: "7px",
+                                border: "1px solid #dcd5fb",
+                                background: "#f0edff",
+                                color: "#7258e8",
+                                fontSize: "12px",
+                                fontWeight: 700,
+                                cursor: "pointer",
+                              }}
+                            >
+                              <Edit2 size={13} /> Edit
+                            </button>
+
+                            <button data-action-ui="danger" data-action-size="compact"
+                              type="button"
+                              onClick={() => setDeletingCountry(c)}
+                              title="Delete or Deactivate Country"
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                padding: "6px 10px",
+                                borderRadius: "7px",
+                                border: "1px solid #fecdd3",
+                                background: "#fff1f2",
+                                color: "#e11d48",
+                                fontSize: "12px",
+                                fontWeight: 700,
+                                cursor: "pointer",
+                              }}
+                            >
+                              <Trash2 size={13} /> Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Stream View (Stitch Spec: dd52cdcb5891488da2e76e3586cbdbf7) */}
+            <div className="mobile-country-stream">
+              {filteredCountries.map((c) => {
+                const flag = c.flag || getCountryFlagEmoji(c.code, c.name, c.flag);
+                return (
+                  <div key={c.id} className="country-mobile-card">
+                    <div className="country-mobile-card-top">
+                      <div className="country-mobile-card-brand">
+                        <div className="country-mobile-flag">{flag}</div>
+                        <div className="country-mobile-title-block">
+                          <div className="country-mobile-name-row">
+                            <h3 className="country-mobile-name">{c.name}</h3>
+                            <span className="country-mobile-code-badge">{c.code}</span>
+                          </div>
+                          <span className="country-mobile-sub">Pipeline • {c.workflowType}</span>
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                      <button  
+                        type="button"
+                        disabled={pendingCountryIds.includes(c.id) || !allows("country-setup", "edit")}
+                        aria-label={`${c.active ? "Deactivate" : "Activate"} ${c.name}`}
+                        onClick={() => handleToggleActive(c)}
+                        className="country-mobile-status-toggle"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "3.5px",
+                          padding: "2px 8px",
+                          height: "26px",
+                          borderRadius: "6px",
+                          border: `1px solid ${c.active ? "#a7f3d0" : "#fecdd3"}`,
+                          background: c.active ? "#ecfdf5" : "#fff1f2",
+                          color: c.active ? "#059669" : "#e11d48",
+                          fontSize: "10.5px",
+                          fontWeight: 800,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {c.active ? <CheckCircle2 size={11} /> : <XCircle size={11} />}
+                        {pendingCountryIds.includes(c.id) ? "Saving…" : c.active ? "Active" : "Inactive"}
+                      </button>
+                    </div>
+
+                    <div className="country-mobile-grid">
+                      <div className="country-mobile-grid-item">
+                        <Coins size={14} style={{ color: "#059669", flexShrink: 0 }} />
+                        <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+                          <span className="country-mobile-grid-val">{c.currency}</span>
+                          <span className="country-mobile-grid-lbl">{c.phoneCode ? `${c.phoneCode} • ` : ""}{c.timezone}</span>
+                        </div>
+                      </div>
+                      <div className="country-mobile-grid-item">
+                        <Users size={14} style={{ color: "#2563eb", flexShrink: 0 }} />
+                        <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+                          <span className="country-mobile-grid-val">{c.candidateCount} Candidates</span>
+                          <span className="country-mobile-grid-lbl">Corridor Intake</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="country-mobile-actions">
+                      <Link data-action-ui="secondary" data-action-size="normal"
+                        href={`/country-pipeline/${c.id}`}
+                        className="country-mobile-stages-btn"
+                      >
+                        <SlidersHorizontal size={13} />
+                        <span>{c.workflow ? c.workflow.filter((w) => w.active).length : 7} Stages</span>
+                      </Link>
+
+                      <div className="country-mobile-btn-group">
+                        <button data-action-ui="secondary" data-action-size="normal"
+                          type="button"
+                          onClick={() => openEditModal(c)}
+                          className="country-mobile-action-btn edit"
+                          title="Edit Country"
+                        >
+                          <Edit2 size={13} />
+                          <span>Edit</span>
+                        </button>
+
+                        <button data-action-ui="danger" data-action-size="normal"
+                          type="button"
+                          onClick={() => setDeletingCountry(c)}
+                          className="country-mobile-action-btn delete"
+                          title="Delete Country"
+                        >
+                          <Trash2 size={13} />
+                          <span>Delete</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
 
       {/* 4. CREATE / EDIT COUNTRY MODAL */}
       {modalMode && (
-        <div
+        <div aria-label="Dialog" className="master-modal-overlay"
           role="dialog"
           aria-modal="true"
           style={{
@@ -778,7 +777,7 @@ export function CountryManagementPage() {
             padding: "20px",
           }}
         >
-          <div
+          <div className="master-modal-card master-modal-inline-card master-modal-panel"
             style={{
               background: "#ffffff",
               borderRadius: "18px",
@@ -790,14 +789,14 @@ export function CountryManagementPage() {
             }}
           >
             {/* Modal Header */}
-            <div style={{ padding: "18px 22px", borderBottom: "1px solid var(--line)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc" }}>
+            <div className="master-modal-header" style={{ padding: "18px 22px", borderBottom: "1px solid var(--line)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <Globe size={20} style={{ color: "#7258e8" }} />
+                <Globe className="master-modal-accent" size={20} style={{ color: "#7258e8" }} />
                 <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "var(--ink)" }}>
                   {modalMode === "CREATE" ? "+ Add Destination Country" : `Edit Country: ${editingCountry?.name}`}
                 </h3>
               </div>
-              <button
+              <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog"
                 type="button"
                 onClick={() => setModalMode(null)}
                 style={{ background: "transparent", border: "none", fontSize: "18px", color: "var(--muted)", cursor: "pointer" }}
@@ -809,13 +808,13 @@ export function CountryManagementPage() {
             {/* Modal Form */}
             <form onSubmit={handleSaveCountry} style={{ padding: "22px", display: "flex", flexDirection: "column", gap: "16px" }}>
               {/* Quick Presets Bar */}
-              <div style={{ background: "#f8fafc", padding: "10px 12px", borderRadius: "10px", border: "1px solid var(--line)" }}>
+              <div className="master-modal-panel" style={{ background: "#f8fafc", padding: "10px 12px", borderRadius: "10px", border: "1px solid var(--line)" }}>
                 <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>
                   ⚡ Quick Destination Presets (Click to autofill):
                 </span>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", maxHeight: "80px", overflowY: "auto" }}>
                   {PRESET_COUNTRIES.slice(0, 18).map((preset) => (
-                    <button
+                    <button aria-pressed={formData.name.toLowerCase() === preset.name.toLowerCase()}
                       key={preset.code}
                       type="button"
                       onClick={() => applyPresetCountry(preset)}
@@ -847,7 +846,7 @@ export function CountryManagementPage() {
                 </label>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   {/* Flag selector trigger */}
-                  <button
+                  <button data-action-ui="secondary" data-action-size="normal"
                     type="button"
                     onClick={() => setShowFlagPalette(!showFlagPalette)}
                     title="Click to choose Flag Emoji"
@@ -915,12 +914,12 @@ export function CountryManagementPage() {
 
                 {/* Optional flag picker palette */}
                 {showFlagPalette && (
-                  <div style={{ marginTop: "8px", background: "#f8fafc", border: "1px solid #dcd5fb", borderRadius: "10px", padding: "10px" }}>
+                  <div className="master-modal-panel" style={{ marginTop: "8px", background: "#f8fafc", border: "1px solid #dcd5fb", borderRadius: "10px", padding: "10px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
                       <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase" }}>
                         Select Flag Emoji:
                       </span>
-                      <button
+                      <button data-action-ui="neutral" data-action-size="normal"
                         type="button"
                         onClick={() => setShowFlagPalette(false)}
                         style={{ border: "none", background: "transparent", fontSize: "11px", color: "var(--muted)", cursor: "pointer", fontWeight: 700 }}
@@ -930,7 +929,7 @@ export function CountryManagementPage() {
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(36px, 1fr))", gap: "5px" }}>
                       {POPULAR_FLAGS.map((pf) => (
-                        <button
+                        <button aria-pressed={formData.flag === pf.flag}
                           key={pf.code}
                           type="button"
                           title={pf.label}
@@ -1087,7 +1086,7 @@ export function CountryManagementPage() {
 
               {/* Modal Footer */}
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "12px", borderTop: "1px solid var(--line)", paddingTop: "16px" }}>
-                <button
+                <button data-action-ui="neutral" data-action-size="normal"
                   type="button"
                   onClick={() => setModalMode(null)}
                   style={{
@@ -1103,7 +1102,7 @@ export function CountryManagementPage() {
                 >
                   Cancel
                 </button>
-                <button
+                <button data-action-ui="primary" data-action-size="normal" className="master-modal-primary"
                   type="submit"
                   disabled={saving}
                   style={{
@@ -1128,7 +1127,7 @@ export function CountryManagementPage() {
 
       {/* 5. DELETE CONFIRMATION MODAL */}
       {deletingCountry && (
-        <div
+        <div aria-label="Delete Country “ ”?" className="master-modal-overlay"
           role="dialog"
           aria-modal="true"
           style={{
@@ -1143,7 +1142,7 @@ export function CountryManagementPage() {
             padding: "20px",
           }}
         >
-          <div
+          <div className="master-modal-card master-modal-inline-card master-modal-panel"
             style={{
               background: "#ffffff",
               borderRadius: "18px",
@@ -1155,7 +1154,7 @@ export function CountryManagementPage() {
               textAlign: "center",
             }}
           >
-            <div style={{ width: "50px", height: "50px", borderRadius: "50%", background: "#fff1f2", color: "#e11d48", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
+            <div className="master-modal-icon" style={{ width: "50px", height: "50px", borderRadius: "50%", background: "#fff1f2", color: "#e11d48", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
               <AlertTriangle size={26} />
             </div>
 
@@ -1167,7 +1166,7 @@ export function CountryManagementPage() {
             </p>
 
             <div style={{ display: "flex", justifyContent: "center", gap: "10px" }}>
-              <button
+              <button data-action-ui="neutral" data-action-size="normal"
                 type="button"
                 onClick={() => setDeletingCountry(null)}
                 style={{
@@ -1183,7 +1182,7 @@ export function CountryManagementPage() {
               >
                 Cancel
               </button>
-              <button
+              <button data-action-ui="danger" data-action-size="normal" className="master-modal-danger"
                 type="button"
                 onClick={handleDeleteCountry}
                 disabled={deleting}
