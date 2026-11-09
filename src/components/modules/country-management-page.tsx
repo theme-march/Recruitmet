@@ -103,6 +103,106 @@ export function CountryManagementPage() {
   >([]);
   const [savingPipeline, setSavingPipeline] = useState(false);
 
+  // Packages Management Modal State
+  const [packagesCountry, setPackagesCountry] = useState<CountryRecord | null>(null);
+  const [countryPackages, setCountryPackages] = useState<Array<{ id: string; name: string; price: number; description?: string | null; isDefault: boolean; active: boolean }>>([]);
+  const [countryDemands, setCountryDemands] = useState<Array<{ id: string; demandNo: string; title: string; profession: string; company: string; visaRate: number }>>([]);
+  const [fetchingPackages, setFetchingPackages] = useState(false);
+  const [newPkgName, setNewPkgName] = useState("");
+  const [newPkgPrice, setNewPkgPrice] = useState("");
+  const [newPkgDesc, setNewPkgDesc] = useState("");
+  const [newPkgDefault, setNewPkgDefault] = useState(false);
+  const [addingPkg, setAddingPkg] = useState(false);
+
+  const openPackagesModal = async (country: CountryRecord) => {
+    setPackagesCountry(country);
+    setFetchingPackages(true);
+    setNewPkgName("");
+    setNewPkgPrice("");
+    setNewPkgDesc("");
+    setNewPkgDefault(false);
+    setCountryDemands([]);
+    try {
+      const res = await fetch(`/api/country-packages?countryId=${country.id}`);
+      const data = await res.json();
+      if (data.data) setCountryPackages(data.data);
+      if (data.demands) setCountryDemands(data.demands);
+    } catch {
+      toast.error("Failed to load country packages.");
+    } finally {
+      setFetchingPackages(false);
+    }
+  };
+
+  const handleCreatePackage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!packagesCountry || !newPkgName.trim() || !newPkgPrice) return;
+    setAddingPkg(true);
+    try {
+      const res = await fetch("/api/country-packages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          countryId: packagesCountry.id,
+          name: newPkgName.trim(),
+          price: Number(newPkgPrice),
+          description: newPkgDesc.trim() || undefined,
+          isDefault: newPkgDefault,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || "Failed to create package");
+      toast.success("Package added successfully!");
+      setNewPkgName("");
+      setNewPkgPrice("");
+      setNewPkgDesc("");
+      setNewPkgDefault(false);
+      // Refresh packages
+      const refRes = await fetch(`/api/country-packages?countryId=${packagesCountry.id}`);
+      const refData = await refRes.json();
+      if (refData.data) setCountryPackages(refData.data);
+      if (refData.demands) setCountryDemands(refData.demands);
+      void queryClient.invalidateQueries({ queryKey: countriesKey });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to add package");
+    } finally {
+      setAddingPkg(false);
+    }
+  };
+
+  const handleDeletePackage = async (pkgId: string) => {
+    if (!confirm("Are you sure you want to delete this package?")) return;
+    try {
+      const res = await fetch(`/api/country-packages?id=${pkgId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || "Failed to delete package");
+      toast.success("Package deleted successfully!");
+      setCountryPackages((prev) => prev.filter((p) => p.id !== pkgId));
+      void queryClient.invalidateQueries({ queryKey: countriesKey });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete package");
+    }
+  };
+
+  const handleSetDefaultPackage = async (pkgId: string) => {
+    try {
+      const res = await fetch("/api/country-packages", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: pkgId, isDefault: true }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || "Failed to set default package");
+      toast.success("Default baseline package updated!");
+      setCountryPackages((prev) =>
+        prev.map((p) => ({ ...p, isDefault: p.id === pkgId }))
+      );
+      void queryClient.invalidateQueries({ queryKey: countriesKey });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update package");
+    }
+  };
+
   const openPipelineBuilder = (country: CountryRecord) => {
     setPipelineCountry(country);
     const templateKey = country.workflowType || "GENERAL";
@@ -497,6 +597,7 @@ export function CountryManagementPage() {
                     <th style={{ padding: "12px 16px", fontWeight: 800, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>CODE &amp; PHONE</th>
                     <th style={{ padding: "12px 16px", fontWeight: 800, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>CURRENCY &amp; TIMEZONE</th>
                     <th style={{ padding: "12px 16px", fontWeight: 800, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>PIPELINE TYPE</th>
+                    <th style={{ padding: "12px 16px", fontWeight: 800, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>PACKAGES &amp; RATES</th>
                     <th style={{ padding: "12px 16px", fontWeight: 800, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>CANDIDATES</th>
                     <th style={{ padding: "12px 16px", fontWeight: 800, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>STATUS</th>
                     <th style={{ padding: "12px 16px", fontWeight: 800, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase", textAlign: "right" }}>ACTIONS</th>
@@ -551,6 +652,31 @@ export function CountryManagementPage() {
                           <span style={{ fontSize: "11.5px", fontWeight: 800, color: "#334155", background: "#f1f5f9", padding: "3px 8px", borderRadius: "6px" }}>
                             {c.workflowType}
                           </span>
+                        </td>
+
+                        {/* Packages & Rates */}
+                        <td style={{ padding: "14px 16px" }}>
+                          <div>
+                            {c.packages && c.packages.length > 0 ? (
+                              <>
+                                <b style={{ fontSize: "13px", color: "#059669", display: "block" }}>
+                                  ৳ {Number(c.packages.find((p) => p.isDefault)?.price || c.packages[0].price).toLocaleString()} BDT
+                                </b>
+                                <span style={{ fontSize: "10.5px", color: "var(--muted)", display: "block" }}>
+                                  {c.packages.length} Package{c.packages.length > 1 ? "s" : ""}
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <b style={{ fontSize: "13px", color: "#64748b", display: "block" }}>
+                                  ৳ {(/dubai/i.test(c.name) ? 300000 : 350000).toLocaleString()} BDT
+                                </b>
+                                <span style={{ fontSize: "10.5px", color: "var(--muted)", display: "block" }}>
+                                  Standard Baseline
+                                </span>
+                              </>
+                            )}
+                          </div>
                         </td>
 
                         {/* Candidates Count */}
@@ -610,6 +736,27 @@ export function CountryManagementPage() {
                             >
                               <SlidersHorizontal size={13} /> {c.workflow ? c.workflow.filter((w) => w.active).length : 7} Stages
                             </Link>
+
+                            <button data-action-ui="secondary" data-action-size="compact"
+                              type="button"
+                              onClick={() => openPackagesModal(c)}
+                              title={`Manage custom packages & rates for ${c.name}`}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                padding: "6px 10px",
+                                borderRadius: "7px",
+                                border: "1px solid #bbf7d0",
+                                background: "#f0fdf4",
+                                color: "#15803d",
+                                fontSize: "12px",
+                                fontWeight: 800,
+                                cursor: "pointer",
+                              }}
+                            >
+                              <Coins size={12} /> Packages ({c.packages?.length || 1})
+                            </button>
 
                             <button data-action-ui="secondary" data-action-size="compact"
                               type="button"
@@ -729,6 +876,16 @@ export function CountryManagementPage() {
                         <SlidersHorizontal size={13} />
                         <span>{c.workflow ? c.workflow.filter((w) => w.active).length : 7} Stages</span>
                       </Link>
+
+                      <button
+                        type="button"
+                        onClick={() => openPackagesModal(c)}
+                        className="country-mobile-stages-btn"
+                        style={{ background: "#f0fdf4", color: "#15803d", borderColor: "#bbf7d0" }}
+                      >
+                        <Coins size={13} />
+                        <span>Packages ({c.packages?.length || 1})</span>
+                      </button>
 
                       <div className="country-mobile-btn-group">
                         <button data-action-ui="secondary" data-action-size="normal"
@@ -1198,6 +1355,327 @@ export function CountryManagementPage() {
                 }}
               >
                 {deleting ? "Deleting..." : "Yes, Delete Country"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. COUNTRY PACKAGES MANAGEMENT MODAL */}
+      {packagesCountry && (
+        <div aria-label="Dialog" className="master-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            background: "rgba(15, 23, 42, 0.6)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+          }}
+          onClick={() => setPackagesCountry(null)}
+        >
+          <div className="master-modal-card master-modal-inline-card master-modal-panel"
+            style={{
+              background: "#ffffff",
+              borderRadius: "18px",
+              width: "100%",
+              maxWidth: "600px",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+              border: "1px solid var(--line)",
+              overflow: "hidden",
+              maxHeight: "90vh",
+              display: "flex",
+              flexDirection: "column",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="master-modal-header" style={{ padding: "18px 22px", borderBottom: "1px solid var(--line)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <span style={{ fontSize: "24px" }}>{packagesCountry.flag || "🌍"}</span>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "var(--ink)" }}>
+                    {packagesCountry.name} — Packages &amp; Pricing
+                  </h3>
+                  <small style={{ color: "var(--muted)", fontSize: "11px" }}>
+                    Configure multiple packages &amp; standard rates for this destination country
+                  </small>
+                </div>
+              </div>
+              <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog"
+                type="button"
+                onClick={() => setPackagesCountry(null)}
+                style={{ background: "transparent", border: "none", fontSize: "18px", color: "var(--muted)", cursor: "pointer" }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: "22px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "20px" }}>
+              {/* Packages List */}
+              <div>
+                <span style={{ fontSize: "11.5px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", display: "block", marginBottom: "8px" }}>
+                  Current Packages ({countryPackages.length})
+                </span>
+
+                {fetchingPackages ? (
+                  <div style={{ padding: "20px", textAlign: "center", color: "var(--muted)", fontSize: "13px" }}>
+                    Loading packages...
+                  </div>
+                ) : countryPackages.length === 0 ? (
+                  <div style={{ padding: "16px", background: "#f8fafc", borderRadius: "10px", border: "1px dashed var(--line)", textAlign: "center", fontSize: "12px", color: "var(--muted)" }}>
+                    No custom packages yet. System standard baseline (৳ {/dubai/i.test(packagesCountry.name) ? "300,000" : "350,000"} BDT) applies.
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {countryPackages.map((pkg) => (
+                      <div
+                        key={pkg.id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "12px 14px",
+                          borderRadius: "10px",
+                          border: `1px solid ${pkg.isDefault ? "#a7f3d0" : "var(--line)"}`,
+                          background: pkg.isDefault ? "#f0fdf4" : "#ffffff",
+                          gap: "10px",
+                        }}
+                      >
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                            <b style={{ fontSize: "13.5px", color: "var(--ink)" }}>{pkg.name}</b>
+                            {pkg.isDefault ? (
+                              <span style={{ fontSize: "10px", fontWeight: 800, background: "#dcfce7", color: "#15803d", padding: "1px 6px", borderRadius: "4px" }}>
+                                ⭐ Default Baseline
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleSetDefaultPackage(pkg.id)}
+                                style={{ fontSize: "10px", color: "#4f46e5", background: "transparent", border: "none", cursor: "pointer", textDecoration: "underline" }}
+                              >
+                                Set as Default
+                              </button>
+                            )}
+                            {(/works.*demand|quota/i.test(pkg.name) || /demand|quota/i.test(pkg.description || "")) && (
+                              <span style={{ fontSize: "10px", fontWeight: 800, background: "#ede9fe", color: "#6d28d9", padding: "1px 6px", borderRadius: "4px", display: "inline-flex", alignItems: "center", gap: "3px" }}>
+                                📋 Work &amp; Demand
+                              </span>
+                            )}
+                          </div>
+                          {pkg.description && (
+                            <small style={{ fontSize: "11px", color: "var(--muted)", display: "block", marginTop: "2px" }}>
+                              {pkg.description}
+                            </small>
+                          )}
+                        </div>
+
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <b style={{ fontSize: "14px", color: "#059669", fontWeight: 800 }}>
+                            ৳ {pkg.price.toLocaleString()} BDT
+                          </b>
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePackage(pkg.id)}
+                            style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", padding: "4px" }}
+                            title="Delete package"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Add New Package Form */}
+              <div style={{ background: "#f8fafc", padding: "16px", borderRadius: "12px", border: "1px solid var(--line)" }}>
+                <span style={{ fontSize: "12px", fontWeight: 800, color: "var(--ink)", display: "block", marginBottom: "8px" }}>
+                  + Add New Package for {packagesCountry.name}
+                </span>
+
+                {/* Quick Presets */}
+                <div style={{ marginBottom: "12px" }}>
+                  <span style={{ fontSize: "10.5px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", display: "block", marginBottom: "5px" }}>
+                    Quick Presets:
+                  </span>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                    {/* Country-Specific Active Works & Demands Presets */}
+                    {countryDemands.map((dm) => (
+                      <button
+                        key={dm.id}
+                        type="button"
+                        onClick={() => {
+                          setNewPkgName(dm.title);
+                          setNewPkgPrice(String(dm.visaRate || ""));
+                          setNewPkgDesc(`Work & Demand quota package for ${dm.title} (${dm.demandNo})`);
+                        }}
+                        style={{
+                          padding: "3px 8px",
+                          borderRadius: "6px",
+                          border: "1px solid #c4b5fd",
+                          background: "#f5f3ff",
+                          color: "#6d28d9",
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                        }}
+                      >
+                        📋 + {dm.title} (৳{(dm.visaRate || 0).toLocaleString()})
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewPkgName("Free Visa / Direct");
+                        setNewPkgPrice("380000");
+                        setNewPkgDesc("Open freelance or direct sponsor package");
+                      }}
+                      style={{
+                        padding: "3px 8px",
+                        borderRadius: "6px",
+                        border: "1px solid #e2e8f0",
+                        background: "#ffffff",
+                        color: "#334155",
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      + Free Visa / Direct
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewPkgName("Driver Visa");
+                        setNewPkgPrice("320000");
+                        setNewPkgDesc("Heavy / Light commercial driver visa package");
+                      }}
+                      style={{
+                        padding: "3px 8px",
+                        borderRadius: "6px",
+                        border: "1px solid #e2e8f0",
+                        background: "#ffffff",
+                        color: "#334155",
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      + Driver Visa
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewPkgName("VIP Express Visa");
+                        setNewPkgPrice("450000");
+                        setNewPkgDesc("Fast-track VIP processing package");
+                      }}
+                      style={{
+                        padding: "3px 8px",
+                        borderRadius: "6px",
+                        border: "1px solid #e2e8f0",
+                        background: "#ffffff",
+                        color: "#334155",
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      + VIP Express Visa
+                    </button>
+                  </div>
+                </div>
+
+                <form onSubmit={handleCreatePackage} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "10px" }}>
+                    <div>
+                      <label style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", display: "block", marginBottom: "4px" }}>
+                        Package Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Driver Visa, VIP Express"
+                        value={newPkgName}
+                        onChange={(e) => setNewPkgName(e.target.value)}
+                        style={{ width: "100%", padding: "8px 10px", borderRadius: "7px", border: "1px solid var(--line)", fontSize: "12.5px" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", display: "block", marginBottom: "4px" }}>
+                        Rate (BDT) *
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1000"
+                        required
+                        placeholder="e.g. 350000"
+                        value={newPkgPrice}
+                        onChange={(e) => setNewPkgPrice(e.target.value)}
+                        style={{ width: "100%", padding: "8px 10px", borderRadius: "7px", border: "1px solid var(--line)", fontSize: "12.5px", fontWeight: 700 }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", display: "block", marginBottom: "4px" }}>
+                      Description (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Includes visa, medical, and flight processing"
+                      value={newPkgDesc}
+                      onChange={(e) => setNewPkgDesc(e.target.value)}
+                      style={{ width: "100%", padding: "8px 10px", borderRadius: "7px", border: "1px solid var(--line)", fontSize: "12px" }}
+                    />
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "2px" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", cursor: "pointer" }}>
+                      <input
+                        type="checkbox"
+                        checked={newPkgDefault}
+                        onChange={(e) => setNewPkgDefault(e.target.checked)}
+                      />
+                      <span>Set as default baseline package for {packagesCountry.name}</span>
+                    </label>
+
+                    <button
+                      type="submit"
+                      disabled={addingPkg}
+                      data-action-ui="primary"
+                      data-action-size="compact"
+                      style={{ background: "#7258e8", color: "#fff", padding: "6px 14px", borderRadius: "7px", fontWeight: 800, border: "none", cursor: "pointer" }}
+                    >
+                      {addingPkg ? "Adding..." : "+ Add Package"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div style={{ padding: "14px 22px", borderTop: "1px solid var(--line)", display: "flex", justifyContent: "flex-end", background: "#f8fafc" }}>
+              <button
+                type="button"
+                data-action-ui="neutral"
+                data-action-size="normal"
+                onClick={() => setPackagesCountry(null)}
+              >
+                Done
               </button>
             </div>
           </div>

@@ -33,6 +33,9 @@ async function POSTHandler(request: Request) {
           id: row.id,
           documentNo: row.documentNo,
           status: row.status,
+          downloadUrl: (row as any).downloadUrl || row.url || "",
+          fileName: (row as any).stored?.originalName || row.fileName || "",
+          sizeBytes: (row as any).stored?.sizeBytes || 0,
         },
       },
       { status: 201 }

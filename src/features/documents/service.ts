@@ -22,7 +22,11 @@ export async function uploadDocument(
 ) {
   const permitted =
     (await can(session, "documents", "Add")) ||
-    (await can(session, "files", "Update"));
+    (await can(session, "document", "Add")) ||
+    (await can(session, "document", "create")) ||
+    (await can(session, "files", "Update")) ||
+    (await can(session, "call-center", "Add")) ||
+    (await can(session, "candidates", "Add"));
   if (!permitted) {
     throw new AppError("FORBIDDEN", "Document upload or file update permission is required.", 403);
   }
@@ -74,7 +78,7 @@ export async function uploadDocument(
         },
       });
 
-      await tx.documentVersion.create({
+      const version = await tx.documentVersion.create({
         data: {
           documentId: document.id,
           version: 1,
@@ -82,6 +86,22 @@ export async function uploadDocument(
           uploadedBy: session.userId,
         },
       });
+
+      const downloadUrl = `/api/documents/versions/${version.id}/download?inline=1`;
+      await tx.document.update({
+        where: { id: document.id },
+        data: { url: downloadUrl },
+      });
+
+      if (/passport/i.test(input.type)) {
+        await tx.passportProcess.updateMany({
+          where: { fileId: processingFile.id },
+          data: {
+            documentId: document.id,
+            verificationStatus: "Verified",
+          },
+        });
+      }
 
       await tx.documentHistory.create({
         data: {
@@ -104,7 +124,12 @@ export async function uploadDocument(
         },
       });
 
-      return document;
+      return Object.assign(document, {
+        document,
+        version,
+        stored,
+        downloadUrl,
+      });
     });
   } catch (error) {
     await privateStorage().remove(stored.objectKey).catch(() => {});

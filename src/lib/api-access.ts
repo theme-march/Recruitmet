@@ -45,7 +45,7 @@ export async function authorizeApi(route: string, request: Request) {
   const reading = method === "GET" || method === "HEAD";
   // Personal notifications have recipient checks in the handler/service.
   if ((route === "notifications" && reading) || route === "notifications/[id]/read") return;
-  if (route === "countries" && reading) return; // Lookup metadata; counts filtered in handler.
+  if ((route === "countries" || route === "settings" || route === "country-packages") && reading) return; // Lookup metadata; counts filtered in handler.
   let body: Record<string, unknown> = {};
   if (!reading && request.headers.get("content-type")?.includes("application/json")) {
     try { body = await request.clone().json(); } catch { throw new AppError("INVALID_JSON", "Invalid request body.", 422); }
@@ -67,7 +67,7 @@ export async function authorizeApi(route: string, request: Request) {
   let module = "";
   const root = route.split("/")[0];
   const fixed: Record<string, string> = {
-    agents: "agents", demands: "office-vendor", "countries": "country-setup",
+    agents: "agents", demands: "office-vendor", "countries": "country-setup", "country-packages": "country-setup", settings: "country-setup",
     "all-candidates": "call-center", candidates: "call-center", "candidate-options": "call-center", "work-calls": "call-center", leads: "call-center", search: "call-center", "officer-dashboard": "call-center",
     interviews: "registration", "interview-schedules": "registration",
     "payment-collection": "payment-collection", payments: "payment-collection",
@@ -146,6 +146,14 @@ export async function authorizeApi(route: string, request: Request) {
     const stage = String(form.get("stage") ?? "");
     if (/payment/i.test(stage)) await requirePermission(session, "payment-collection", "create");
     module = countryModule(file.country); action = "create";
+  }
+  if (root === "documents") {
+    const allowed =
+      (await can(session, "document", action)) ||
+      (await can(session, "documents", action)) ||
+      (await can(session, "files", "edit")) ||
+      (await can(session, "call-center", "create"));
+    if (allowed) return;
   }
   if (!module) throw new AppError("FORBIDDEN", "This operation is not available to your role.", 403);
   if (body.assignedToId !== undefined) await requirePermission(session, module, "assign");

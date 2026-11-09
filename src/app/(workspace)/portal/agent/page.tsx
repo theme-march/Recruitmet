@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export default async function AgentPortalPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ agentId?: string }>;
+  searchParams?: Promise<{ agentId?: string; tab?: string; country?: string }>;
 }) {
   await connection();
   const session = await getSession();
@@ -29,7 +29,7 @@ export default async function AgentPortalPage({
   if (!agent) {
     return (
       <div style={{ padding: "40px", textAlign: "center", background: "#fff", borderRadius: "16px", margin: "20px" }}>
-        <h3 style={{ fontSize: "18px", fontWeight: 800, color: "var(--ink)", marginBottom: "8px" }}>
+        <h3 style={{ fontSize: "17px", fontWeight: 700, color: "var(--ink)", marginBottom: "8px" }}>
           No Agent Partner Profile Associated
         </h3>
         <p style={{ color: "var(--muted)", fontSize: "13px" }}>
@@ -39,5 +39,11 @@ export default async function AgentPortalPage({
     );
   }
 
-  return <AgentPortalView agentId={agent.id} />;
+  return (
+    <AgentPortalView
+      agentId={agent.id}
+      initialTab={sParams?.tab as any}
+      initialCountry={sParams?.country}
+    />
+  );
 }

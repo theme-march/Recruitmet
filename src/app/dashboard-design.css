@@ -126,7 +126,6 @@
   .home-sidebar-shell [data-module="agents"] .nav-icon { background: #34c759; }
   .home-sidebar-shell [data-module="document"] .nav-icon { background: #ff2d55; }
   .home-sidebar-shell [data-module="country-setup"] .nav-icon { background: #32ade6; }
-  .home-sidebar-shell [data-module="candidate-options"] .nav-icon { background: #8e8e93; }
   .home-sidebar-shell [data-module="permissions"] .nav-icon { background: #ff3b30; }
   .home-sidebar-shell [data-module="tutorials"] { order: 2; }
   .home-sidebar-shell [data-module="tutorials"] .nav-icon { background: #af52de; }
@@ -296,7 +295,6 @@
   .home-sidebar-shell .sidebar [data-module="agents"] .nav-icon { background: #34c759; }
   .home-sidebar-shell .sidebar [data-module="document"] .nav-icon { background: #ff2d55; }
   .home-sidebar-shell .sidebar [data-module="country-setup"] .nav-icon { background: #32ade6; }
-  .home-sidebar-shell .sidebar [data-module="candidate-options"] .nav-icon { background: #8e8e93; }
   .home-sidebar-shell .sidebar [data-module="permissions"] .nav-icon { background: #ff3b30; }
   .home-sidebar-shell .sidebar [data-module="tutorials"] .nav-icon { background: #af52de; }
 }

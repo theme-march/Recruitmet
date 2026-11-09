@@ -26,15 +26,6 @@
 .management-table .management-empty { padding: 32px !important; text-align: center; }
 .management-design-page .country-design-pagination > div { display: flex; gap: 8px; align-items: center; }
 .management-design-page .country-design-pagination > div > span { display: inline-flex; align-items: center; height: 30px; padding: 0 12px; border: 1px solid #e5e5ea; border-radius: 8px; background: #fff; color: #1d1d1f; font-weight: 600; }
-.candidate-options-design-page .candidate-options-panel { padding: 0; }
-.candidate-options-design-page .desktop-options-table table { min-width: 780px; }
-.candidate-options-design-page .desktop-options-table th:nth-child(2) { width: 32%; }
-.candidate-options-design-page .desktop-options-table td:first-child b { display: inline-block; padding: 2px 6px; border-radius: 6px; background: #eaf2ff; color: #007aff; font-size: 10px; font-weight: 600; }
-.candidate-options-design-page .desktop-options-table td:nth-child(2) { color: #1d1d1f; font-size: 13px; font-weight: 600; }
-.candidate-options-design-page .desktop-options-table .badge { padding: 4px 8px; border: 0; border-radius: 8px; background: #f2f2f7; color: #8e8e93; font-size: 10px; line-height: 12px; }
-.candidate-options-design-page .desktop-options-table .badge.active { background: #e6f8eb; color: #28c653; }
-.candidate-options-design-page .desktop-options-table td button { height: auto !important; padding: 5px 8px !important; border-radius: 8px !important; font-size: 10px !important; font-weight: 600 !important; }
-.candidate-options-design-page .desktop-options-table td button:first-child { background: #eaf2ff !important; color: #007aff !important; }
 .tutorial-design-table table { min-width: 920px; table-layout: auto; }
 .tutorial-design-table th:first-child { width: 50px; }
 .tutorial-design-table td { overflow-wrap: anywhere; }
@@ -58,16 +49,47 @@
 .documents-design-page .document-summary-card p { font-size: 10px; }
 .documents-design-page .dubai-documents-main-section { padding: 0; position: relative; }
 .documents-design-page .desktop-documents-table table { min-width: 1900px; table-layout: fixed; }
-.documents-design-page .desktop-documents-table th:first-child { width: 50px !important; }
-.documents-design-page .desktop-documents-table th:nth-child(2) { width: 300px; }
-.documents-design-page .desktop-documents-table th:nth-child(3) { width: 145px; }
-.documents-design-page .desktop-documents-table th:nth-child(4) { width: 180px; }
-.documents-design-page .desktop-documents-table td { overflow-wrap: anywhere; }
-.documents-design-page .desktop-documents-table td:nth-child(3) > div { white-space: normal !important; border: 0 !important; border-radius: 8px !important; font-weight: 600 !important; }
+.documents-design-page .desktop-documents-table :is(th, td):first-child {
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  width: 48px !important;
+}
+.documents-design-page .desktop-documents-table th:first-child {
+  background: #f2f2f7;
+  z-index: 6;
+}
+.documents-design-page .desktop-documents-table :is(th, td):nth-child(2) {
+  position: sticky;
+  left: 48px;
+  z-index: 5;
+  width: 90px !important;
+}
+.documents-design-page .desktop-documents-table th:nth-child(2) {
+  background: #f2f2f7;
+  z-index: 6;
+}
+.documents-design-page .desktop-documents-table :is(th, td):nth-child(3) {
+  position: sticky;
+  left: 138px;
+  z-index: 5;
+  width: 220px !important;
+  box-shadow: 3px 0 6px -2px rgba(0, 0, 0, 0.08);
+}
+.documents-design-page .desktop-documents-table th:nth-child(3) {
+  background: #f2f2f7;
+  z-index: 6;
+}
+.documents-design-page .desktop-documents-table tbody tr:nth-child(odd) :is(td:first-child, td:nth-child(2), td:nth-child(3)) {
+  background: #ffffff;
+}
+.documents-design-page .desktop-documents-table tbody tr:nth-child(even) :is(td:first-child, td:nth-child(2), td:nth-child(3)) {
+  background: #fafafb;
+}
+.documents-design-page .desktop-documents-table tbody tr:hover :is(td:first-child, td:nth-child(2), td:nth-child(3)) {
+  background: #f2f7ff !important;
+}
 .documents-design-page .desktop-documents-table td button { border: 0 !important; border-radius: 8px !important; box-shadow: none !important; letter-spacing: 0 !important; font-size: 10px !important; font-weight: 600 !important; white-space: normal; }
-.documents-design-page .desktop-documents-table td:last-child a { background: #eaf2ff !important; color: #007aff !important; border: 0 !important; box-shadow: none !important; padding: 5px 8px !important; font-size: 10px !important; }
-.documents-design-page .desktop-documents-table td:nth-child(2) > div > div:first-child { border-radius: 10px !important; border: 0 !important; color: #007aff !important; background: #eaf2ff !important; }
-.documents-design-page .desktop-documents-table td:nth-child(2) > div > div:last-child > div:last-child { color: #007aff !important; }
 @media (max-width: 1000px) {
   .management-heading { flex-wrap: wrap; }
   .management-design-page .management-metrics-four { grid-template-columns: repeat(2,minmax(0,1fr)); }
@@ -89,7 +111,7 @@
   .country-setup-design-page .country-filter-tabs { flex-wrap: wrap; }
   .country-setup-design-page .country-search-input { height: 40px; }
   .documents-design-page .country-design-metric { padding: 14px 12px; }
-  .candidate-options-design-page .mobile-options-stream, .documents-design-page .mobile-documents-stream { padding: 12px; }
+  .documents-design-page .mobile-documents-stream { padding: 12px; }
 }
 
 .management-design-page .country-design-select > svg { position: absolute; right: 12px; top: calc(50% - 5px); pointer-events: none; color: #8e8e93; }
@@ -114,5 +136,4 @@
 @media (max-width:768px) {
   .main main .documents-design-page .document-summary-strip { display: grid !important; width: 100% !important; grid-template-columns: repeat(2,minmax(0,1fr)) !important; gap: 10px !important; padding: 0 !important; margin: 0 !important; overflow: visible !important; }
   .main main .documents-design-page .document-summary-card { width: auto !important; min-width: 0 !important; height: 120px !important; border-radius: 18px !important; }
-  .main main .candidate-options-design-page .option-mobile-card { border-color: #e5e5ea; box-shadow: none; }
 }

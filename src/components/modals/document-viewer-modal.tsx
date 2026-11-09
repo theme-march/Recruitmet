@@ -8,6 +8,8 @@ import {
   FileText,
   Globe,
   GraduationCap,
+  Minus,
+  Plus,
   Printer,
   QrCode,
   RotateCw,
@@ -26,6 +28,7 @@ export type DocumentViewerData = {
   title: string;
   category: string;
   url?: string;
+  backUrl?: string;
   fileType?: "image" | "pdf" | "other";
   fileNumber?: string;
   uploadedAt?: string;
@@ -50,23 +53,45 @@ export function DocumentViewerModal({
 }) {
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
-  const [currentUrl, setCurrentUrl] = useState<string | undefined>(doc.url);
+  const [activeTab, setActiveTab] = useState<"front" | "back">(
+    doc.category === "passport_back" ? "back" : "front"
+  );
+  const [frontUrl, setFrontUrl] = useState<string | undefined>(doc.url);
+  const [backUrl, setBackUrl] = useState<string | undefined>(doc.backUrl);
   const [currentFileName, setCurrentFileName] = useState<string | undefined>(undefined);
+  const [isHoverZooming, setIsHoverZooming] = useState<boolean>(false);
+  const [zoomOrigin, setZoomOrigin] = useState<{ x: number; y: number }>({ x: 50, y: 50 });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleZoomIn = () => setZoom((z) => Math.min(2.5, z + 0.25));
-  const handleZoomOut = () => setZoom((z) => Math.max(0.5, z - 0.25));
+  const isPassport =
+    doc.category.toLowerCase().includes("passport") ||
+    doc.title.toLowerCase().includes("passport");
+
+  const currentDisplayUrl = isPassport
+    ? (activeTab === "back" ? backUrl : frontUrl)
+    : (frontUrl || doc.url);
+
+  const handleZoomIn = () => setZoom((z) => Math.min(2.5, +(z + 0.25).toFixed(2)));
+  const handleZoomOut = () => setZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)));
+  const handleZoomReset = () => {
+    setZoom(1);
+    setRotation(0);
+  };
   const handleRotate = () => setRotation((r) => (r + 90) % 360);
 
   const handleFileSelect = (file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const result = e.target?.result as string;
-      setCurrentUrl(result);
+      if (isPassport && activeTab === "back") {
+        setBackUrl(result);
+      } else {
+        setFrontUrl(result);
+      }
       setCurrentFileName(file.name);
       const sizeFormatted = (file.size / (1024 * 1024)).toFixed(2) + " MB";
       if (onAttachFile) {
-        onAttachFile(doc.category, {
+        onAttachFile(isPassport && activeTab === "back" ? "passport_back" : doc.category, {
           url: result,
           fileName: file.name,
           size: sizeFormatted,
@@ -76,15 +101,15 @@ export function DocumentViewerModal({
     reader.readAsDataURL(file);
   };
 
-  const isPdf = currentUrl?.toLowerCase().includes("application/pdf") || currentUrl?.toLowerCase().endsWith(".pdf") || doc.fileType === "pdf";
+  const isPdf = currentDisplayUrl?.toLowerCase().includes("application/pdf") || currentDisplayUrl?.toLowerCase().endsWith(".pdf") || doc.fileType === "pdf";
 
   const handlePrint = () => {
     window.print();
   };
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="EXECUTIVE BOARD OF THE HEALTH MINISTERS’ COUNCIL FOR GCC STATES" className="doc-viewer-overlay master-modal-overlay" onClick={onClose}>
-      <div className="doc-viewer-modal master-modal-card" onClick={(e) => e.stopPropagation()}>
+    <div role="dialog" aria-modal="true" aria-label={doc.title} className="doc-viewer-overlay master-modal-overlay" onClick={onClose}>
+      <div className={`doc-viewer-modal master-modal-card ${isPassport ? "is-passport-view" : ""}`} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="doc-viewer-header no-print master-modal-header">
           <div className="flex items-center gap-3">
@@ -92,7 +117,27 @@ export function DocumentViewerModal({
               <FileText size={20} className="text-indigo-600" />
             </div>
             <div>
-              <h3>{doc.title}</h3>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <h3 style={{ margin: 0 }}>{doc.title}</h3>
+                {isPassport && (backUrl || doc.backUrl) && (
+                  <div className="passport-tab-group">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("front")}
+                      className={`passport-tab-btn${activeTab === "front" ? " is-active" : ""}`}
+                    >
+                      Front
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("back")}
+                      className={`passport-tab-btn${activeTab === "back" ? " is-active" : ""}`}
+                    >
+                      Back
+                    </button>
+                  </div>
+                )}
+              </div>
               <p>
                 {doc.category.toUpperCase()} · File: <b>{doc.fileNumber || "FILE-RECORD"}</b> · Status:{" "}
                 <span className="text-emerald-600 font-bold">{doc.verifiedStatus || "Verified Valid"}</span>
@@ -101,23 +146,51 @@ export function DocumentViewerModal({
             </div>
           </div>
           <div className="doc-viewer-controls">
-            {currentUrl && !isPdf && (
+            {currentDisplayUrl && !isPdf && (
               <>
-                <button data-action-ui="secondary" data-action-size="icon" className="ctrl-btn" onClick={handleZoomIn} title="Zoom In"><ZoomIn size={16} /></button>
-                <button data-action-ui="secondary" data-action-size="icon" className="ctrl-btn" onClick={handleZoomOut} title="Zoom Out"><ZoomOut size={16} /></button>
-                <button data-action-ui="secondary" data-action-size="icon" className="ctrl-btn" onClick={handleRotate} title="Rotate"><RotateCw size={16} /></button>
+                <span className="hover-zoom-badge">Hover to zoom</span>
+                <button
+                  type="button"
+                  className="ctrl-btn"
+                  onClick={handleZoomIn}
+                  title="Zoom In"
+                >
+                  <ZoomIn size={16} />
+                </button>
+                <button
+                  type="button"
+                  className="ctrl-btn"
+                  onClick={handleZoomOut}
+                  title="Zoom Out"
+                >
+                  <ZoomOut size={16} />
+                </button>
+                <button
+                  type="button"
+                  className="ctrl-btn"
+                  onClick={handleRotate}
+                  title="Rotate 90°"
+                >
+                  <RotateCw size={16} />
+                </button>
               </>
             )}
-            <button data-action-ui="secondary" data-action-size="icon" className="ctrl-btn" onClick={handlePrint} title="Print Document">
+            <button
+              type="button"
+              className="ctrl-btn"
+              onClick={handlePrint}
+              title="Print Document"
+            >
               <Printer size={15} />
             </button>
-            <button data-action-ui="secondary" data-action-size="normal"
-              className="ctrl-btn"
+            <button
+              type="button"
+              className="ctrl-btn replace-btn"
               onClick={() => fileInputRef.current?.click()}
-              title="Attach or Replace Physical Scanned File"
-              style={{ width: "auto", padding: "0 12px", gap: "6px", display: "inline-flex", fontSize: "11px", fontWeight: 700 }}
+              title={currentDisplayUrl ? "Replace Scan" : "Attach Physical Scan"}
             >
-              <UploadCloud size={15} /> {currentUrl ? "Replace Scan" : "Attach Physical Scan"}
+              <UploadCloud size={15} />
+              <span>{currentDisplayUrl ? "Replace Scan" : "Attach Scan"}</span>
             </button>
             <input
               type="file"
@@ -129,18 +202,31 @@ export function DocumentViewerModal({
                 if (f) handleFileSelect(f);
               }}
             />
-            {currentUrl && (
-              <a data-action-ui="secondary" data-action-size="icon" href={currentUrl} download={currentFileName || `${doc.title}.png`} className="ctrl-btn" title="Download Document">
+            {currentDisplayUrl && (
+              <a
+                href={currentDisplayUrl}
+                download={currentFileName || `${doc.title}.png`}
+                className="ctrl-btn"
+                title="Download Document"
+              >
                 <Download size={16} />
               </a>
             )}
-            <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog" className="ctrl-btn close master-modal-close" onClick={onClose}><X size={18} /></button>
+            <button
+              type="button"
+              aria-label="Close dialog"
+              className="ctrl-btn close master-modal-close"
+              onClick={onClose}
+              title="Close dialog"
+            >
+              <X size={16} />
+            </button>
           </div>
         </div>
 
         {/* Content Viewer Body */}
         <div
-          className="doc-viewer-body"
+          className={`doc-viewer-body ${isPassport ? "passport-viewer-body" : ""}`}
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
             e.preventDefault();
@@ -148,17 +234,45 @@ export function DocumentViewerModal({
             if (f) handleFileSelect(f);
           }}
         >
-          {currentUrl ? (
+          {currentDisplayUrl ? (
             isPdf ? (
               <iframe
-                src={currentUrl}
+                src={currentDisplayUrl}
                 className="doc-iframe"
                 title={doc.title}
               />
+            ) : isPassport ? (
+              <div className="passport-preview-card passport-modal-preview-card">
+                <div
+                  className="passport-preview-box passport-modal-preview-box"
+                  onMouseEnter={() => setIsHoverZooming(true)}
+                  onMouseLeave={() => setIsHoverZooming(false)}
+                  onMouseMove={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+                    const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+                    setZoomOrigin({ x, y });
+                  }}
+                  onClick={() => {
+                    if (!currentDisplayUrl) fileInputRef.current?.click();
+                  }}
+                >
+                  <img
+                    src={currentDisplayUrl}
+                    alt={doc.title}
+                    className="passport-preview-img passport-modal-preview-img"
+                    style={{
+                      transform: `rotate(${rotation}deg) scale(${isHoverZooming ? +(zoom * 1.8).toFixed(2) : zoom})`,
+                      transformOrigin: isHoverZooming ? `${zoomOrigin.x}% ${zoomOrigin.y}%` : "center center",
+                      transition: isHoverZooming ? "transform 0.08s ease-out" : "transform 0.2s ease",
+                    }}
+                  />
+                </div>
+              </div>
             ) : (
               <div className="image-viewer-stage">
                 <Image
-                  src={currentUrl}
+                  src={currentDisplayUrl}
                   alt={doc.title}
                   width={800}
                   height={1000}
@@ -173,6 +287,24 @@ export function DocumentViewerModal({
                 />
               </div>
             )
+          ) : isPassport ? (
+            <div className="passport-preview-card passport-modal-preview-card">
+              <div
+                className="passport-preview-box passport-modal-preview-box"
+                onClick={() => fileInputRef.current?.click()}
+                style={{ cursor: "pointer" }}
+              >
+                <div className="passport-preview-empty">
+                  <FileText size={38} className="passport-empty-icon" />
+                  <div className="passport-empty-title">
+                    No {activeTab === "back" ? "Back Page" : "Passport"} Scan Available
+                  </div>
+                  <div className="passport-empty-sub">
+                    Click to upload or attach {activeTab === "back" ? "back/address page" : "passport scan"}
+                  </div>
+                </div>
+              </div>
+            </div>
           ) : (
             /* OFFICIAL DIGITAL CERTIFICATE SLIP TEMPLATES */
             <div className="digital-certificate-paper printable-area">

@@ -24,12 +24,10 @@ test("interview pages use schedule fields instead of candidate registration", ()
 test("registration and interviews keeps list, detail, export and schedule handoff connected", () => {
   const list = readFileSync("src/components/modules/interview-list-page.tsx", "utf8");
   const detail = readFileSync("src/components/modules/interview-detail-page.tsx", "utf8");
-  const create = readFileSync("src/components/modules/create-work-call-page.tsx", "utf8");
   assert.match(list, /Upcoming interviews/);
   assert.match(detail, /Clear Agent Filter/);
   assert.match(detail, /export=1/);
-  assert.match(detail, /scheduleId=/);
-  assert.match(create, /selectedScheduleId/);
+  assert.match(detail, /Add Candidate To This Interview/);
 });
 
 test("events reports can switch between Saudi, Dubai and Other Country data", () => {
@@ -65,10 +63,15 @@ test("call center exposes the candidate workflow pages", () => {
     "Create Candidate",
     "Candidate List",
     "Registration & interviews",
+    "Works & Demands",
   ]);
   assert.equal(
     moduleItemPath("call-center", "Registration & interviews"),
     "/module/call-center/registration-and-interviews"
+  );
+  assert.equal(
+    moduleItemPath("call-center", "Works & Demands"),
+    "/module/call-center/works-and-demands"
   );
 });
 
@@ -76,6 +79,9 @@ test("legacy registration routes stay available without a duplicate sidebar grou
   const registration = modules.find((item) => item.id === "registration");
   assert.equal(registration?.hidden, true);
   assert.equal(getModuleItemBySlug("registration", "interview-schedule")?.label, "Interview Schedule");
+  const officeVendor = modules.find((item) => item.id === "office-vendor");
+  assert.equal(officeVendor?.hidden, true);
+  assert.equal(getModuleItemBySlug("office-vendor", "works-and-demands")?.label, "Works & Demands");
 });
 
 test("sidebar keeps all operational groups for Recruitment OS", () => {
@@ -87,7 +93,6 @@ test("sidebar keeps all operational groups for Recruitment OS", () => {
       "ksa",
       "dubai",
       "other-country",
-      "office-vendor",
       "agents",
       "payment-collection",
       "document",

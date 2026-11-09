@@ -14,10 +14,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  Coins,
   Copy,
   CreditCard,
   DollarSign,
   Download,
+  Edit2,
   ExternalLink,
   Eye,
   FileBadge,
@@ -28,10 +30,12 @@ import {
   GraduationCap,
   History,
   LayoutGrid,
+  Loader2,
   Mail,
   MapPin,
   MessageCircle,
   MessageSquare,
+  Minus,
   Paperclip,
   Phone,
   Plane,
@@ -39,12 +43,15 @@ import {
   Plus,
   Printer,
   Receipt,
+  RotateCw,
   Save,
+  ScanText,
   Search,
   Send,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
+  Upload,
   UploadCloud,
   User,
   UserCheck,
@@ -56,7 +63,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useMemo } from "react";
 import { toast } from "sonner";
 import { CandidateProfileImageField } from "@/components/modules/candidate-profile-image-field";
-import { MoneyReceiptModal, type ReceiptData } from "@/components/modals/money-receipt-modal";
+import { MoneyReceiptModal, type ReceiptData, type ReceiptItem, cleanPaymentType } from "@/components/modals/money-receipt-modal";
 import { DocumentViewerModal, type DocumentViewerData } from "@/components/modals/document-viewer-modal";
 import {
   MASTER_STAGES,
@@ -133,9 +140,24 @@ type ProcessingFileData = {
     issuingAuthority?: string;
     nationality?: string;
     verificationStatus: string;
+    passportStatus?: string;
+    givenName?: string;
+    surname?: string;
+    fullName?: string;
+    fatherName?: string;
+    motherName?: string;
+    placeOfBirth?: string;
+    nid?: string;
+    address?: string;
+    dob?: string;
+    age?: string;
+    gender?: string;
+    scanUrl?: string;
+    backScanUrl?: string;
     remarks?: string;
     verifiedBy?: string;
     verifiedAt?: string;
+    documentId?: string;
   };
   medical?: Array<{
     id: string;
@@ -257,8 +279,11 @@ type ProcessingFileData = {
     fileName?: string;
     fileUrl?: string;
     url?: string;
+    downloadUrl?: string;
+    sizeFormatted?: string;
     createdAt: string;
   }>;
+  attachedFiles?: Record<string, { url: string; fileName: string; size: string; documentId?: string }>;
   agent?: string;
   agentRecord?: { id: string; name: string; code: string; phone?: string; district?: string } | null;
   biometrics?: Array<{
@@ -287,6 +312,14 @@ type ProcessingFileData = {
     completedBy?: string;
     createdAt: string;
   }>;
+  contractPackage?: number;
+  grossPackage?: number;
+  discount?: number;
+  packageTitle?: string;
+  packageCost?: number;
+  dueAmount?: number;
+  advanceAmount?: number;
+  demandQuotaRate?: number;
 };
 
 const saudiStages = [
@@ -400,6 +433,17 @@ function FileUploadField({
   );
 }
 
+function isValidISODate(dateStr?: string | null): boolean {
+  if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+  const [yStr, mStr, dStr] = dateStr.split("-");
+  const y = parseInt(yStr, 10);
+  const m = parseInt(mStr, 10);
+  const d = parseInt(dStr, 10);
+  if (y < 1920 || y > 2100 || m < 1 || m > 12 || d < 1 || d > 31) return false;
+  const dt = new Date(y, m - 1, d);
+  return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
+}
+
 export function FileProcessingWorkspace({
   fileId,
   initialData,
@@ -436,7 +480,15 @@ export function FileProcessingWorkspace({
   const [deductionAmount, setDeductionAmount] = useState(20000);
   const [actionLoading, setActionLoading] = useState(false);
   const [activeReceipt, setActiveReceipt] = useState<ReceiptData | null>(null);
+  const [activeReceiptsList, setActiveReceiptsList] = useState<ReceiptData[]>([]);
+  const [activeReceiptIndex, setActiveReceiptIndex] = useState<number>(0);
   const [activeDoc, setActiveDoc] = useState<DocumentViewerData | null>(null);
+  const [showPackageModal, setShowPackageModal] = useState(false);
+  const [pkgDraftPackage, setPkgDraftPackage] = useState<number>(0);
+  const [pkgDraftDiscount, setPkgDraftDiscount] = useState<number>(0);
+  const [pkgDraftTitle, setPkgDraftTitle] = useState<string>("");
+  const [savingPackage, setSavingPackage] = useState(false);
+  const [countryPackagesList, setCountryPackagesList] = useState<Array<{ id: string; name: string; price: number; description?: string | null; isDefault: boolean }>>([]);
   const [newNote, setNewNote] = useState("");
   const [noteTitle, setNoteTitle] = useState("");
   const [notePrice, setNotePrice] = useState("");
@@ -495,8 +547,308 @@ export function FileProcessingWorkspace({
     }
   };
 
-  // Physical file attachments map (Category -> { url, fileName, size })
-  const [attachedFiles, setAttachedFiles] = useState<Record<string, { url: string; fileName: string; size: string }>>({});
+  const handleOpenPackageModal = () => {
+    if (!file) return;
+    const currentGross = Number(file.grossPackage ?? file.contractPackage) || (/dubai/i.test(file.country) ? 300000 : 350000);
+    const currentDisc = Number(file.discount || 0);
+    setPkgDraftPackage(currentGross);
+    setPkgDraftDiscount(currentDisc);
+    setPkgDraftTitle(file.packageTitle || "");
+    setShowPackageModal(true);
+
+    fetch(`/api/country-packages?country=${encodeURIComponent(file.country)}`)
+      .then((res) => res.json())
+      .then((res) => {
+        if (res.data && res.data.length > 0) {
+          setCountryPackagesList(res.data);
+          // If candidate doesn't have a specific packageTitle set yet,
+          // automatically select the default baseline package for this country!
+          if (!file.packageTitle) {
+            const defaultPkg = res.data.find((p: any) => p.isDefault) || res.data[0];
+            if (defaultPkg) {
+              setPkgDraftTitle(defaultPkg.name);
+              if (!file.contractPackage) {
+                setPkgDraftPackage(Number(defaultPkg.price));
+              }
+            }
+          }
+        }
+      })
+      .catch(() => {});
+  };
+
+  const handleSelectPackagePreset = (pkg: { name: string; price: number }) => {
+    const currentTitle = (pkgDraftTitle || "").trim();
+    const currentRate = Number(pkgDraftPackage) || 0;
+    const isAlreadyActive = Boolean(
+      (currentTitle && currentTitle.toLowerCase() === pkg.name.trim().toLowerCase()) &&
+      currentRate === Number(pkg.price)
+    );
+
+    if (isAlreadyActive) {
+      toast.info(`"${pkg.name}" প্যাকেজটি ইতিমধ্যে সক্রিয় রয়েছে।`);
+      return;
+    }
+
+    const confirmMsg =
+      `প্যাকেজ পরিবর্তন কনফার্মেশন:\n\n` +
+      `আপনি কি এই ক্যান্ডিডেটের জন্য প্যাকেজ পরিবর্তন করতে চান?\n\n` +
+      `• নতুন প্যাকেজ: ${pkg.name}\n` +
+      `• নতুন রেট: ৳${Number(pkg.price).toLocaleString()} BDT\n\n` +
+      `'OK' বাটনে ক্লিক করলে রেট ও প্যাকেজের বিবরণ পরিবর্তন হবে।`;
+
+    if (window.confirm(confirmMsg)) {
+      setPkgDraftPackage(Number(pkg.price));
+      setPkgDraftTitle(pkg.name);
+      toast.success(`প্যাকেজ পরিবর্তন করে "${pkg.name}" (৳${Number(pkg.price).toLocaleString()} BDT) নির্ধারণ করা হয়েছে!`, {
+        icon: "✨",
+      });
+    }
+  };
+
+  const handleSavePackage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingPackage(true);
+    try {
+      const res = await fetch(`/api/files/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update-package",
+          contractPackage: Number(pkgDraftPackage) || 0,
+          discount: Number(pkgDraftDiscount) || 0,
+          packageTitle: pkgDraftTitle ? pkgDraftTitle.trim() : null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "Failed to update package");
+      toast.success("Contract package & discount updated successfully!");
+      setShowPackageModal(false);
+      void queryClient.invalidateQueries({ queryKey: ["file-processing-workspace", id] });
+      void queryClient.invalidateQueries({ queryKey: ["all-candidates-list"] });
+      void queryClient.invalidateQueries({ queryKey: ["payment-collection"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard-data"] });
+      await query.refetch();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save package");
+    } finally {
+      setSavingPackage(false);
+    }
+  };
+
+  // Physical file attachments map (Category -> { url, fileName, size, documentId? })
+  const [attachedFiles, setAttachedFiles] = useState<Record<string, { url: string; fileName: string; size: string; documentId?: string }>>({});
+
+  // Passport stage state & OCR
+  const [passportNoVal, setPassportNoVal] = useState<string>("");
+  const [issueDateVal, setIssueDateVal] = useState<string>("");
+  const [expiryDateVal, setExpiryDateVal] = useState<string>("");
+  const [passportStatusVal, setPassportStatusVal] = useState<string>("Available");
+  const [verificationStatusVal, setVerificationStatusVal] = useState<string>("Verified");
+  const [givenNameVal, setGivenNameVal] = useState<string>("");
+  const [surnameVal, setSurnameVal] = useState<string>("");
+  const [candidateFullNameVal, setCandidateFullNameVal] = useState<string>("");
+  const [dobVal, setDobVal] = useState<string>("");
+  const [ageVal, setAgeVal] = useState<string>("");
+  const [genderVal, setGenderVal] = useState<string>("");
+  const [nationalityVal, setNationalityVal] = useState<string>("BANGLADESHI");
+  const [placeOfBirthVal, setPlaceOfBirthVal] = useState<string>("");
+  const [fatherNameVal, setFatherNameVal] = useState<string>("");
+  const [motherNameVal, setMotherNameVal] = useState<string>("");
+  const [nidVal, setNidVal] = useState<string>("");
+  const [passportAddressVal, setPassportAddressVal] = useState<string>("");
+
+  // Preview & OCR states
+  const [isScanningOCR, setIsScanningOCR] = useState<boolean>(false);
+  const [ocrExtractedNotice, setOcrExtractedNotice] = useState<string>("");
+  const [mrzValidation, setMrzValidation] = useState<{
+    found: boolean;
+    docNumberValid: boolean;
+    dobValid: boolean;
+    expiryValid: boolean;
+  } | null>(null);
+
+  const passportInputRef = useRef<HTMLInputElement>(null);
+  const passportBackInputRef = useRef<HTMLInputElement>(null);
+  const [passportFile, setPassportFile] = useState<File | null>(null);
+  const [passportPreviewUrl, setPassportPreviewUrl] = useState<string>("");
+  const [passportBackFile, setPassportBackFile] = useState<File | null>(null);
+  const [passportBackPreviewUrl, setPassportBackPreviewUrl] = useState<string | null>(null);
+
+  const handleGivenNameChange = (val: string) => {
+    setGivenNameVal(val);
+    setCandidateFullNameVal(`${val} ${surnameVal}`.trim());
+  };
+
+  const handleSurnameChange = (val: string) => {
+    setSurnameVal(val);
+    setCandidateFullNameVal(`${givenNameVal} ${val}`.trim());
+  };
+
+  const handleDobChange = (val: string) => {
+    setDobVal(val);
+    if (val && isValidISODate(val)) {
+      const diffMs = Date.now() - new Date(val).getTime();
+      const ageYears = Math.abs(new Date(diffMs).getUTCFullYear() - 1970);
+      if (!isNaN(ageYears) && ageYears > 0 && ageYears < 120) {
+        setAgeVal(String(ageYears));
+      }
+    }
+  };
+
+  const triggerOCR = async (fileToScan?: File, backFileToScan?: File) => {
+    let fileTarget = fileToScan || passportFile;
+    let backTarget = backFileToScan || passportBackFile;
+
+    if (!fileTarget && passportPreviewUrl) {
+      try {
+        const resp = await fetch(passportPreviewUrl);
+        const blob = await resp.blob();
+        fileTarget = new File([blob], "passport_scan.jpg", { type: blob.type || "image/jpeg" });
+      } catch (e) {
+        // ignore
+      }
+    }
+    if (!backTarget && passportBackPreviewUrl) {
+      try {
+        const resp = await fetch(passportBackPreviewUrl);
+        const blob = await resp.blob();
+        backTarget = new File([blob], "passport_back_scan.jpg", { type: blob.type || "image/jpeg" });
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    if (!fileTarget && !backTarget) {
+      toast.error("Please upload or choose a passport file first.");
+      return;
+    }
+    setIsScanningOCR(true);
+    const toastId = toast.loading("Analyzing passport with OCR system...");
+    try {
+      const fd = new FormData();
+      if (fileTarget) fd.set("file", fileTarget);
+      if (backTarget) fd.set("secondaryFile", backTarget);
+
+      const res = await fetch("/api/ocr/passport", { method: "POST", body: fd });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "OCR reading failed");
+      }
+      const d = json.data;
+      if (d.mrzValidation) setMrzValidation(d.mrzValidation);
+      if (d.passportNo?.trim()) setPassportNoVal(d.passportNo.trim());
+      if (d.givenName?.trim()) setGivenNameVal(d.givenName.trim());
+      if (d.surname?.trim()) setSurnameVal(d.surname.trim());
+      if (d.fullName?.trim()) {
+        setCandidateFullNameVal(d.fullName.trim());
+      } else if (d.givenName?.trim() && d.surname?.trim()) {
+        setCandidateFullNameVal(`${d.givenName.trim()} ${d.surname.trim()}`);
+      }
+      if (d.dob && isValidISODate(d.dob)) {
+        setDobVal(d.dob);
+        const diffMs = Date.now() - new Date(d.dob).getTime();
+        const ageYears = Math.abs(new Date(diffMs).getUTCFullYear() - 1970);
+        if (!isNaN(ageYears) && ageYears > 0 && ageYears < 120) setAgeVal(String(ageYears));
+      }
+      if (d.issueDate && isValidISODate(d.issueDate)) setIssueDateVal(d.issueDate);
+      if (d.expiryDate && isValidISODate(d.expiryDate)) setExpiryDateVal(d.expiryDate);
+      if (d.sex?.trim()) setGenderVal(d.sex.trim());
+      if (d.nationality?.trim()) setNationalityVal(d.nationality.trim());
+      if (d.placeOfBirth?.trim()) setPlaceOfBirthVal(d.placeOfBirth.trim());
+      if (d.fatherName?.trim()) setFatherNameVal(d.fatherName.trim());
+      if (d.motherName?.trim()) setMotherNameVal(d.motherName.trim());
+      if (d.nid?.trim()) setNidVal(d.nid.trim());
+      if (d.address?.trim()) setPassportAddressVal(d.address.trim());
+      setPassportStatusVal("Available");
+      setVerificationStatusVal("Verified");
+
+      toast.success(
+        d.mrzValidation?.found
+          ? "Passport scanned & verified with ICAO MRZ checksums!"
+          : "Passport scanned & details extracted successfully!",
+        { id: toastId, icon: "✨" }
+      );
+    } catch (err: any) {
+      toast.error(err.message || "Failed to scan passport. You can enter details manually.", { id: toastId });
+    } finally {
+      setIsScanningOCR(false);
+    }
+  };
+
+  const handleDroppedFile = async (f: File, type: "front" | "back") => {
+    if (!file) return;
+    if (type === "front") {
+      setPassportFile(f);
+      const url = URL.createObjectURL(f);
+      setPassportPreviewUrl(url);
+
+      try {
+        const docForm = new FormData();
+        docForm.set("file", f);
+        docForm.set("fileId", file.id);
+        docForm.set("type", "Passport");
+        if (passportNoVal) docForm.set("number", passportNoVal);
+        if (expiryDateVal) docForm.set("expiryDate", expiryDateVal);
+        const docRes = await fetch("/api/documents", { method: "POST", body: docForm });
+        const docJson = await docRes.json();
+        const docData = docJson.data;
+        const sizeFormatted = (f.size / (1024 * 1024)).toFixed(2) + " MB";
+        setAttachedFiles((prev) => ({
+          ...prev,
+          passport: {
+            url: docData?.downloadUrl || url,
+            fileName: f.name,
+            size: sizeFormatted,
+            documentId: docData?.id,
+          },
+        }));
+      } catch (err) {
+        console.warn("Passport document background upload warning:", err);
+      }
+
+      await triggerOCR(f, passportBackFile || undefined);
+    } else {
+      setPassportBackFile(f);
+      const url = URL.createObjectURL(f);
+      setPassportBackPreviewUrl(url);
+
+      try {
+        const docForm = new FormData();
+        docForm.set("file", f);
+        docForm.set("fileId", file.id);
+        docForm.set("type", "Passport Back");
+        if (passportNoVal) docForm.set("number", passportNoVal);
+        const docRes = await fetch("/api/documents", { method: "POST", body: docForm });
+        const docJson = await docRes.json();
+        const docData = docJson.data;
+        const sizeFormatted = (f.size / (1024 * 1024)).toFixed(2) + " MB";
+        setAttachedFiles((prev) => ({
+          ...prev,
+          passport_back: {
+            url: docData?.downloadUrl || url,
+            fileName: f.name,
+            size: sizeFormatted,
+            documentId: docData?.id,
+          },
+        }));
+      } catch (err) {
+        console.warn("Passport back document upload warning:", err);
+      }
+
+      await triggerOCR(passportFile || undefined, f);
+    }
+  };
+
+  const handlePassportFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) await handleDroppedFile(f, "front");
+  };
+
+  const handlePassportBackFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) await handleDroppedFile(f, "back");
+  };
 
   const query = useQuery<ProcessingFileData>({
     queryKey: ["processing-file-detail", id],
@@ -529,6 +881,105 @@ export function FileProcessingWorkspace({
   useEffect(() => {
     setProfilePhotoFailed(false);
   }, [file?.candidate.photo, file?.candidate.updatedAt]);
+
+  useEffect(() => {
+    if (file) {
+      setPassportNoVal((prev) => prev || file.passport?.passportNumber || file.candidate.passportNo || "");
+      if (file.passport?.issueDate) {
+        setIssueDateVal((prev) => prev || file.passport!.issueDate.slice(0, 10));
+      }
+      if (file.passport?.expiryDate) {
+        setExpiryDateVal((prev) => prev || file.passport!.expiryDate.slice(0, 10));
+      }
+      if (file.passport?.verificationStatus) {
+        setVerificationStatusVal(file.passport.verificationStatus);
+      }
+      if (file.passport?.passportStatus) {
+        setPassportStatusVal(file.passport.passportStatus);
+      }
+      if (file.passport?.givenName) {
+        setGivenNameVal((prev) => prev || file.passport!.givenName || "");
+      }
+      if (file.passport?.surname) {
+        setSurnameVal((prev) => prev || file.passport!.surname || "");
+      }
+      setCandidateFullNameVal((prev) => prev || file.candidate.fullName || "");
+      if (file.passport?.dob || file.candidate.dob) {
+        const d = (file.passport?.dob || file.candidate.dob)!.slice(0, 10);
+        setDobVal((prev) => prev || d);
+        if (d && isValidISODate(d)) {
+          const diffMs = Date.now() - new Date(d).getTime();
+          const ageYears = Math.abs(new Date(diffMs).getUTCFullYear() - 1970);
+          if (!isNaN(ageYears) && ageYears > 0 && ageYears < 120) setAgeVal(String(ageYears));
+        }
+      }
+      if (file.passport?.age) {
+        setAgeVal(file.passport.age);
+      }
+      if (file.passport?.gender || file.candidate.gender) {
+        setGenderVal((prev) => prev || file.passport?.gender || file.candidate.gender || "");
+      }
+      if (file.passport?.nationality) {
+        setNationalityVal((prev) => prev || file.passport!.nationality || "BANGLADESHI");
+      }
+      if (file.passport?.placeOfBirth || file.passport?.issuePlace) {
+        setPlaceOfBirthVal((prev) => prev || file.passport?.placeOfBirth || file.passport?.issuePlace || "");
+      }
+      if (file.passport?.fatherName) {
+        setFatherNameVal((prev) => prev || file.passport!.fatherName || "");
+      }
+      if (file.passport?.motherName) {
+        setMotherNameVal((prev) => prev || file.passport!.motherName || "");
+      }
+      if (file.passport?.nid || file.candidate.nationalId) {
+        setNidVal((prev) => prev || file.passport?.nid || file.candidate.nationalId || "");
+      }
+      if (file.passport?.address || file.candidate.address) {
+        setPassportAddressVal((prev) => prev || file.passport?.address || file.candidate.address || "");
+      }
+      if (file.passport?.scanUrl || file.attachedFiles?.["passport"]?.url) {
+        setPassportPreviewUrl((prev) => prev || file.passport?.scanUrl || file.attachedFiles?.["passport"]?.url || "");
+      }
+      if (file.passport?.backScanUrl || file.attachedFiles?.["passport_back"]?.url) {
+        setPassportBackPreviewUrl((prev) => prev || file.passport?.backScanUrl || file.attachedFiles?.["passport_back"]?.url || "");
+      }
+    }
+  }, [file]);
+
+  useEffect(() => {
+    if (file?.attachedFiles && Object.keys(file.attachedFiles).length > 0) {
+      setAttachedFiles((prev) => ({
+        ...file.attachedFiles,
+        ...prev,
+      }));
+    } else if (file?.documents && file.documents.length > 0) {
+      const mapped: Record<string, { url: string; fileName: string; size: string; documentId?: string }> = {};
+      for (const d of file.documents) {
+        const t = (d.type || "").toLowerCase();
+        let cat = "";
+        if (t.includes("passport back")) cat = "passport_back";
+        else if (t.includes("passport") || t.includes("pp")) cat = "passport";
+        else if (t.includes("medical")) cat = "medical";
+        else if (t.includes("police") || t.includes("pcc")) cat = "pcc";
+        else if (t.includes("mofa")) cat = "mofa";
+        else if (t.includes("takamul") || t.includes("skill")) cat = "takamul";
+        else if (t.includes("visa")) cat = "visa";
+        else if (t.includes("manpower") || t.includes("smartcard") || t.includes("bmet")) cat = "manpower";
+        else if (t.includes("flight") || t.includes("ticket")) cat = "flight";
+
+        const u = d.url || (d as any).fileUrl || (d as any).downloadUrl;
+        if (cat && !mapped[cat] && u) {
+          mapped[cat] = {
+            url: u,
+            fileName: d.fileName || `${d.type} Document`,
+            size: (d as any).sizeFormatted || "Attached",
+            documentId: d.id,
+          };
+        }
+      }
+      setAttachedFiles((prev) => ({ ...mapped, ...prev }));
+    }
+  }, [file?.attachedFiles, file?.documents]);
   const canEditFile = allows("files", "edit") || allows(countryModule(file?.country ?? ""), "edit");
   const stages = useMemo(() => {
     if (!file) return otherStages;
@@ -644,23 +1095,130 @@ export function FileProcessingWorkspace({
   const progressPercent = Math.min(100, Math.round((completedCount / stages.length) * 100));
   const currentStageIndex = stages.findIndex((s) => s.id === file?.currentStage);
 
-  // File Upload Helper
-  const handleLocalFileUpload = (category: string, fileInput: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result as string;
+  // File Upload Helpers
+  const handlePassportUpload = async (fileInput: File) => {
+    if (!file) return;
+    setIsScanningOCR(true);
+    const toastId = toast.loading("Uploading passport scan & running OCR...");
+    try {
+      const docForm = new FormData();
+      docForm.set("file", fileInput);
+      docForm.set("fileId", file.id);
+      docForm.set("type", "Passport");
+      if (passportNoVal) docForm.set("number", passportNoVal);
+      if (expiryDateVal) docForm.set("expiryDate", expiryDateVal);
+
+      const docRes = await fetch("/api/documents", { method: "POST", body: docForm });
+      const docJson = await docRes.json();
+      const docData = docJson.data;
+
       const sizeFormatted = (fileInput.size / (1024 * 1024)).toFixed(2) + " MB";
+      const downloadUrl = docData?.downloadUrl || URL.createObjectURL(fileInput);
+
+      setAttachedFiles((prev) => ({
+        ...prev,
+        passport: {
+          url: downloadUrl,
+          fileName: fileInput.name,
+          size: sizeFormatted,
+          documentId: docData?.id,
+        },
+      }));
+
+      let ocrExtracted = false;
+      try {
+        const ocrForm = new FormData();
+        ocrForm.set("file", fileInput);
+        const ocrRes = await fetch("/api/ocr/passport", { method: "POST", body: ocrForm });
+        const ocrJson = await ocrRes.json();
+        if (ocrRes.ok && ocrJson.success && ocrJson.data) {
+          const d = ocrJson.data;
+          ocrExtracted = true;
+          if (d.passportNo?.trim()) setPassportNoVal(d.passportNo.trim());
+          if (d.issueDate && isValidISODate(d.issueDate)) setIssueDateVal(d.issueDate);
+          if (d.expiryDate && isValidISODate(d.expiryDate)) setExpiryDateVal(d.expiryDate);
+          if (d.fullName?.trim()) {
+            setCandidateFullNameVal(d.fullName.trim());
+          } else if (d.givenName?.trim() && d.surname?.trim()) {
+            setCandidateFullNameVal(`${d.givenName.trim()} ${d.surname.trim()}`);
+          }
+          if (d.dob && isValidISODate(d.dob)) setDobVal(d.dob);
+          if (d.sex?.trim()) setGenderVal(d.sex.trim());
+          if (d.nid?.trim()) setNidVal(d.nid.trim());
+          setPassportStatusVal("Verified");
+          setOcrExtractedNotice(`✓ OCR Extracted: Passport (${d.passportNo || "—"}), Dates (${d.issueDate || "—"} to ${d.expiryDate || "—"}), Candidate: ${d.fullName || d.givenName || ""}`);
+        }
+      } catch (ocrErr) {
+        console.warn("OCR background scan error:", ocrErr);
+      }
+
+      toast.success(
+        ocrExtracted
+          ? `Passport uploaded & auto-filled via OCR! Review details and click Update.`
+          : `Passport physical scan attached successfully!`,
+        { id: toastId, icon: "✨" }
+      );
+      await query.refetch();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to upload passport scan", { id: toastId });
+    } finally {
+      setIsScanningOCR(false);
+    }
+  };
+
+  const handleLocalFileUpload = async (category: string, fileInput: File) => {
+    if (category === "passport") {
+      await handlePassportUpload(fileInput);
+      return;
+    }
+    if (!file) return;
+    const categoryDocTypeMap: Record<string, string> = {
+      medical: "Medical",
+      pcc: "Police Clearance",
+      takamul: "Takamul",
+      visa: "Visa",
+      evisa: "Visa",
+      manpower: "BMET Smart Card",
+      flight: "Flight Ticket",
+    };
+    const docType = categoryDocTypeMap[category] || category;
+    const sizeFormatted = (fileInput.size / (1024 * 1024)).toFixed(2) + " MB";
+
+    try {
+      const docForm = new FormData();
+      docForm.set("file", fileInput);
+      docForm.set("fileId", file.id);
+      docForm.set("type", docType);
+      const docRes = await fetch("/api/documents", { method: "POST", body: docForm });
+      const docJson = await docRes.json();
+      const downloadUrl = docJson.data?.downloadUrl;
+
       setAttachedFiles((prev) => ({
         ...prev,
         [category]: {
-          url: result,
+          url: downloadUrl || URL.createObjectURL(fileInput),
           fileName: fileInput.name,
           size: sizeFormatted,
+          documentId: docJson.data?.id,
         },
       }));
-      toast.success(`Physical file attached for ${category} (${fileInput.name})`);
-    };
-    reader.readAsDataURL(fileInput);
+      toast.success(`Document uploaded and attached for ${docType} (${fileInput.name})`);
+      await query.refetch();
+    } catch {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        setAttachedFiles((prev) => ({
+          ...prev,
+          [category]: {
+            url: result,
+            fileName: fileInput.name,
+            size: sizeFormatted,
+          },
+        }));
+      };
+      reader.readAsDataURL(fileInput);
+    }
   };
 
   const handleRemoveFile = (category: string) => {
@@ -801,9 +1359,115 @@ export function FileProcessingWorkspace({
   }
 
   const totalPaid = file.payments?.reduce((sum, p) => sum + (!p.status || !["CANCELLED", "VOID", "REFUNDED", "REVERSED", "FAILED"].includes(String(p.status).toUpperCase()) ? Number(p.amount) : 0), 0) || 0;
-  const totalPackageCost = /dubai/i.test(file.country) ? 300000 : 350000;
+  const grossPackage = Number(file.grossPackage ?? file.contractPackage) || (/dubai/i.test(file.country) ? 300000 : 350000);
+  const candidateDiscount = Number(file.discount || 0);
+  const totalPackageCost = Number(file.packageCost) || Math.max(0, grossPackage - candidateDiscount);
   const balanceRemaining = Math.max(0, totalPackageCost - totalPaid);
   const advanceAmount = Math.max(0, totalPaid - totalPackageCost);
+
+  const openFileReceipt = (targetPayment?: any, isMasterOnly = false) => {
+    if (!file) return;
+    const rawPayments = file.payments || [];
+    const paymentsToProcess = rawPayments.length > 0 ? rawPayments : targetPayment ? [targetPayment] : [];
+    if (paymentsToProcess.length === 0) return;
+
+    const sorted = [...paymentsToProcess].sort((a: any, b: any) => {
+      const ta = new Date(a.collectedAt || a.createdAt || 0).getTime();
+      const tb = new Date(b.collectedAt || b.createdAt || 0).getTime();
+      return ta - tb;
+    });
+
+    const agentDisplay = file.agent || (file.candidate as any)?.source || "Al-Ameen Travels & Tours (AGT-001)";
+    const rawDob = file.candidate.dob || (file.candidate as any)?.dateOfBirth;
+    const formattedDob = rawDob
+      ? `${new Date(rawDob).toLocaleDateString("en-GB")}${(file.candidate as any)?.age ? ` (${(file.candidate as any).age} yrs)` : ""}`
+      : undefined;
+
+    let runningPaid = 0;
+    const allReceipts: ReceiptData[] = sorted.map((p: any, idx: number) => {
+      const previouslyPaid = runningPaid;
+      runningPaid += Number(p.amount);
+      const cleanType = cleanPaymentType(p.type);
+
+      return {
+        receiptNo: p.reference || p.referenceNo || (p.paymentNo ? `REC-${p.paymentNo.slice(-6)}` : `REC-${idx + 1}`),
+        date: new Date(p.collectedAt || p.createdAt || Date.now()).toLocaleDateString("en-GB"),
+        candidateName: file.candidate.fullName,
+        candidateNo: file.candidate.candidateNo,
+        fileNo: file.fileNo,
+        passportNo: file.candidate.passportNo || file.passport?.passportNumber,
+        phone: file.candidate.phone,
+        country: file.country,
+        profession: file.profession,
+        agent: agentDisplay,
+        company: file.company || "Awaiting Sponsor",
+        paymentType: cleanType,
+        paymentMethod: p.method || "Cash at Office",
+        referenceNo: p.reference || p.referenceNo || "OFFICE-REC",
+        amount: Number(p.amount),
+        totalPackage: totalPackageCost,
+        grossPackage,
+        discount: candidateDiscount,
+        previouslyPaid,
+        totalPaid: runningPaid,
+        officerName: file.assignedTo?.name || "Accounts Department",
+        notes: p.note || p.notes,
+        dob: formattedDob,
+      };
+    });
+
+    const masterItems: ReceiptItem[] = sorted.map((p: any, idx: number) => ({
+      sl: idx + 1,
+      date: new Date(p.collectedAt || p.createdAt || Date.now()).toLocaleDateString("en-GB"),
+      type: cleanPaymentType(p.type),
+      method: p.method || "Cash at Office",
+      reference: p.reference || p.referenceNo || (p.paymentNo ? `REC-${p.paymentNo.slice(-6)}` : `REC-${idx + 1}`),
+      amount: Number(p.amount),
+      notes: p.note || p.notes,
+    }));
+
+    const masterReceipt: ReceiptData = {
+      isMasterReceipt: true,
+      receiptNo: `MR-${file.fileNo.replace("FILE-", "")}`,
+      date: new Date().toLocaleDateString("en-GB"),
+      candidateName: file.candidate.fullName,
+      candidateNo: file.candidate.candidateNo,
+      fileNo: file.fileNo,
+      passportNo: file.candidate.passportNo || file.passport?.passportNumber,
+      phone: file.candidate.phone,
+      country: file.country,
+      profession: file.profession,
+      agent: agentDisplay,
+      company: file.company || "Awaiting Sponsor",
+      paymentType: "Master Statement (All Payments)",
+      paymentMethod: "Office Accounts",
+      referenceNo: `STMT-${file.fileNo}`,
+      amount: totalPaid,
+      totalPaid: totalPaid,
+      totalPackage: totalPackageCost,
+      grossPackage,
+      discount: candidateDiscount,
+      officerName: file.assignedTo?.name || "Accounts Department",
+      items: masterItems,
+      dob: formattedDob,
+    };
+
+    const combinedList = [masterReceipt, ...allReceipts];
+
+    let targetIdx = 0;
+    if (isMasterOnly) {
+      targetIdx = 0;
+    } else if (targetPayment) {
+      const foundIdx = allReceipts.findIndex(
+        (r) => r.receiptNo === targetPayment.reference || r.receiptNo === targetPayment.referenceNo || r.amount === targetPayment.amount
+      );
+      if (foundIdx !== -1) targetIdx = foundIdx + 1;
+    }
+
+    setActiveReceiptsList(combinedList);
+    setActiveReceiptIndex(targetIdx);
+    setActiveReceipt(combinedList[targetIdx] || null);
+  };
 
   const initials = file.candidate.fullName
     .split(" ")
@@ -984,27 +1648,8 @@ export function FileProcessingWorkspace({
             <button data-action-ui="secondary" data-action-size="normal"
               type="button"
               className="profile-btn profile-btn-blue"
-              onClick={() =>
-                setActiveReceipt({
-                  receiptNo: `MR-${file.fileNo.replace("FILE-", "")}`,
-                  date: new Date().toLocaleDateString("en-GB"),
-                  candidateName: file.candidate.fullName,
-                  candidateNo: file.candidate.candidateNo,
-                  fileNo: file.fileNo,
-                  passportNo: file.candidate.passportNo || file.passport?.passportNumber,
-                  phone: file.candidate.phone,
-                  country: file.country,
-                  profession: file.profession,
-                  paymentType: file.payments?.[0]?.type || "Candidate Payment Deposit",
-                  paymentMethod: file.payments?.[0]?.method || "Office Accounts",
-                  referenceNo: file.payments?.[0]?.reference || `REC-${file.fileNo}`,
-                  amount: totalPaid || 50000,
-                  totalPaid: totalPaid || 50000,
-                  totalPackage: totalPackageCost,
-                  officerName: file.assignedTo?.name || "Accounts Department",
-                })
-              }
-              title="Print Official Money Receipt"
+              onClick={() => openFileReceipt(undefined, true)}
+              title="Print Official Master Money Receipt"
             >
               🖨 Print Receipt
             </button>
@@ -1088,7 +1733,8 @@ export function FileProcessingWorkspace({
                         company: file.company,
                         title: "Scanned Passport Copy",
                         category: "passport",
-                        url: attachedFiles["passport"]?.url,
+                        url: attachedFiles["passport"]?.url || passportPreviewUrl || file.passport?.scanUrl,
+                        backUrl: attachedFiles["passport_back"]?.url || passportBackPreviewUrl || file.passport?.backScanUrl || undefined,
                         fileNumber: file.fileNo,
                         verifiedStatus: "Verified Valid",
                       })
@@ -1273,87 +1919,11 @@ export function FileProcessingWorkspace({
                         <h2>📘 1. Passport Entry &amp; Verification</h2>
                         <p>Verify candidate original passport, validity, and bio data accuracy.</p>
                       </div>
-                      <button data-action-ui="secondary" data-action-size="normal"
-                        type="button"
-                        className="payment-receipt-btn"
-                        onClick={() =>
-                          setActiveDoc({
-                            candidateName: file.candidate.fullName,
-                            passportNo: file.candidate.passportNo || file.passport?.passportNumber,
-                            candidateNo: file.candidate.candidateNo,
-                            country: file.country,
-                            profession: file.profession,
-                            company: file.company,
-                            title: "Scanned Passport Copy",
-                            category: "passport",
-                            url: attachedFiles["passport"]?.url,
-                            fileNumber: file.fileNo,
-                            verifiedStatus: "Verified Valid",
-                          })
-                        }
-                      >
-                        <Eye size={14} /> View Passport Scan {attachedFiles["passport"] && "✓"}
-                      </button>
-                    </div>
-                    <div className="stage-guidance-banner">
-                      <Sparkles size={16} className="text-indigo-600 shrink-0" />
-                      <span><b>Stage Information:</b> Enter or update candidate original passport details and save.</span>
-                    </div>
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        const form = new FormData(e.currentTarget);
-                        void handleStageUpdate("update-passport", {
-                          passportNumber: form.get("passportNumber"),
-                          issueDate: form.get("issueDate"),
-                          expiryDate: form.get("expiryDate"),
-                          verificationStatus: form.get("verificationStatus"),
-                        });
-                      }}
-                    >
-                      <div className="form-grid">
-                        <label>
-                          Passport Number *
-                          <input
-                            name="passportNumber"
-                            defaultValue={file.passport?.passportNumber || file.candidate.passportNo || ""}
-                            required
-                          />
-                        </label>
-                        <label>
-                          Issue Date
-                          <input
-                            name="issueDate"
-                            type="date"
-                            defaultValue={file.passport?.issueDate ? file.passport.issueDate.slice(0, 10) : new Date().toISOString().slice(0, 10)}
-                          />
-                        </label>
-                        <label>
-                          Expiry Date (10-Year Valid)
-                          <input
-                            name="expiryDate"
-                            type="date"
-                            defaultValue={
-                              file.passport?.expiryDate
-                                ? file.passport.expiryDate.slice(0, 10)
-                                : new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
-                            }
-                          />
-                        </label>
-                        <label>
-                          Passport Verification Status
-                          <select name="verificationStatus" defaultValue={file.passport?.verificationStatus || "Verified"}>
-                            <option value="Verified">Verified &amp; Original In Hand</option>
-                            <option value="Pending">Pending Verification</option>
-                            <option value="Rejected">Defective / Expired</option>
-                          </select>
-                        </label>
-                        <FileUploadField
-                          label="Attach Physical Passport Scan (Optional)"
-                          category="passport"
-                          attachedFile={attachedFiles["passport"]}
-                          onFileSelect={(f) => handleLocalFileUpload("passport", f)}
-                          onPreview={() =>
+                      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                        <button data-action-ui="secondary" data-action-size="normal"
+                          type="button"
+                          className="payment-receipt-btn"
+                          onClick={() =>
                             setActiveDoc({
                               candidateName: file.candidate.fullName,
                               passportNo: file.candidate.passportNo || file.passport?.passportNumber,
@@ -1363,16 +1933,527 @@ export function FileProcessingWorkspace({
                               company: file.company,
                               title: "Scanned Passport Copy",
                               category: "passport",
-                              url: attachedFiles["passport"]?.url,
+                              url: attachedFiles["passport"]?.url || passportPreviewUrl || file.passport?.scanUrl,
+                              backUrl: attachedFiles["passport_back"]?.url || passportBackPreviewUrl || file.passport?.backScanUrl || undefined,
                               fileNumber: file.fileNo,
                               verifiedStatus: "Verified Valid",
                             })
                           }
-                          onRemove={() => handleRemoveFile("passport")}
-                        />
+                        >
+                          <Eye size={14} /> View Passport Scan {(attachedFiles["passport"] || file.passport?.scanUrl || passportPreviewUrl) && "✓"}
+                        </button>
+                        {(passportBackPreviewUrl || attachedFiles["passport_back"]?.url) && (
+                          <button data-action-ui="secondary" data-action-size="normal"
+                            type="button"
+                            className="payment-receipt-btn"
+                            onClick={() =>
+                              setActiveDoc({
+                                candidateName: file.candidate.fullName,
+                                passportNo: file.candidate.passportNo || file.passport?.passportNumber,
+                                candidateNo: file.candidate.candidateNo,
+                                country: file.country,
+                                profession: file.profession,
+                                company: file.company,
+                                title: "Scanned Passport Copy (Back / Address Page)",
+                                category: "passport_back",
+                                url: attachedFiles["passport"]?.url || passportPreviewUrl || file.passport?.scanUrl,
+                                backUrl: attachedFiles["passport_back"]?.url || passportBackPreviewUrl || file.passport?.backScanUrl || undefined,
+                                fileNumber: file.fileNo,
+                                verifiedStatus: "Verified Valid",
+                              })
+                            }
+                          >
+                            <Eye size={14} /> View Back Scan ✓
+                          </button>
+                        )}
                       </div>
-                      <div className="form-actions">
-                        <button data-action-ui="primary" data-action-size="normal" type="submit" disabled={saving} className="primary-action-btn">
+                    </div>
+                    <div className="stage-guidance-banner">
+                      <Sparkles size={16} className="text-indigo-600 shrink-0" />
+                      <span><b>Stage Information:</b> Enter or update candidate original passport details and save.</span>
+                    </div>
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        void handleStageUpdate("update-passport", {
+                          passportNumber: passportNoVal,
+                          issueDate: issueDateVal,
+                          expiryDate: expiryDateVal,
+                          verificationStatus: verificationStatusVal,
+                          passportStatus: passportStatusVal,
+                          documentId: attachedFiles["passport"]?.documentId,
+                          fullName: candidateFullNameVal,
+                          givenName: givenNameVal,
+                          surname: surnameVal,
+                          dob: dobVal,
+                          age: ageVal,
+                          gender: genderVal,
+                          nationality: nationalityVal,
+                          placeOfBirth: placeOfBirthVal,
+                          fatherName: fatherNameVal,
+                          motherName: motherNameVal,
+                          nid: nidVal,
+                          address: passportAddressVal,
+                        });
+                      }}
+                    >
+                      <div className="passport-form-grid form-grid" style={{ marginTop: "14px" }}>
+                        {/* Row 1: Upload Passport (spans 2) & Passport No (spans 1) */}
+                        <div className="passport-upload-row">
+                          <div className="passport-upload-header">
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              <span className="passport-upload-label">Upload Passport</span>
+                              {(passportPreviewUrl || attachedFiles["passport"]?.url || file.passport?.scanUrl) && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setActiveDoc({
+                                      candidateName: file.candidate.fullName,
+                                      passportNo: file.candidate.passportNo || file.passport?.passportNumber,
+                                      candidateNo: file.candidate.candidateNo,
+                                      country: file.country,
+                                      profession: file.profession,
+                                      company: file.company,
+                                      title: "Scanned Passport Copy",
+                                      category: "passport",
+                                      url: attachedFiles["passport"]?.url || passportPreviewUrl || file.passport?.scanUrl,
+                                      backUrl: attachedFiles["passport_back"]?.url || passportBackPreviewUrl || file.passport?.backScanUrl || undefined,
+                                      fileNumber: file.fileNo,
+                                      verifiedStatus: "Verified Valid",
+                                    })
+                                  }
+                                  style={{
+                                    background: "#eaf2ff",
+                                    border: "1px solid #bfdbfe",
+                                    color: "#007aff",
+                                    borderRadius: "6px",
+                                    fontSize: "11px",
+                                    fontWeight: 600,
+                                    cursor: "pointer",
+                                    padding: "1px 7px",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "3px",
+                                  }}
+                                >
+                                  <Eye size={11} /> View Scan
+                                </button>
+                              )}
+                            </div>
+                            {passportBackFile || passportBackPreviewUrl ? (
+                              <span className="passport-back-status">
+                                ✓ Back Page Added
+                                {(passportBackPreviewUrl || attachedFiles["passport_back"]?.url) && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setActiveDoc({
+                                        candidateName: file.candidate.fullName,
+                                        passportNo: file.candidate.passportNo || file.passport?.passportNumber,
+                                        candidateNo: file.candidate.candidateNo,
+                                        country: file.country,
+                                        profession: file.profession,
+                                        company: file.company,
+                                        title: "Scanned Passport Copy (Back / Address Page)",
+                                        category: "passport_back",
+                                        url: attachedFiles["passport"]?.url || passportPreviewUrl || file.passport?.scanUrl,
+                                        backUrl: attachedFiles["passport_back"]?.url || passportBackPreviewUrl || file.passport?.backScanUrl || undefined,
+                                        fileNumber: file.fileNo,
+                                        verifiedStatus: "Verified Valid",
+                                      })
+                                    }
+                                    style={{
+                                      background: "transparent",
+                                      border: "none",
+                                      color: "#007aff",
+                                      fontSize: "11px",
+                                      fontWeight: 600,
+                                      cursor: "pointer",
+                                      padding: "0 4px",
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: "3px",
+                                      marginLeft: "4px",
+                                    }}
+                                  >
+                                    <Eye size={11} /> View
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  className="passport-back-remove-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPassportBackFile(null);
+                                    setPassportBackPreviewUrl(null);
+                                  }}
+                                  title="Remove back page"
+                                >
+                                  <X size={12} />
+                                </button>
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                className="passport-add-back-btn"
+                                onClick={() => passportBackInputRef.current?.click()}
+                              >
+                                + Add Back / Address Page (Optional)
+                              </button>
+                            )}
+                          </div>
+                            <input
+                              ref={passportInputRef}
+                              type="file"
+                              accept="image/jpeg,image/png,image/webp"
+                              className="hidden"
+                              style={{ display: "none" }}
+                              onChange={handlePassportFileSelect}
+                            />
+                            <input
+                              ref={passportBackInputRef}
+                              type="file"
+                              accept="image/jpeg,image/png,image/webp"
+                              className="hidden"
+                              style={{ display: "none" }}
+                              onChange={handlePassportBackFileSelect}
+                            />
+                            <div
+                              className="passport-upload-box"
+                              onDragOver={(e) => e.preventDefault()}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                const f = e.dataTransfer.files?.[0];
+                                if (f) void handleDroppedFile(f, "front");
+                              }}
+                            >
+                              <div
+                                className="passport-file-display"
+                                onClick={() => passportInputRef.current?.click()}
+                                title={passportFile?.name || "Choose passport scan image"}
+                              >
+                                <Upload size={14} className="passport-file-icon" />
+                                <span className="passport-file-text">
+                                  {passportFile
+                                    ? passportFile.name
+                                    : (attachedFiles["passport"]?.fileName || (passportPreviewUrl ? "Physical Passport Scan Attached" : "Choose passport file (JPEG, PNG, WebP)..."))}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                className="passport-ocr-btn"
+                                onClick={() => triggerOCR()}
+                                disabled={isScanningOCR || (!passportFile && !passportBackFile && !passportPreviewUrl)}
+                              >
+                                {isScanningOCR ? (
+                                  <>
+                                    <Loader2 size={15} className="animate-spin" />
+                                    Scanning...
+                                  </>
+                                ) : (
+                                  <>
+                                    <ScanText size={15} />
+                                    OCR
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+
+                          <label>
+                            <div className="passport-label-header">
+                              <span className="passport-field-title">
+                                Passport No <span className="passport-req-text">(Required)</span>
+                              </span>
+                              {mrzValidation?.docNumberValid && (
+                                <span className="passport-mrz-badge">
+                                  ✓ Validated (MRZ)
+                                </span>
+                              )}
+                            </div>
+                            <input
+                              name="passportNumber"
+                              placeholder="AA0001618"
+                              required
+                              value={passportNoVal}
+                              onChange={(e) => setPassportNoVal(e.target.value)}
+                            />
+                          </label>
+
+                          {/* Row 2: Date of issue, Date of Expiry, Passport Status */}
+                          <label>
+                            <div className="passport-label-header">
+                              <span className="passport-field-title">
+                                Date of issue <span className="passport-opt-text">(Optional)</span>
+                              </span>
+                            </div>
+                            <input
+                              name="issueDate"
+                              type="date"
+                              value={issueDateVal}
+                              onChange={(e) => setIssueDateVal(e.target.value)}
+                            />
+                          </label>
+                          <label>
+                            <div className="passport-label-header">
+                              <span className="passport-field-title">
+                                Date of Expiry <span className="passport-opt-text">(Optional)</span>
+                              </span>
+                              {mrzValidation?.expiryValid && (
+                                <span className="passport-mrz-badge">
+                                  ✓ Validated
+                                </span>
+                              )}
+                            </div>
+                            <input
+                              name="expiryDate"
+                              type="date"
+                              value={expiryDateVal}
+                              onChange={(e) => setExpiryDateVal(e.target.value)}
+                            />
+                          </label>
+                          <label>
+                            <div className="passport-label-header">
+                              <span className="passport-field-title">Passport Status</span>
+                            </div>
+                            <select
+                              name="passportStatus"
+                              value={passportStatusVal}
+                              onChange={(e) => setPassportStatusVal(e.target.value)}
+                            >
+                              <option value="Available">Available</option>
+                              <option value="Applied">Applied</option>
+                              <option value="Not Available">Not Available</option>
+                              <option value="Expired">Expired</option>
+                              <option value="Renewal Required">Renewal Required</option>
+                            </select>
+                          </label>
+
+                          {/* Row 3: Given Name, Surname, Sex */}
+                          <label>
+                            <div className="passport-label-header">
+                              <span className="passport-field-title">
+                                Given Name <span className="passport-req-text">(Required)</span>
+                              </span>
+                            </div>
+                            <input
+                              name="givenName"
+                              placeholder="e.g. FAIAZ ATIF"
+                              required
+                              value={givenNameVal}
+                              onChange={(e) => handleGivenNameChange(e.target.value)}
+                            />
+                          </label>
+                          <label>
+                            <div className="passport-label-header">
+                              <span className="passport-field-title">
+                                Surname <span className="passport-req-text">(Required)</span>
+                              </span>
+                            </div>
+                            <input
+                              name="surname"
+                              placeholder="e.g. QUAZI"
+                              required
+                              value={surnameVal}
+                              onChange={(e) => handleSurnameChange(e.target.value)}
+                            />
+                          </label>
+                          <label>
+                            <div className="passport-label-header">
+                              <span className="passport-field-title">
+                                Sex <span className="passport-opt-text">(Optional)</span>
+                              </span>
+                            </div>
+                            <select
+                              name="gender"
+                              value={genderVal}
+                              onChange={(e) => setGenderVal(e.target.value)}
+                            >
+                              <option value="">Select Sex</option>
+                              <option value="Male">Male</option>
+                              <option value="Female">Female</option>
+                              <option value="Other">Other</option>
+                            </select>
+                          </label>
+
+                          {/* Row 4: Date of Birth, Age, Nationality */}
+                          <label>
+                            <div className="passport-label-header">
+                              <span className="passport-field-title">
+                                Date of Birth <span className="passport-opt-text">(Optional)</span>
+                              </span>
+                              {mrzValidation?.dobValid && (
+                                <span className="passport-mrz-badge">
+                                  ✓ Validated
+                                </span>
+                              )}
+                            </div>
+                            <input
+                              name="dob"
+                              type="date"
+                              value={dobVal}
+                              onChange={(e) => handleDobChange(e.target.value)}
+                            />
+                          </label>
+                          <label>
+                            <div className="passport-label-header">
+                              <span className="passport-field-title">Age</span>
+                            </div>
+                            <input
+                              name="age"
+                              placeholder="Auto-calculated"
+                              readOnly
+                              value={ageVal ? `${ageVal} Years` : ""}
+                            />
+                          </label>
+                          <label>
+                            <div className="passport-label-header">
+                              <span className="passport-field-title">
+                                Nationality <span className="passport-opt-text">(Optional)</span>
+                              </span>
+                            </div>
+                            <input
+                              name="nationality"
+                              placeholder="e.g. BANGLADESHI"
+                              value={nationalityVal}
+                              onChange={(e) => setNationalityVal(e.target.value)}
+                            />
+                          </label>
+
+                          {/* Row 5: Place of Birth, Father's Name, Mother's Name */}
+                          <label>
+                            <div className="passport-label-header">
+                              <span className="passport-field-title">
+                                Place of Birth <span className="passport-opt-text">(Optional)</span>
+                              </span>
+                            </div>
+                            <input
+                              name="placeOfBirth"
+                              placeholder="e.g. RAJSHAHI"
+                              value={placeOfBirthVal}
+                              onChange={(e) => setPlaceOfBirthVal(e.target.value)}
+                            />
+                          </label>
+                          <label>
+                            <div className="passport-label-header">
+                              <span className="passport-field-title">
+                                Father's Name <span className="passport-opt-text">(Optional)</span>
+                              </span>
+                            </div>
+                            <input
+                              name="fatherName"
+                              placeholder="eg Rahim"
+                              value={fatherNameVal}
+                              onChange={(e) => setFatherNameVal(e.target.value)}
+                            />
+                          </label>
+                          <label>
+                            <div className="passport-label-header">
+                              <span className="passport-field-title">
+                                Mother's Name <span className="passport-opt-text">(Optional)</span>
+                              </span>
+                            </div>
+                            <input
+                              name="motherName"
+                              placeholder="eg Rohima"
+                              value={motherNameVal}
+                              onChange={(e) => setMotherNameVal(e.target.value)}
+                            />
+                          </label>
+
+                          {/* Row 6: NID Number, Permanent Address */}
+                          <label>
+                            <div className="passport-label-header">
+                              <span className="passport-field-title">
+                                NID Number <span className="passport-opt-text">(Optional)</span>
+                              </span>
+                            </div>
+                            <input
+                              name="nid"
+                              placeholder="0123456001"
+                              value={nidVal}
+                              onChange={(e) => setNidVal(e.target.value)}
+                            />
+                          </label>
+                          <label className="passport-address-col" style={{ gridColumn: "span 2" }}>
+                            <div className="passport-label-header">
+                              <span className="passport-field-title">
+                                Permanent Address as in Passport <span className="passport-opt-text">(Optional)</span>
+                              </span>
+                            </div>
+                            <input
+                              name="address"
+                              placeholder="eg 123 Main Street, Dhaka, Bangladesh"
+                              value={passportAddressVal}
+                              onChange={(e) => setPassportAddressVal(e.target.value)}
+                            />
+                          </label>
+
+                          {/* Row 7: Verification Status */}
+                          <label className="passport-full-col" style={{ gridColumn: "1 / -1" }}>
+                            <div className="passport-label-header">
+                              <span className="passport-field-title">
+                                Passport Verification Status <span className="passport-opt-text">(Physical Verification Verdict)</span>
+                              </span>
+                              <span style={{ fontSize: "11px", color: verificationStatusVal === "Verified" ? "#248a3d" : "#b45309", fontWeight: 600 }}>
+                                {verificationStatusVal === "Verified" ? "✓ Verified & Original In Hand" : verificationStatusVal === "Pending" ? "● Pending Verification" : "✕ Defective / Expired"}
+                              </span>
+                            </div>
+                            <select
+                              name="verificationStatus"
+                              value={verificationStatusVal}
+                              onChange={(e) => setVerificationStatusVal(e.target.value)}
+                            >
+                              <option value="Verified">Verified &amp; Original In Hand</option>
+                              <option value="Pending">Pending Verification</option>
+                              <option value="Rejected">Defective / Expired</option>
+                            </select>
+                          </label>
+
+                          {ocrExtractedNotice && (
+                            <div style={{
+                              gridColumn: "1 / -1",
+                              background: "#ecfdf5",
+                              border: "1px solid #a7f3d0",
+                              color: "#065f46",
+                              borderRadius: "8px",
+                              padding: "8px 12px",
+                              fontSize: "12px",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "8px",
+                            }}>
+                              <Sparkles size={15} className="text-emerald-600 shrink-0" />
+                              <span>{ocrExtractedNotice}</span>
+                            </div>
+                          )}
+                          {isScanningOCR && (
+                            <div style={{
+                              gridColumn: "1 / -1",
+                              background: "#eff6ff",
+                              border: "1px solid #bfdbfe",
+                              color: "#1e40af",
+                              borderRadius: "8px",
+                              padding: "8px 12px",
+                              fontSize: "12px",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "8px",
+                            }}>
+                              <Loader2 size={15} className="animate-spin text-blue-600 shrink-0" />
+                              <span>Scanning passport with OCR system and extracting biodata...</span>
+                            </div>
+                          )}
+                        </div>
+
+                      <div className="form-actions" style={{ marginTop: "20px" }}>
+                        <button
+                          data-action-ui="primary"
+                          data-action-size="normal"
+                          type="submit"
+                          disabled={saving || isScanningOCR}
+                          className="primary-action-btn"
+                        >
                           {saving ? "Saving..." : isStageCompleted("Passport Entry") ? "💾 Update Passport Information" : "💾 Save Passport Details"}
                         </button>
                       </div>
@@ -1452,19 +2533,34 @@ export function FileProcessingWorkspace({
                         </label>
                         
                         {/* Biometric & Checklist Strip from sidebar Medical page */}
-                        <div className="full checkbox-row">
-                          <label className="checkbox-card">
-                            <input type="checkbox" name="tenFingerDone" defaultChecked={Boolean(file.medical?.[0]?.metadata?.tenFingerDone ?? true)} />
-                            <span>🖐️ 10-Fingerprint Biometric Done</span>
-                          </label>
-                          <label className="checkbox-card">
-                            <input type="checkbox" name="pictureCollected" defaultChecked={Boolean(file.medical?.[0]?.metadata?.pictureCollected ?? true)} />
-                            <span>📷 Medical Picture Collected</span>
-                          </label>
-                          <label className="checkbox-card">
-                            <input type="checkbox" name="medicalSlip" defaultChecked={Boolean(file.medical?.[0]?.metadata?.medicalSlip ?? true)} />
-                            <span>📄 Physical Medical Slip In Hand</span>
-                          </label>
+                        <div className="medical-checklist-wrapper full" style={{ gridColumn: "1 / -1", width: "100%" }}>
+                          <span className="medical-checklist-title">GCC Biometrics &amp; Physical Verification Checklist</span>
+                          <div className="medical-checklist-grid">
+                            <label className="checkbox-card medical-checkbox-card">
+                              <input
+                                type="checkbox"
+                                name="tenFingerDone"
+                                defaultChecked={Boolean(file.medical?.[0]?.metadata?.tenFingerDone ?? true)}
+                              />
+                              <span className="medical-checkbox-text">🖐️ 10-Fingerprint Biometric Done</span>
+                            </label>
+                            <label className="checkbox-card medical-checkbox-card">
+                              <input
+                                type="checkbox"
+                                name="pictureCollected"
+                                defaultChecked={Boolean(file.medical?.[0]?.metadata?.pictureCollected ?? true)}
+                              />
+                              <span className="medical-checkbox-text">📷 Medical Picture Collected</span>
+                            </label>
+                            <label className="checkbox-card medical-checkbox-card">
+                              <input
+                                type="checkbox"
+                                name="medicalSlip"
+                                defaultChecked={Boolean(file.medical?.[0]?.metadata?.medicalSlip ?? true)}
+                              />
+                              <span className="medical-checkbox-text">📄 Physical Medical Slip In Hand</span>
+                            </label>
+                          </div>
                         </div>
 
                         <FileUploadField
@@ -1630,26 +2726,7 @@ export function FileProcessingWorkspace({
                       <button data-action-ui="secondary" data-action-size="normal"
                         type="button"
                         className="payment-receipt-btn"
-                        onClick={() =>
-                          setActiveReceipt({
-                            receiptNo: `MR-${file.fileNo.replace("FILE-", "")}`,
-                            date: new Date().toLocaleDateString("en-GB"),
-                            candidateName: file.candidate.fullName,
-                            candidateNo: file.candidate.candidateNo,
-                            fileNo: file.fileNo,
-                            passportNo: file.candidate.passportNo || file.passport?.passportNumber,
-                            phone: file.candidate.phone,
-                            country: file.country,
-                            profession: file.profession,
-                            paymentType: "Candidate Payment Deposit",
-                            paymentMethod: "Office Accounts",
-                            referenceNo: `REC-${Date.now().toString().slice(-6)}`,
-                            amount: file.payments?.[0]?.amount || 50000,
-                            totalPaid: totalPaid,
-                            totalPackage: totalPackageCost,
-                            officerName: file.assignedTo?.name || "Accounts Department",
-                          })
-                        }
+                        onClick={() => openFileReceipt(undefined, true)}
                       >
                         <Printer size={14} /> 🖨️ Print Money Receipt
                       </button>
@@ -2701,112 +3778,6 @@ export function FileProcessingWorkspace({
                 })()}
 
                 {activeTab !== "Flight" && stageNavigation}
-
-                {/* 3. Candidate Quick Contact Card */}
-                <div className="sidebar-widget-card candidate-contacts-card">
-                  <div className="widget-card-header">
-                    <div className="pipeline-contacts-heading"><h3 className="widget-card-title">
-                      Candidate Contacts
-                    </h3>
-                    <span className="contact-status-pill">
-                      Reachable
-                    </span></div>
-                  {/* Activity and Call Logs Navigation Button */}
-                  <button data-action-ui="secondary" data-action-size="normal"
-                    type="button"
-                    onClick={() => setMainView("timeline")}
-                    className="contacts-activity-btn"
-                    title="View candidate activity history, notes, and call logs"
-                  >
-                    View Activity &amp; Call Logs →
-                  </button>
-                  </div>
-
-                  <div className="candidate-contacts-body">
-                    {/* Primary Phone */}
-                    <div className="contact-row">
-                      <div className="contact-icon phone">
-                        <Phone size={15} />
-                      </div>
-                      <div className="contact-details">
-                        <span className="contact-label">Primary Mobile</span>
-                        <a href={`tel:${phoneClean}`} className="contact-value link" title="Click to call">
-                          {file.candidate.phone}
-                        </a>
-                      </div>
-                      <div className="contact-actions">
-                        <a data-action-ui="secondary" data-action-size="compact" href={`tel:${phoneClean}`} className="contact-quick-btn call" title="Direct Phone Call">
-                          <Phone size={12} /> Call
-                        </a>
-                        {phoneClean && (
-                          <a data-action-ui="secondary" data-action-size="compact"
-                            href={`https://wa.me/${phoneClean.startsWith("+") ? phoneClean.slice(1) : phoneClean}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="contact-quick-btn whatsapp"
-                            title="Chat on WhatsApp"
-                          >
-                            <MessageCircle size={12} /> WA
-                          </a>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* District & Location */}
-                    {(file.candidate.district || file.candidate.address) && (
-                      <div className="contact-row">
-                        <div className="contact-icon location">
-                          <MapPin size={15} />
-                        </div>
-                        <div className="contact-details">
-                          <span className="contact-label">Home District / Address</span>
-                          <span className="contact-value" title={file.candidate.address || file.candidate.district}>
-                            {file.candidate.district || ""}
-                            {file.candidate.address ? (file.candidate.district ? ` (${file.candidate.address})` : file.candidate.address) : ""}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Email Address */}
-                    {file.candidate.email && (
-                      <div className="contact-row">
-                        <div className="contact-icon email">
-                          <Mail size={15} />
-                        </div>
-                        <div className="contact-details">
-                          <span className="contact-label">Email Address</span>
-                          <a href={`mailto:${file.candidate.email}`} className="contact-value link" title="Send email">
-                            {file.candidate.email}
-                          </a>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Identification ID */}
-                    <div className="contact-row">
-                      <div className="contact-icon profile">
-                        <ShieldCheck size={15} />
-                      </div>
-                      <div className="contact-details">
-                        <span className="contact-label">Candidate Registration ID</span>
-                        <span className="contact-value font-mono">
-                          {file.candidate.candidateNo}
-                        </span>
-                      </div>
-                      <button data-action-ui="secondary" data-action-size="normal"
-                        type="button"
-                        onClick={copyCandidateId}
-                        className="contact-quick-btn copy"
-                        title="Copy Candidate ID"
-                      >
-                        <Copy size={11} /> Copy
-                      </button>
-                    </div>
-                  </div>
-
-
-                </div>
               </div>
 
               {/* Right Column: Financial & Document Assistant Sidebar */}
@@ -2817,16 +3788,41 @@ export function FileProcessingWorkspace({
                     <h3 className="m-0 flex items-center gap-2 text-sm font-bold text-slate-800 uppercase tracking-wider">
                       Financial Ledger
                     </h3>
-                    {canEditFile && allows("payment-collection", "create") && (
-                      <button data-action-ui="primary" data-action-size="compact"
-                        type="button"
-                        onClick={() => setActiveTab("Payment")}
-                        className="profile-btn profile-btn-sm profile-btn-purple"
-                        title="Record a new payment deposit"
-                      >
-                        + Deposit
-                      </button>
-                    )}
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      {canEditFile && (
+                        <button
+                          type="button"
+                          onClick={handleOpenPackageModal}
+                          className="profile-btn profile-btn-sm"
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            padding: "3px 8px",
+                            borderRadius: "6px",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            background: "#eef2ff",
+                            color: "#4338ca",
+                            border: "1px solid #c7d2fe",
+                            cursor: "pointer",
+                          }}
+                          title="Set custom contract package price or candidate discount"
+                        >
+                          <Edit2 size={11} /> Edit Package
+                        </button>
+                      )}
+                      {canEditFile && allows("payment-collection", "create") && (
+                        <button data-action-ui="primary" data-action-size="compact"
+                          type="button"
+                          onClick={() => setActiveTab("Payment")}
+                          className="profile-btn profile-btn-sm profile-btn-purple"
+                          title="Record a new payment deposit"
+                        >
+                          + Deposit
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <div className="ledger-total-box">
@@ -2835,8 +3831,16 @@ export function FileProcessingWorkspace({
                       <strong>৳{totalPaid.toLocaleString()} BDT</strong>
                       <div className="pipeline-ledger-balances">
                         <div>
-                          <small>Contract Package</small>
+                          <small>
+                            Contract Package
+                            {candidateDiscount > 0 && <span style={{ color: "#059669", fontWeight: 700, marginLeft: "4px" }}>(Disc: -৳{candidateDiscount.toLocaleString()})</span>}
+                          </small>
                           <b>৳{totalPackageCost.toLocaleString()} BDT</b>
+                          {file.packageTitle && (
+                            <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", fontWeight: 600 }}>
+                              {file.packageTitle}
+                            </span>
+                          )}
                         </div>
                         <div>
                           <small>{advanceAmount > 0 ? "Advance Extra" : balanceRemaining > 0 ? "Remaining Due" : "Payment Status"}</small>
@@ -2846,6 +3850,27 @@ export function FileProcessingWorkspace({
                           </b>
                         </div>
                       </div>
+
+                      {/* Informational Works & Demands Quota Rate - Reference Only */}
+                      {Boolean(file.demandQuotaRate || (file.demandRecord as any)?.visaRate) && (
+                        <div style={{
+                          marginTop: "8px",
+                          padding: "6px 9px",
+                          borderRadius: "7px",
+                          background: "#f8fafc",
+                          border: "1px dashed #cbd5e1",
+                          fontSize: "10.5px",
+                          color: "#475569",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                        }}>
+                          <span>📋 Quota Visa Rate (Demand Ref):</span>
+                          <b style={{ color: "#1e293b" }}>
+                            ৳{Number(file.demandQuotaRate || (file.demandRecord as any)?.visaRate || 0).toLocaleString()} BDT
+                          </b>
+                        </div>
+                      )}
                     </div>
                     <span className="pipeline-ledger-dollar">$</span>
                   </div>
@@ -2867,26 +3892,7 @@ export function FileProcessingWorkspace({
                               <button data-action-ui="neutral" data-action-size="compact"
                                 type="button"
                                 className="profile-btn profile-btn-sm profile-btn-blue"
-                                onClick={() =>
-                                  setActiveReceipt({
-                                    receiptNo: `MR-${p.referenceNo || p.id.slice(-6).toUpperCase()}`,
-                                    date: new Date(p.createdAt).toLocaleDateString("en-GB"),
-                                    candidateName: file.candidate.fullName,
-                                    candidateNo: file.candidate.candidateNo,
-                                    fileNo: file.fileNo,
-                                    passportNo: file.candidate.passportNo || file.passport?.passportNumber,
-                                    phone: file.candidate.phone,
-                                    country: file.country,
-                                    profession: file.profession,
-                                    paymentType: p.type,
-                                    paymentMethod: p.method || "Cash Deposit",
-                                    referenceNo: p.referenceNo || "OFFICE-REC",
-                                    amount: Number(p.amount),
-                                    totalPaid: totalPaid,
-                                    totalPackage: totalPackageCost,
-                                    officerName: file.assignedTo?.name || "Accounts Department",
-                                  })
-                                }
+                                onClick={() => openFileReceipt(p)}
                               >
                                 Print
                               </button>
@@ -3033,6 +4039,111 @@ export function FileProcessingWorkspace({
                   </div>
                 </div>
 
+                {/* 3. Candidate Quick Contact Card */}
+                <div className="sidebar-widget-card candidate-contacts-card">
+                  <div className="widget-card-header">
+                    <div className="pipeline-contacts-heading">
+                      <h3 className="widget-card-title">
+                        Candidate Contacts
+                      </h3>
+                      <span className="contact-status-pill">
+                        Reachable
+                      </span>
+                    </div>
+                    {/* Activity and Call Logs Navigation Button */}
+                    <button data-action-ui="secondary" data-action-size="normal"
+                      type="button"
+                      onClick={() => setMainView("timeline")}
+                      className="contacts-activity-btn"
+                      title="View candidate activity history, notes, and call logs"
+                    >
+                      View Activity &amp; Call Logs →
+                    </button>
+                  </div>
+
+                  <div className="candidate-contacts-body">
+                    {/* Primary Phone */}
+                    <div className="contact-row">
+                      <div className="contact-icon phone">
+                        <Phone size={15} />
+                      </div>
+                      <div className="contact-details">
+                        <span className="contact-label">Primary Mobile</span>
+                        <a href={`tel:${phoneClean}`} className="contact-value link" title="Click to call">
+                          {file.candidate.phone}
+                        </a>
+                      </div>
+                      <div className="contact-actions">
+                        <a data-action-ui="secondary" data-action-size="compact" href={`tel:${phoneClean}`} className="contact-quick-btn call" title="Direct Phone Call">
+                          <Phone size={12} /> Call
+                        </a>
+                        {phoneClean && (
+                          <a data-action-ui="secondary" data-action-size="compact"
+                            href={`https://wa.me/${phoneClean.startsWith("+") ? phoneClean.slice(1) : phoneClean}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="contact-quick-btn whatsapp"
+                            title="Chat on WhatsApp"
+                          >
+                            <MessageCircle size={12} /> WA
+                          </a>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* District & Location */}
+                    {(file.candidate.district || file.candidate.address) && (
+                      <div className="contact-row">
+                        <div className="contact-icon location">
+                          <MapPin size={15} />
+                        </div>
+                        <div className="contact-details">
+                          <span className="contact-label">Home District / Address</span>
+                          <span className="contact-value" title={file.candidate.address || file.candidate.district}>
+                            {file.candidate.district || ""}
+                            {file.candidate.address ? (file.candidate.district ? ` (${file.candidate.address})` : file.candidate.address) : ""}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Email Address */}
+                    {file.candidate.email && (
+                      <div className="contact-row">
+                        <div className="contact-icon email">
+                          <Mail size={15} />
+                        </div>
+                        <div className="contact-details">
+                          <span className="contact-label">Email Address</span>
+                          <a href={`mailto:${file.candidate.email}`} className="contact-value link" title="Send email">
+                            {file.candidate.email}
+                          </a>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Identification ID */}
+                    <div className="contact-row">
+                      <div className="contact-icon profile">
+                        <ShieldCheck size={15} />
+                      </div>
+                      <div className="contact-details">
+                        <span className="contact-label">Candidate Registration ID</span>
+                        <span className="contact-value font-mono">
+                          {file.candidate.candidateNo}
+                        </span>
+                      </div>
+                      <button data-action-ui="secondary" data-action-size="normal"
+                        type="button"
+                        onClick={copyCandidateId}
+                        className="contact-quick-btn copy"
+                        title="Copy Candidate ID"
+                      >
+                        <Copy size={11} /> Copy
+                      </button>
+                    </div>
+                  </div>
+                </div>
 
               </div>
             </div>
@@ -3209,25 +4320,63 @@ export function FileProcessingWorkspace({
                           company: file.company,
                           title: "Scanned Passport Copy",
                           category: "passport",
-                          url: attachedFiles["passport"]?.url,
+                          url: attachedFiles["passport"]?.url || file.passport?.scanUrl || passportPreviewUrl,
+                          backUrl: attachedFiles["passport_back"]?.url || file.passport?.backScanUrl || passportBackPreviewUrl || undefined,
                           fileNumber: file.fileNo,
                           verifiedStatus: "Verified Valid",
                         })
                       }
                     >
-                      <Eye size={13} /> View Passport Scan {attachedFiles["passport"] && "✓"}
+                      <Eye size={13} /> View Passport Scan {(attachedFiles["passport"] || file.passport?.scanUrl || passportPreviewUrl) && "✓"}
                     </button>
+                    {(attachedFiles["passport_back"]?.url || file.passport?.backScanUrl || passportBackPreviewUrl) && (
+                      <button data-action-ui="secondary" data-action-size="normal"
+                        type="button"
+                        className="payment-receipt-btn"
+                        onClick={() =>
+                          setActiveDoc({
+                            candidateName: file.candidate.fullName,
+                            passportNo: file.candidate.passportNo || file.passport?.passportNumber,
+                            candidateNo: file.candidate.candidateNo,
+                            country: file.country,
+                            profession: file.profession,
+                            company: file.company,
+                            title: "Scanned Passport Copy (Back Page)",
+                            category: "passport_back",
+                            url: attachedFiles["passport"]?.url || file.passport?.scanUrl || passportPreviewUrl,
+                            backUrl: attachedFiles["passport_back"]?.url || file.passport?.backScanUrl || passportBackPreviewUrl || undefined,
+                            fileNumber: file.fileNo,
+                            verifiedStatus: "Verified Valid",
+                          })
+                        }
+                      >
+                        <Eye size={13} /> View Back Page ✓
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div className="dossier-grid-4">
-                  <div className="dossier-field"><span className="dossier-field-label">Passport Number</span><b className="dossier-field-value highlight-purple">{file.passport?.passportNumber || file.candidate.passportNo || "N/A"}</b></div>
+                  <div className="dossier-field"><span className="dossier-field-label">Passport Number</span><b className="dossier-field-value highlight-purple">{file.passport?.passportNumber || file.candidate.passportNo || passportNoVal || "N/A"}</b></div>
+                  <div className="dossier-field"><span className="dossier-field-label">Passport Status</span><b className="dossier-field-value highlight-green">{file.passport?.passportStatus || passportStatusVal || "Available"}</b></div>
+                  <div className="dossier-field"><span className="dossier-field-label">Verification Status</span><b className="dossier-field-value highlight-green">{file.passport?.verificationStatus || verificationStatusVal || "Verified & Original In Hand"}</b></div>
                   <div className="dossier-field"><span className="dossier-field-label">Passport Type</span><b className="dossier-field-value">{file.passport?.passportType || "Ordinary (E-Passport)"}</b></div>
-                  <div className="dossier-field"><span className="dossier-field-label">Issue Date</span><b className="dossier-field-value">{file.passport?.issueDate ? new Date(file.passport.issueDate).toLocaleDateString("en-GB") : "01 Jan 2024"}</b></div>
-                  <div className="dossier-field"><span className="dossier-field-label">Expiry Date (10-Year Valid)</span><b className="dossier-field-value highlight-green">{file.passport?.expiryDate ? new Date(file.passport.expiryDate).toLocaleDateString("en-GB") : "01 Jan 2034"}</b></div>
-                  <div className="dossier-field"><span className="dossier-field-label">Issuing Authority / Place</span><b className="dossier-field-value">{file.passport?.issuingAuthority || "DIP Dhaka, Bangladesh"}</b></div>
-                  <div className="dossier-field"><span className="dossier-field-label">Verification Status</span><b className="dossier-field-value highlight-green">{file.passport?.verificationStatus || "Verified & Original In Hand"}</b></div>
+                  <div className="dossier-field"><span className="dossier-field-label">Issue Date</span><b className="dossier-field-value">{file.passport?.issueDate ? new Date(file.passport.issueDate).toLocaleDateString("en-GB") : (issueDateVal ? new Date(issueDateVal).toLocaleDateString("en-GB") : "N/A")}</b></div>
+                  <div className="dossier-field"><span className="dossier-field-label">Expiry Date (10-Year Valid)</span><b className="dossier-field-value highlight-green">{file.passport?.expiryDate ? new Date(file.passport.expiryDate).toLocaleDateString("en-GB") : (expiryDateVal ? new Date(expiryDateVal).toLocaleDateString("en-GB") : "N/A")}</b></div>
+                  <div className="dossier-field"><span className="dossier-field-label">Given Name</span><b className="dossier-field-value">{file.passport?.givenName || givenNameVal || "N/A"}</b></div>
+                  <div className="dossier-field"><span className="dossier-field-label">Surname</span><b className="dossier-field-value">{file.passport?.surname || surnameVal || "N/A"}</b></div>
+                  <div className="dossier-field"><span className="dossier-field-label">Candidate Full Name</span><b className="dossier-field-value highlight-purple">{file.passport?.fullName || candidateFullNameVal || file.candidate.fullName || "N/A"}</b></div>
+                  <div className="dossier-field"><span className="dossier-field-label">Sex / Gender</span><b className="dossier-field-value">{file.passport?.gender || genderVal || file.candidate.gender || "Male"}</b></div>
+                  <div className="dossier-field"><span className="dossier-field-label">Date of Birth (DOB)</span><b className="dossier-field-value">{file.passport?.dob ? new Date(file.passport.dob).toLocaleDateString("en-GB") : (dobVal ? new Date(dobVal).toLocaleDateString("en-GB") : (file.candidate.dob ? new Date(file.candidate.dob).toLocaleDateString("en-GB") : "N/A"))}</b></div>
+                  <div className="dossier-field"><span className="dossier-field-label">Age</span><b className="dossier-field-value">{file.passport?.age ? `${file.passport.age} Years` : (ageVal ? `${ageVal} Years` : "N/A")}</b></div>
+                  <div className="dossier-field"><span className="dossier-field-label">Nationality</span><b className="dossier-field-value">{file.passport?.nationality || nationalityVal || "BANGLADESHI"}</b></div>
+                  <div className="dossier-field"><span className="dossier-field-label">Place of Birth / Issuing Authority</span><b className="dossier-field-value">{file.passport?.placeOfBirth || file.passport?.issuePlace || placeOfBirthVal || file.passport?.issuingAuthority || "DIP Dhaka, Bangladesh"}</b></div>
+                  <div className="dossier-field"><span className="dossier-field-label">Father's Name</span><b className="dossier-field-value">{file.passport?.fatherName || fatherNameVal || "N/A"}</b></div>
+                  <div className="dossier-field"><span className="dossier-field-label">Mother's Name</span><b className="dossier-field-value">{file.passport?.motherName || motherNameVal || "N/A"}</b></div>
+                  <div className="dossier-field"><span className="dossier-field-label">NID Number</span><b className="dossier-field-value">{file.passport?.nid || nidVal || file.candidate.nationalId || "N/A"}</b></div>
+                  <div className="dossier-field span-2"><span className="dossier-field-label">Permanent Address as in Passport</span><b className="dossier-field-value">{file.passport?.address || passportAddressVal || file.candidate.address || "N/A"}</b></div>
+                  <div className="dossier-field"><span className="dossier-field-label">Physical Scan Attached</span><b className={`dossier-field-value ${attachedFiles["passport"] || file.passport?.scanUrl ? "highlight-green" : ""}`}>{(attachedFiles["passport"] || file.passport?.scanUrl) ? "✓ Scan Attached" : "Not Attached"}</b></div>
+                  <div className="dossier-field"><span className="dossier-field-label">Back / Address Scan</span><b className={`dossier-field-value ${attachedFiles["passport_back"] || file.passport?.backScanUrl ? "highlight-green" : ""}`}>{(attachedFiles["passport_back"] || file.passport?.backScanUrl) ? "✓ Back Scan Attached" : "None"}</b></div>
                   <div className="dossier-field"><span className="dossier-field-label">Verified By Officer</span><b className="dossier-field-value">{file.assignedTo?.name || "Office Operations Officer"}</b></div>
-                  <div className="dossier-field"><span className="dossier-field-label">Physical Scan Attached</span><b className={`dossier-field-value ${attachedFiles["passport"] ? "highlight-green" : ""}`}>{attachedFiles["passport"] ? "✓ Scan Attached" : "Digital Record"}</b></div>
                 </div>
               </div>
             )}
@@ -3350,26 +4499,7 @@ export function FileProcessingWorkspace({
                     <button data-action-ui="neutral" data-action-size="normal"
                       type="button"
                       className="payment-receipt-btn"
-                      onClick={() =>
-                        setActiveReceipt({
-                          receiptNo: `MR-${file.fileNo.replace("FILE-", "")}`,
-                          date: new Date().toLocaleDateString("en-GB"),
-                          candidateName: file.candidate.fullName,
-                          candidateNo: file.candidate.candidateNo,
-                          fileNo: file.fileNo,
-                          passportNo: file.candidate.passportNo || file.passport?.passportNumber,
-                          phone: file.candidate.phone,
-                          country: file.country,
-                          profession: file.profession,
-                          paymentType: "Master Statement (All Payments)",
-                          paymentMethod: "Office Accounts",
-                          referenceNo: `STMT-${file.fileNo}`,
-                          amount: totalPaid,
-                          totalPaid: totalPaid,
-                          totalPackage: totalPackageCost,
-                          officerName: file.assignedTo?.name || "Accounts Department",
-                        })
-                      }
+                      onClick={() => openFileReceipt(undefined, true)}
                     >
                       <Printer size={13} /> Print Master Receipt
                     </button>
@@ -3424,26 +4554,7 @@ export function FileProcessingWorkspace({
                               type="button"
                               className="payment-receipt-btn"
                               style={{ fontSize: "11px" }}
-                              onClick={() =>
-                                setActiveReceipt({
-                                  receiptNo: p.reference || `REC-${idx + 1}`,
-                                  date: new Date(p.createdAt || Date.now()).toLocaleDateString("en-GB"),
-                                  candidateName: file.candidate.fullName,
-                                  candidateNo: file.candidate.candidateNo,
-                                  fileNo: file.fileNo,
-                                  passportNo: file.candidate.passportNo || file.passport?.passportNumber,
-                                  phone: file.candidate.phone,
-                                  country: file.country,
-                                  profession: file.profession,
-                                  paymentType: p.type || "Candidate Deposit",
-                                  paymentMethod: p.method || "Office Cash",
-                                  referenceNo: p.reference || `REC-${idx + 1}`,
-                                  amount: Number(p.amount),
-                                  totalPaid: totalPaid,
-                                  totalPackage: totalPackageCost,
-                                  officerName: file.assignedTo?.name || "Accounts Department",
-                                })
-                              }
+                              onClick={() => openFileReceipt(p)}
                             >
                               <Printer size={12} /> Print Receipt
                             </button>
@@ -4050,7 +5161,8 @@ export function FileProcessingWorkspace({
                               company: file.company,
                               title: doc.title,
                               category: doc.cat,
-                              url: attachedFiles[doc.cat]?.url,
+                              url: doc.cat === "passport" ? (attachedFiles["passport"]?.url || passportPreviewUrl || file.passport?.scanUrl) : attachedFiles[doc.cat]?.url,
+                              backUrl: doc.cat === "passport" ? (attachedFiles["passport_back"]?.url || passportBackPreviewUrl || file.passport?.backScanUrl || undefined) : undefined,
                               fileNumber: file.fileNo,
                               verifiedStatus: "Verified Valid",
                             })
@@ -4121,26 +5233,7 @@ export function FileProcessingWorkspace({
                 <button data-action-ui="neutral" data-action-size="normal"
                   type="button"
                   className="payment-history-master-btn"
-                  onClick={() =>
-                    setActiveReceipt({
-                      receiptNo: `MR-${file.fileNo.replace("FILE-", "")}`,
-                      date: new Date().toLocaleDateString("en-GB"),
-                      candidateName: file.candidate.fullName,
-                      candidateNo: file.candidate.candidateNo,
-                      fileNo: file.fileNo,
-                      passportNo: file.candidate.passportNo || file.passport?.passportNumber,
-                      phone: file.candidate.phone,
-                      country: file.country,
-                      profession: file.profession,
-                      paymentType: "Master Statement (All Payments)",
-                      paymentMethod: "Office Accounts",
-                      referenceNo: `STMT-${file.fileNo}`,
-                      amount: totalPaid,
-                      totalPaid: totalPaid,
-                      totalPackage: totalPackageCost,
-                      officerName: file.assignedTo?.name || "Accounts Department",
-                    })
-                  }
+                  onClick={() => openFileReceipt(undefined, true)}
                 >
                   <Printer size={15} /> Print Master Receipt
                 </button>
@@ -4170,26 +5263,7 @@ export function FileProcessingWorkspace({
                           <button data-action-ui="neutral" data-action-size="compact"
                             type="button"
                             className="payment-history-receipt-btn"
-                            onClick={() =>
-                              setActiveReceipt({
-                                receiptNo: `MR-${p.referenceNo || p.id.slice(-6).toUpperCase()}`,
-                                date: new Date(p.createdAt).toLocaleDateString("en-GB"),
-                                candidateName: file.candidate.fullName,
-                                candidateNo: file.candidate.candidateNo,
-                                fileNo: file.fileNo,
-                                passportNo: file.candidate.passportNo || file.passport?.passportNumber,
-                                phone: file.candidate.phone,
-                                country: file.country,
-                                profession: file.profession,
-                                paymentType: p.type,
-                                paymentMethod: p.method || "Cash Deposit",
-                                referenceNo: p.referenceNo || "OFFICE-REC",
-                                amount: Number(p.amount),
-                                totalPaid: totalPaid,
-                                totalPackage: totalPackageCost,
-                                officerName: file.assignedTo?.name || "Accounts Department",
-                              })
-                            }
+                            onClick={() => openFileReceipt(p)}
                           >
                             <Printer size={12} /> Print Receipt
                           </button>
@@ -5127,11 +6201,332 @@ export function FileProcessingWorkspace({
           </div>
         )}
 
+        {/* CONTRACT PACKAGE & DISCOUNT MODAL */}
+        {showPackageModal && (
+          <div className="master-modal-overlay"
+            role="dialog"
+            aria-modal="true"
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(15, 23, 42, 0.65)",
+              backdropFilter: "blur(6px)",
+              zIndex: 9999,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              padding: "20px",
+            }}
+            onClick={() => setShowPackageModal(false)}
+          >
+            <div className="master-modal-card master-modal-inline-card master-modal-panel"
+              style={{
+                width: "100%",
+                maxWidth: "520px",
+                background: "#fff",
+                borderRadius: "18px",
+                boxShadow: "0 25px 50px -12px rgba(15, 23, 42, 0.3)",
+                overflow: "hidden",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="master-modal-header" style={{ padding: "18px 22px", borderBottom: "1px solid var(--line)", background: "#fafafd", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Coins size={18} style={{ color: "#7258e8" }} />
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "var(--ink)" }}>
+                      Contract Package &amp; Discount
+                    </h3>
+                    <small style={{ color: "var(--muted)", fontSize: "11px" }}>
+                      Candidate: <b>{file.candidate.fullName}</b> ({file.country})
+                    </small>
+                  </div>
+                </div>
+                <button data-action-ui="neutral" data-action-size="icon"
+                  type="button"
+                  onClick={() => setShowPackageModal(false)}
+                  style={{ background: "transparent", border: "none", fontSize: "18px", color: "var(--muted)", cursor: "pointer" }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleSavePackage} style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "16px" }}>
+                {/* Country Preset Packages */}
+                {countryPackagesList.length > 0 && (
+                  <div>
+                    <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", display: "block", marginBottom: "8px" }}>
+                      🌍 Available {file.country} Packages (ক্লিক করে সিলেক্ট করুন):
+                    </span>
+                    {(() => {
+                      const cleanTitle = (pkgDraftTitle || "").trim().toLowerCase();
+                      const currentPrice = Number(pkgDraftPackage) || 0;
+
+                      let activePreset: any = null;
+                      // 1. Match by specific title if candidate has a title
+                      if (cleanTitle) {
+                        activePreset = countryPackagesList.find(
+                          (p) => p.name.trim().toLowerCase() === cleanTitle
+                        );
+                      }
+                      // 2. If no title match, match by price AND isDefault (preferred)
+                      if (!activePreset && currentPrice > 0) {
+                        activePreset =
+                          countryPackagesList.find(
+                            (p) => Number(p.price) === currentPrice && p.isDefault
+                          ) ||
+                          countryPackagesList.find(
+                            (p) => Number(p.price) === currentPrice
+                          );
+                      }
+                      // 3. Fall back to the country's default package
+                      if (!activePreset) {
+                        activePreset =
+                          countryPackagesList.find((p) => p.isDefault) ||
+                          countryPackagesList[0] ||
+                          null;
+                      }
+
+                      return (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                          {countryPackagesList.map((pkg) => {
+                            const isSelected = Boolean(activePreset && activePreset.id === pkg.id);
+                            const isQuota = /works.*demand|quota/i.test(pkg.name) || /demand|quota/i.test(pkg.description || "");
+                            return (
+                              <button
+                                key={pkg.id}
+                                type="button"
+                                onClick={() => handleSelectPackagePreset(pkg)}
+                                style={{
+                                  padding: "7px 14px",
+                                  borderRadius: "10px",
+                                  border: isSelected
+                                    ? "2px solid #2563eb"
+                                    : isQuota
+                                    ? "1.5px dashed #a855f7"
+                                    : "1px solid #cbd5e1",
+                                  background: isSelected
+                                    ? "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)"
+                                    : isQuota
+                                    ? "#faf5ff"
+                                    : "#ffffff",
+                                  color: isSelected ? "#ffffff" : isQuota ? "#6b21a8" : "#1e293b",
+                                  fontSize: "12px",
+                                  fontWeight: isSelected ? 800 : 600,
+                                  cursor: "pointer",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                  boxShadow: isSelected
+                                    ? "0 4px 14px rgba(37, 99, 235, 0.4)"
+                                    : "0 1px 2px rgba(0,0,0,0.04)",
+                                  transition: "all 0.15s ease-in-out",
+                                  transform: isSelected ? "scale(1.02)" : "scale(1)",
+                                }}
+                              >
+                                {isSelected ? (
+                                  <Check size={14} style={{ color: "#ffffff", strokeWidth: 3 }} />
+                                ) : isQuota ? (
+                                  <span>📋</span>
+                                ) : null}
+                                <span>{pkg.name}</span>
+                                <b
+                                  style={{
+                                    color: isSelected
+                                      ? "#ffffff"
+                                      : isQuota
+                                      ? "#7c3aed"
+                                      : "#059669",
+                                    background: isSelected ? "rgba(255,255,255,0.22)" : "transparent",
+                                    padding: isSelected ? "1px 6px" : "0",
+                                    borderRadius: "4px",
+                                  }}
+                                >
+                                  (৳{Number(pkg.price).toLocaleString()})
+                                </b>
+                                {pkg.isDefault && <span title="Default Baseline Package">⭐</span>}
+                                {isSelected && (
+                                  <span
+                                    style={{
+                                      fontSize: "10px",
+                                      fontWeight: 800,
+                                      background: "#ffffff",
+                                      color: "#1d4ed8",
+                                      padding: "1px 6px",
+                                      borderRadius: "10px",
+                                      marginLeft: "2px",
+                                    }}
+                                  >
+                                    Active
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                {Boolean(file.demand || file.demandRecord || file.demandQuotaRate) && (
+                  <div style={{ padding: "8px 12px", borderRadius: "8px", background: "#f5f3ff", border: "1px dashed #c4b5fd", fontSize: "11.5px", color: "#5b21b6", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span>📋 Assigned Demand: <b>{file.demandRecord?.title || file.demand || "Company Quota"}</b></span>
+                    {Boolean(file.demandQuotaRate || (file.demandRecord as any)?.visaRate) && (
+                      <span style={{ fontSize: "11px", color: "#6b7280" }}>
+                        Ref Rate: ৳{Number(file.demandQuotaRate || (file.demandRecord as any)?.visaRate).toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Package Title / Name */}
+                <div>
+                  <label style={{ fontSize: "12px", fontWeight: 800, color: "var(--ink)", display: "block", marginBottom: "4px" }}>
+                    Package Title / Name (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Standard Work Visa, Driver Package, etc."
+                    value={pkgDraftTitle}
+                    onChange={(e) => setPkgDraftTitle(e.target.value)}
+                    style={{ width: "100%", padding: "9px 12px", borderRadius: "8px", border: "1px solid var(--line)", fontSize: "13px" }}
+                  />
+                </div>
+
+                {/* Gross Package Price Input */}
+                <div>
+                  <label style={{ fontSize: "12px", fontWeight: 800, color: "var(--ink)", display: "block", marginBottom: "4px" }}>
+                    Contract Package Rate (মোট প্যাকেজ মূল্য BDT) <span style={{ color: "#dc2626" }}>*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1000"
+                    required
+                    value={pkgDraftPackage || ""}
+                    onChange={(e) => setPkgDraftPackage(Number(e.target.value) || 0)}
+                    style={{ width: "100%", padding: "9px 12px", borderRadius: "8px", border: "1px solid var(--line)", fontSize: "14px", fontWeight: 700 }}
+                  />
+                </div>
+
+                {/* Special Discount Input */}
+                <div>
+                  <label style={{ fontSize: "12px", fontWeight: 800, color: "var(--ink)", display: "block", marginBottom: "4px" }}>
+                    Candidate / Agent Discount (বিশেষ ছাড় BDT)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1000"
+                    value={pkgDraftDiscount || ""}
+                    onChange={(e) => setPkgDraftDiscount(Number(e.target.value) || 0)}
+                    placeholder="0"
+                    style={{ width: "100%", padding: "9px 12px", borderRadius: "8px", border: "1px solid var(--line)", fontSize: "14px", fontWeight: 700, color: "#059669" }}
+                  />
+                  <small style={{ color: "var(--muted)", fontSize: "11px", display: "block", marginTop: "3px" }}>
+                    এজেন্ট বা ক্যান্ডিডেটের জন্য কোনো ছাড় থাকলে এখানে দিন। এটি মোট প্যাকেজ থেকে বাদ যাবে।
+                  </small>
+                </div>
+
+                {/* Complete Payment Breakdown Preview */}
+                {(() => {
+                  const gross = Number(pkgDraftPackage) || 0;
+                  const discount = Number(pkgDraftDiscount) || 0;
+                  const netPayable = Math.max(0, gross - discount);
+                  const paid = totalPaid;
+                  const due = Math.max(0, netPayable - paid);
+                  const advance = Math.max(0, paid - netPayable);
+
+                  return (
+                    <div style={{ padding: "14px 16px", borderRadius: "12px", background: "#f8fafc", border: "1px solid #e2e8f0", fontSize: "12.5px", display: "flex", flexDirection: "column", gap: "7px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ color: "var(--muted)", fontWeight: 600 }}>Gross Package (মোট চুক্তি প্যাকেজ):</span>
+                        <b style={{ color: "var(--ink)", fontSize: "13px" }}>৳{gross.toLocaleString()} BDT</b>
+                      </div>
+
+                      {discount > 0 && (
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "#059669" }}>
+                          <span style={{ fontWeight: 600 }}>Special Discount (বিশেষ ছাড়):</span>
+                          <b style={{ fontSize: "13px" }}>- ৳{discount.toLocaleString()} BDT</b>
+                        </div>
+                      )}
+
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "8px", borderTop: "1px dashed #cbd5e1" }}>
+                        <span style={{ fontWeight: 800, color: "var(--ink)" }}>Net Payable Package (প্রদেয় নিট প্যাকেজ):</span>
+                        <b style={{ fontWeight: 800, color: "#4338ca", fontSize: "14px" }}>
+                          ৳{netPayable.toLocaleString()} BDT
+                        </b>
+                      </div>
+
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "#059669" }}>
+                        <span style={{ fontWeight: 600 }}>Total Collected / Paid (পরিশোধিত মোট জমা):</span>
+                        <b style={{ fontWeight: 700 }}>৳{paid.toLocaleString()} BDT</b>
+                      </div>
+
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "8px", borderTop: "1px solid #e2e8f0" }}>
+                        {due > 0 ? (
+                          <>
+                            <span style={{ fontWeight: 800, color: "#dc2626" }}>Remaining Due (অবশিষ্ট বকেয়া):</span>
+                            <b style={{ fontWeight: 800, color: "#dc2626", fontSize: "14px" }}>
+                              ৳{due.toLocaleString()} BDT
+                            </b>
+                          </>
+                        ) : advance > 0 ? (
+                          <>
+                            <span style={{ fontWeight: 800, color: "#7c3aed" }}>Advance / Extra Paid (অতিরিক্ত জমা):</span>
+                            <b style={{ fontWeight: 800, color: "#7c3aed", fontSize: "14px" }}>
+                              + ৳{advance.toLocaleString()} BDT
+                            </b>
+                          </>
+                        ) : (
+                          <>
+                            <span style={{ fontWeight: 800, color: "#16a34a" }}>Payment Status:</span>
+                            <b style={{ fontWeight: 800, color: "#16a34a", fontSize: "13px" }}>
+                              ✓ 100% Fully Settled (কোনো বকেয়া নেই)
+                            </b>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Modal Actions */}
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "4px" }}>
+                  <button
+                    type="button"
+                    data-action-ui="neutral"
+                    data-action-size="normal"
+                    onClick={() => setShowPackageModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingPackage}
+                    data-action-ui="primary"
+                    data-action-size="normal"
+                    style={{ background: "#7258e8", color: "#fff" }}
+                  >
+                    {savingPackage ? "Saving..." : "Save Package & Discount"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         {/* MONEY RECEIPT MODAL */}
         {activeReceipt && (
           <MoneyReceiptModal
             receipt={activeReceipt}
-            onClose={() => setActiveReceipt(null)}
+            receipts={activeReceiptsList}
+            initialIndex={activeReceiptIndex}
+            onClose={() => {
+              setActiveReceipt(null);
+              setActiveReceiptsList([]);
+            }}
           />
         )}
 

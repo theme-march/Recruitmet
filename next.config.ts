@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
   typedRoutes: false,
   agentRules: false,
   output: "standalone",
+  serverExternalPackages: ["tesseract.js"],
   experimental: {
     optimizePackageImports: ["lucide-react", "@tanstack/react-query"],
   },
@@ -21,7 +22,12 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/super-admin/candidate-options",
-        destination: "/candidate-options",
+        destination: "/dashboard",
+        permanent: false,
+      },
+      {
+        source: "/candidate-options",
+        destination: "/dashboard",
         permanent: false,
       },
       {

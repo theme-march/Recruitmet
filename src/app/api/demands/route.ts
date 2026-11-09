@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { toAppRole } from "@/lib/roles";
 import { privateStorage } from "@/server/storage";
+import { syncDemandToCountryPackage } from "@/lib/country-package-sync";
 
 const text = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
 const numeric = (form: FormData, key: string, fallback = 0) => {
@@ -75,7 +76,7 @@ async function GETHandler(request: Request) {
         : {}),
     };
 
-    const [rows, total, offices, companies, demandCountries] = await Promise.all([
+    const [rows, total, offices, companies, demandCountries, registeredCountries] = await Promise.all([
       prisma.demand.findMany({
         where,
         include: {
@@ -99,6 +100,10 @@ async function GETHandler(request: Request) {
         select: { country: true },
         distinct: ["country"],
       }),
+      prisma.country.findMany({
+        select: { name: true },
+        orderBy: { name: "asc" },
+      }),
     ]);
 
     const allDistinctCountries = Array.from(
@@ -112,6 +117,7 @@ async function GETHandler(request: Request) {
         "Malaysia",
         "Romania",
         "Italy",
+        ...registeredCountries.map((rc) => rc.name),
         ...offices.map((o) => o.country),
         ...companies.map((c) => c.country),
         ...demandCountries.map((d) => d.country),
@@ -184,6 +190,7 @@ async function POSTHandler(request: Request) {
     const customOfficeName = text(form, "customOfficeName");
     const customCountry = text(form, "customCountry");
     const customCompanyName = text(form, "customCompanyName");
+    const companyName = text(form, "companyName");
     const profession = text(form, "profession");
 
     // Dynamic Country
@@ -212,17 +219,28 @@ async function POSTHandler(request: Request) {
 
     // Dynamic Company
     let company: any = null;
-    if ((companyId === "new" || !companyId) && customCompanyName) {
-      const code = `CMP-${Date.now().toString().slice(-4)}`;
-      company = await prisma.company.create({
-        data: {
-          code,
-          name: customCompanyName,
-          country: country || "Saudi Arabia",
-          officeId: officeId || null,
-        },
+    const targetCompanyName = (companyName || customCompanyName || "").trim();
+
+    if (targetCompanyName) {
+      const existingCompany = await prisma.company.findFirst({
+        where: { name: targetCompanyName },
       });
-      companyId = company.id;
+
+      if (existingCompany) {
+        company = existingCompany;
+        companyId = existingCompany.id;
+      } else {
+        const code = `CMP-${Date.now().toString().slice(-4)}`;
+        company = await prisma.company.create({
+          data: {
+            code,
+            name: targetCompanyName,
+            country: country || "Saudi Arabia",
+            officeId: officeId || null,
+          },
+        });
+        companyId = company.id;
+      }
     } else if (companyId && companyId !== "new") {
       company = await prisma.company.findFirst({ where: { id: companyId } });
     }
@@ -232,7 +250,7 @@ async function POSTHandler(request: Request) {
       company = await prisma.company.create({
         data: {
           code,
-          name: customCompanyName || "Foreign Partner Co.",
+          name: targetCompanyName || "Foreign Partner Co.",
           country: country || "Saudi Arabia",
           officeId: officeId || null,
         },
@@ -250,7 +268,8 @@ async function POSTHandler(request: Request) {
     const fileOne = await storeImage(form, "fileOne", session.userId);
     const fileTwo = await storeImage(form, "fileTwo", session.userId);
 
-    const initialStatus = saleVisaQuantity > 0 ? "Active" : "Approved";
+    const formStatus = text(form, "status");
+    const initialStatus = formStatus || (saleVisaQuantity > 0 ? "Active" : "Approved");
 
     const data = {
       title: text(form, "title") || `${company.name} ${profession || "Work Demand"}`,
@@ -299,6 +318,9 @@ async function POSTHandler(request: Request) {
 
       return created;
     });
+
+    // Auto-sync this demand to its specific destination country's Packages & Pricing
+    await syncDemandToCountryPackage(demand.id);
 
     return Response.json({ data: demand }, { status: 201 });
   } catch (error) {

@@ -888,25 +888,25 @@ function LeadDetailsModal({ lead, schedules, onUpdate, onClose }: { lead: WorkCa
             </div>
           </form>
 
-          {/* Basic Question */}
+          {/* Passport Details */}
           <div className="lead-section">
-            <h3><User size={16} /> Basic Information</h3>
+            <h3><FileText size={16} /> Passport Details</h3>
             <div className="lead-info-grid">
               <div><span>Full Name:</span><b>{lead.fullName}</b></div>
-              <div><span>Primary Phone:</span><b>{lead.phone}</b></div>
-              <div><span>Additional Phones:</span><b>{lead.additionalPhones?.length ? lead.additionalPhones.join(", ") : "None"}</b></div>
-              <div><span>Date of Birth:</span><b>{lead.dob || "—"}</b></div>
-              <div><span>Age:</span><b>{lead.age ? `${lead.age} Years` : "—"}</b></div>
               <div><span>Passport Status:</span><b>{lead.passportStatus || "Not Available"}</b></div>
               <div><span>Passport Number:</span><b>{lead.passportNo || "—"}</b></div>
-              <div><span>Expert In:</span><b>{lead.expertIn || "—"}</b></div>
+              <div><span>Date of Birth:</span><b>{lead.dob || "—"}</b></div>
+              <div><span>Age:</span><b>{lead.age ? `${lead.age} Years` : "—"}</b></div>
             </div>
           </div>
 
           {/* Personal Information */}
           <div className="lead-section">
-            <h3>🌍 Personal &amp; Preferences</h3>
+            <h3>🌍 Personal Information</h3>
             <div className="lead-info-grid">
+              <div><span>Primary Phone:</span><b>{lead.phone}</b></div>
+              <div><span>Additional Phones:</span><b>{lead.additionalPhones?.length ? lead.additionalPhones.join(", ") : "None"}</b></div>
+              <div><span>Expert In:</span><b>{lead.expertIn || "—"}</b></div>
               <div><span>Preferred Country:</span><b>{lead.country}</b></div>
               <div><span>Present District:</span><b>{lead.district || "—"}</b></div>
               <div><span>Marital Status:</span><b>{lead.maritalStatus || "—"}</b></div>

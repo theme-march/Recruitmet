@@ -1,11 +1,15 @@
 /* Payment Collection shares the Works & Demands workspace design. */
 .payment-design-page { padding-bottom: 40px; }
 .payment-design-metrics { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-.payment-design-filter-fields { gap: 10px; }
-.payment-design-search { width: 360px; }
-.payment-design-filter-action { height: 32px; padding: 0 14px; border: 0; border-radius: 10px; background: #ebebed; color: #1d1d1f; font-size: 12px; font-weight: 500; }
-.payment-design-table table { min-width: 1340px; }
-.payment-design-table :is(th, td):last-child { padding-right: 16px; }
+.payment-design-filter-fields { gap: 8px; flex-wrap: wrap; }
+.payment-design-search { width: 300px; }
+.payment-design-filter-action { height: 32px; padding: 0 14px; border: 0; border-radius: 10px; background: #ebebed; color: #1d1d1f; font-size: 12px; font-weight: 500; cursor: pointer; }
+.payment-design-table table { min-width: 1255px; }
+.payment-design-table :is(th, td):last-child {
+  padding-right: 16px;
+  width: 215px !important;
+  min-width: 215px !important;
+}
 .payment-design-table .country-design-cell { overflow-wrap: anywhere; }
 .payment-design-client > a.country-design-candidate-id { max-width: 100%; color: #007aff; font-size: 10px; line-height: 12px; font-weight: 600; text-decoration: none; }
 .payment-design-stage { background: #eaf2ff; color: #007aff; }
@@ -19,9 +23,16 @@
 .payment-design-advance { background: #eaf2ff; color: #007aff; }
 .payment-design-refunded { color: #8e8e93; font-size: 12px; font-weight: 500; }
 .payment-design-refunded.has-refund { color: #ff3b30; }
-.payment-design-row-actions { display: flex; align-items: center; gap: 6px; }
+.payment-design-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  flex-wrap: nowrap;
+}
 .payment-design-dossier { background: #ebebed; color: #1d1d1f; }
 .payment-design-table tr.payment-design-expanded { background: #f2f7ff; }
+.payment-expanded-row { background: #f8faff; transition: background 0.2s ease; }
 .payment-design-loading { height: 3px; background: linear-gradient(90deg, #007aff, #9dcaff, #007aff); background-size: 200% 100%; animation: loading-bar 1s infinite linear; }
 .payment-design-error { margin: 12px 16px; padding: 12px 16px; border-radius: 8px; background: #fff2f0; color: #ff3b30; font-size: 12px; }
 @media (min-width: 769px) and (max-width: 1500px) {

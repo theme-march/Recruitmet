@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { moduleItemPath } from "@/lib/modules";
 
@@ -132,6 +132,7 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
   // Add Candidate to Interview States
   const [addOpen, setAddOpen] = useState(false);
   const [candidatePhone, setCandidatePhone] = useState("");
+  const [candidateSearch, setCandidateSearch] = useState("");
   const [adding, setAdding] = useState(false);
 
   const query = useQuery({
@@ -155,13 +156,24 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
   const leadsQuery = useQuery({
     queryKey: ["all-call-leads-for-interview"],
     queryFn: async () => {
-      const res = await fetch("/api/work-calls?pageSize=100");
+      const res = await fetch("/api/work-calls?pageSize=500");
       if (!res.ok) return [];
       const json = await res.json();
       return (json.data || []) as Array<{ id: string; fullName: string; phone: string; country: string }>;
     },
     enabled: addOpen,
   });
+
+  const filteredLeads = useMemo(() => {
+    const list = leadsQuery.data || [];
+    if (!candidateSearch.trim()) return list;
+    const q = candidateSearch.toLowerCase().trim();
+    return list.filter((lead) =>
+      (lead.fullName && lead.fullName.toLowerCase().includes(q)) ||
+      (lead.phone && lead.phone.toLowerCase().includes(q)) ||
+      (lead.country && lead.country.toLowerCase().includes(q))
+    );
+  }, [leadsQuery.data, candidateSearch]);
 
   const data = query.data?.data;
   const schedule = data?.schedule;
@@ -395,7 +407,11 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
           <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "18px", flexWrap: "wrap" }}>
             <button data-action-ui="primary" data-action-size="normal"
               type="button"
-              onClick={() => setAddOpen(true)}
+              onClick={() => {
+                setCandidateSearch("");
+                setCandidatePhone("");
+                setAddOpen(true);
+              }}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -413,25 +429,6 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
             >
               <UserPlus size={15} /> Add Candidate To This Interview
             </button>
-
-            <Link data-action-ui="primary" data-action-size="normal"
-              href={`${moduleItemPath("call-center", "Create Candidate")}?scheduleId=${scheduleId}`}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "9px 16px",
-                borderRadius: "10px",
-                background: "#ecfdf5",
-                color: "#059669",
-                border: "1px solid #a7f3d0",
-                fontSize: "12px",
-                fontWeight: 700,
-                textDecoration: "none",
-              }}
-            >
-              <Plus size={14} /> Create Candidate (this schedule)
-            </Link>
 
             <Link data-action-ui="neutral" data-action-size="normal"
               href={moduleItemPath("call-center", "Registration & interviews")}
@@ -1405,22 +1402,53 @@ export function InterviewDetailPage({ scheduleId: propScheduleId }: { scheduleId
               </button>
             </div>
 
+            <div style={{ marginBottom: "14px" }}>
+              <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px", fontWeight: 700, color: "var(--ink)" }}>
+                Search Candidate
+                <div style={{ position: "relative" }}>
+                  <Search
+                    size={15}
+                    style={{
+                      position: "absolute",
+                      left: "12px",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      color: "var(--muted)",
+                      pointerEvents: "none",
+                    }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Search by name, phone or country..."
+                    value={candidateSearch}
+                    onChange={(e) => setCandidateSearch(e.target.value)}
+                    style={{ ...inputStyle, paddingLeft: "34px", width: "100%" }}
+                  />
+                </div>
+              </label>
+            </div>
+
             <div style={{ marginBottom: "18px" }}>
               <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px", fontWeight: 700, color: "var(--ink)" }}>
-                Choose Candidate from Office Operations Leads
+                Select Candidate ({filteredLeads.length} found)
                 <select
                   value={candidatePhone}
                   onChange={(e) => setCandidatePhone(e.target.value)}
                   style={inputStyle}
                 >
                   <option value="">-- Select Candidate --</option>
-                  {(leadsQuery.data || []).map((lead: { id?: string; phone: string; fullName: string }, idx: number) => (
+                  {filteredLeads.map((lead: { id?: string; phone: string; fullName: string; country?: string }, idx: number) => (
                     <option key={`${lead.id || lead.phone}-${idx}`} value={lead.phone}>
-                      {lead.fullName} ({lead.phone})
+                      {lead.fullName} ({lead.phone}) {lead.country ? `· ${lead.country}` : ""}
                     </option>
                   ))}
                 </select>
               </label>
+              {candidatePhone && (
+                <p style={{ margin: "6px 0 0 0", fontSize: "12px", color: "#4f46e5", fontWeight: 600 }}>
+                  ✓ Selected candidate phone: {candidatePhone}
+                </p>
+              )}
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>

@@ -13,6 +13,7 @@ type CandidateRow = {
   profession: string;
   company: string;
   agent: string;
+  agentId?: string | null;
   country: string;
   currentStage: string;
   status: string;

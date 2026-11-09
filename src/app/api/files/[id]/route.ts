@@ -5,6 +5,7 @@ export const PATCH = withApiAccess("files/[id]", PATCHHandler);
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { getSession } from "@/lib/session";
 import { z } from "zod";
 import { AppError, errorResponse } from "@/lib/errors";
@@ -80,7 +81,16 @@ async function GETHandler(_: Request, { params }: { params: Promise<{ id: string
       holds: { orderBy: { createdAt: "desc" as const } },
       flights: { include: { flight: true } },
       statusHistory: { orderBy: { createdAt: "desc" as const } },
-      documents: { orderBy: { createdAt: "desc" as const } },
+      documents: {
+        orderBy: { createdAt: "desc" as const },
+        include: {
+          versions: {
+            orderBy: { version: "desc" as const },
+            take: 1,
+            include: { storedObject: true },
+          },
+        },
+      },
       workflowEvents: { orderBy: { createdAt: "desc" as const } },
     };
 
@@ -154,12 +164,183 @@ async function GETHandler(_: Request, { params }: { params: Promise<{ id: string
     const paymentsList = (file.payments || []).map((p) => ({ ...p, amount: Number(p.amount) }));
     const totalPaid = paymentsList.reduce((sum, p) => sum + (p.amount || 0), 0);
     const isDubai = /dubai|uae/i.test(file.country || "");
-    const demandPkg = Number((file.demandRecord as any)?.packagePrice || 0);
-    const packageCost = demandPkg > 0 ? demandPkg : (isDubai ? 300000 : 350000);
+
+    // Default country package lookup if candidate package is not yet specified
+    let defaultCountryPrice = isDubai ? 300000 : 350000;
+    try {
+      const dbCountry = await prisma.country.findFirst({
+        where: {
+          OR: [
+            { name: { contains: file.country || "" } },
+            { code: { contains: file.country || "" } },
+          ],
+        },
+        include: {
+          packages: {
+            where: { active: true },
+            orderBy: [{ isDefault: "desc" }, { price: "asc" }],
+          },
+        },
+      });
+      if (dbCountry?.packages?.[0]?.price) {
+        defaultCountryPrice = Number(dbCountry.packages[0].price);
+      }
+    } catch {}
+
+    const grossPackage = file.contractPackage !== null && file.contractPackage !== undefined
+      ? Number(file.contractPackage)
+      : defaultCountryPrice;
+    const discount = Number(file.discount || 0);
+    const packageCost = Math.max(0, grossPackage - discount); // Net agreed package for candidate ledger
     const dueAmount = Math.max(0, packageCost - totalPaid);
     const advanceAmount = Math.max(0, totalPaid - packageCost);
 
+    // Reference only: Works & Demands quota visa rate / package price (NOT used for candidate ledger)
+    const demandQuotaRate = Number((file.demandRecord as any)?.visaRate || (file.demandRecord as any)?.packagePrice || 0);
+
     const resolvedPassportNumber = file.passport?.passportNumber || file.candidate?.passportNo || null;
+
+    const candidateDocs = file.candidateId
+      ? await prisma.document.findMany({
+          where: { candidateId: file.candidateId, fileId: null },
+          orderBy: { createdAt: "desc" },
+          include: {
+            versions: {
+              orderBy: { version: "desc" },
+              take: 1,
+              include: { storedObject: true },
+            },
+          },
+        })
+      : [];
+
+    const allDocumentsList = [...(file.documents || []), ...candidateDocs];
+
+    const mappedDocuments = allDocumentsList.map((doc: any) => {
+      const latestVersion = doc.versions?.[0];
+      const sizeBytes = latestVersion?.storedObject?.sizeBytes || 0;
+      const sizeFormatted = sizeBytes > 0 ? (sizeBytes / (1024 * 1024)).toFixed(2) + " MB" : "";
+      const downloadUrl = latestVersion
+        ? `/api/documents/versions/${latestVersion.id}/download?inline=1`
+        : doc.url || "";
+      return {
+        id: doc.id,
+        documentNo: doc.documentNo,
+        type: doc.type,
+        number: doc.number,
+        fileName: doc.fileName || latestVersion?.storedObject?.originalName || `${doc.type} Document`,
+        fileUrl: downloadUrl,
+        url: downloadUrl,
+        downloadUrl,
+        sizeFormatted,
+        sizeBytes,
+        status: doc.status,
+        createdAt: doc.createdAt?.toISOString?.() || doc.createdAt,
+      };
+    });
+
+    const attachedFilesMap: Record<string, { url: string; fileName: string; size: string; documentId?: string }> = {};
+    for (const doc of mappedDocuments) {
+      const t = (doc.type || "").toLowerCase();
+      let cat = "";
+      if (t.includes("passport back")) {
+        cat = "passport_back";
+      } else if (t.includes("passport") || t.includes("pp")) {
+        cat = "passport";
+      } else if (t.includes("medical") || t.includes("gamca")) {
+        cat = "medical";
+      } else if (t.includes("police") || t.includes("pcc")) {
+        cat = "pcc";
+      } else if (t.includes("nid") || t.includes("national id") || t.includes("smart card") || t.includes("smartcard")) {
+        cat = "nid";
+      } else if (t.includes("photo") || t.includes("picture") || t.includes("headshot")) {
+        cat = "photo";
+      } else if (t.includes("offer") || t.includes("labor") || t.includes("mohre") || t.includes("contract")) {
+        cat = "offer_letter";
+      } else if (t.includes("mofa")) {
+        cat = "mofa";
+      } else if (t.includes("takamul") || t.includes("skill")) {
+        cat = "takamul";
+      } else if (t.includes("visa")) {
+        cat = "visa";
+      } else if (t.includes("manpower") || t.includes("bmet")) {
+        cat = "manpower";
+      } else if (t.includes("flight") || t.includes("ticket")) {
+        cat = "flight";
+      }
+
+      if (cat && !attachedFilesMap[cat] && doc.downloadUrl) {
+        attachedFilesMap[cat] = {
+          url: doc.downloadUrl,
+          fileName: doc.fileName,
+          size: doc.sizeFormatted || "Attached",
+          documentId: doc.id,
+        };
+      }
+    }
+
+    if (file.candidate?.photo && !attachedFilesMap["photo"]) {
+      attachedFilesMap["photo"] = {
+        url: file.candidate.photo,
+        fileName: "Candidate_Photo.jpg",
+        size: "Profile Photo",
+      };
+    }
+
+    if (file.passport?.documentId) {
+      const ppDoc = mappedDocuments.find((d: any) => d.id === file.passport?.documentId);
+      if (ppDoc && ppDoc.downloadUrl) {
+        attachedFilesMap["passport"] = {
+          url: ppDoc.downloadUrl,
+          fileName: ppDoc.fileName,
+          size: ppDoc.sizeFormatted || "Attached",
+          documentId: ppDoc.id,
+        };
+      }
+    }
+
+    // Extract passport metadata from remarks or WorkCall identity notes
+    let passportMeta: Record<string, any> = {};
+    if (file.passport?.remarks) {
+      try {
+        passportMeta = JSON.parse(file.passport.remarks);
+      } catch {}
+    }
+
+    try {
+      const workCall = await prisma.workCall.findFirst({
+        where: { candidateId: file.candidateId },
+        orderBy: { createdAt: "desc" },
+      });
+      if (workCall?.notes) {
+        const notesObj = workCall.notes as Record<string, any>;
+        if (notesObj.identity) {
+          passportMeta = { ...notesObj.identity, ...passportMeta };
+        }
+      }
+    } catch {}
+
+    const candidateDob = file.candidate?.dob ? file.candidate.dob.toISOString().slice(0, 10) : "";
+    const effectiveDob = passportMeta.dob || candidateDob || "";
+    let calculatedAge = passportMeta.age || "";
+    if (!calculatedAge && effectiveDob) {
+      const diffMs = Date.now() - new Date(effectiveDob).getTime();
+      const ageDate = new Date(diffMs);
+      const calculatedYears = Math.abs(ageDate.getUTCFullYear() - 1970);
+      if (!isNaN(calculatedYears) && calculatedYears > 0 && calculatedYears < 120) {
+        calculatedAge = String(calculatedYears);
+      }
+    }
+
+    const resolvedGivenName = passportMeta.givenName || "";
+    const resolvedSurname = passportMeta.surname || "";
+    const resolvedFatherName = passportMeta.fatherName || "";
+    const resolvedMotherName = passportMeta.motherName || "";
+    const resolvedPlaceOfBirth = file.passport?.issuePlace || passportMeta.placeOfBirth || "";
+    const resolvedNationality = file.passport?.nationality || passportMeta.nationality || "BANGLADESHI";
+    const resolvedPassportStatus = passportMeta.passportStatus || (file.passport ? "Available" : "Not Available");
+    const resolvedNid = file.candidate?.nationalId || passportMeta.nid || "";
+    const resolvedAddress = passportMeta.address || file.candidate?.address || "";
 
     return NextResponse.json({
       data: {
@@ -167,20 +348,58 @@ async function GETHandler(_: Request, { params }: { params: Promise<{ id: string
         agent: resolvedAgentName,
         agentRecord,
         packageCost,
+        grossPackage,
+        discount,
+        packageTitle: file.packageTitle || null,
+        demandQuotaRate,
         totalPaid,
         dueAmount,
         advanceAmount,
+        documents: mappedDocuments,
+        attachedFiles: attachedFilesMap,
         passport: file.passport
           ? {
               ...file.passport,
               passportNo: file.passport.passportNumber,
               passportNumber: file.passport.passportNumber,
+              issueDate: file.passport.issueDate ? file.passport.issueDate.toISOString() : null,
+              expiryDate: file.passport.expiryDate ? file.passport.expiryDate.toISOString() : null,
+              passportStatus: resolvedPassportStatus,
+              givenName: resolvedGivenName,
+              surname: resolvedSurname,
+              fatherName: resolvedFatherName,
+              motherName: resolvedMotherName,
+              placeOfBirth: resolvedPlaceOfBirth,
+              nationality: resolvedNationality,
+              nid: resolvedNid,
+              address: resolvedAddress,
+              dob: effectiveDob,
+              age: calculatedAge,
+              gender: file.candidate?.gender || passportMeta.gender || "",
+              scanUrl: attachedFilesMap["passport"]?.url || "",
+              backScanUrl: attachedFilesMap["passport_back"]?.url || "",
             }
           : resolvedPassportNumber
           ? {
               passportNo: resolvedPassportNumber,
               passportNumber: resolvedPassportNumber,
               verificationStatus: "Verified",
+              passportStatus: resolvedPassportStatus,
+              issueDate: null,
+              expiryDate: null,
+              givenName: resolvedGivenName,
+              surname: resolvedSurname,
+              fatherName: resolvedFatherName,
+              motherName: resolvedMotherName,
+              placeOfBirth: resolvedPlaceOfBirth,
+              nationality: resolvedNationality,
+              nid: resolvedNid,
+              address: resolvedAddress,
+              dob: effectiveDob,
+              age: calculatedAge,
+              gender: file.candidate?.gender || passportMeta.gender || "",
+              scanUrl: attachedFilesMap["passport"]?.url || "",
+              backScanUrl: attachedFilesMap["passport_back"]?.url || "",
             }
           : null,
         candidate: file.candidate
@@ -272,6 +491,58 @@ async function PATCHHandler(request: Request, { params }: { params: Promise<{ id
       revalidatePath("/candidates");
       revalidatePath("/dashboard");
       return NextResponse.json({ ok: true, data: updated });
+    }
+
+    // Update Candidate Financial Package & Discount
+    if (action === "update-package" || action === "update-financial-package") {
+      const packageSchema = z.object({
+        contractPackage: z.number().min(0, "Contract package must be a non-negative number").optional(),
+        discount: z.number().min(0, "Discount must be a non-negative number").optional(),
+        packageTitle: z.string().nullish(),
+      });
+      const parsed = packageSchema.parse(body);
+
+      const updated = await prisma.processingFile.update({
+        where: { id: file.id },
+        data: {
+          ...(parsed.contractPackage !== undefined ? { contractPackage: parsed.contractPackage } : {}),
+          ...(parsed.discount !== undefined ? { discount: parsed.discount } : {}),
+          ...(parsed.packageTitle !== undefined ? { packageTitle: parsed.packageTitle ? parsed.packageTitle.trim() : null } : {}),
+        },
+      });
+
+      // Synchronize with candidate's lead record if available
+      if (file.candidateId && parsed.contractPackage !== undefined) {
+        await prisma.workCall.updateMany({
+          where: { candidateId: file.candidateId },
+          data: { proposedRate: String(parsed.contractPackage) },
+        }).catch(() => {});
+      }
+
+      // Record WorkflowEvent for complete audit trail
+      await prisma.workflowEvent.create({
+        data: {
+          fileId: file.id,
+          stage: "FINANCIAL_PACKAGE",
+          status: parsed.packageTitle || "Package Rate Updated",
+          completedBy: session.user.name,
+          data: {
+            contractPackage: parsed.contractPackage,
+            discount: parsed.discount,
+            packageTitle: parsed.packageTitle,
+            updatedAt: new Date().toISOString(),
+          },
+        },
+      }).catch(() => {});
+
+      revalidatePath(`/file/${id}`);
+      revalidatePath("/candidates");
+      revalidatePath("/dashboard");
+      return NextResponse.json({
+        ok: true,
+        message: "Candidate package and discount updated successfully.",
+        data: updated,
+      });
     }
 
     // 0. Update Candidate Bio-Data & Master Registration Info
@@ -372,11 +643,44 @@ async function PATCHHandler(request: Request, { params }: { params: Promise<{ id
 
     // 2. Update Passport
     if (action === "update-passport") {
-      const { passportNumber, expiryDate, issueDate, verificationStatus } = z.object({
+      const {
+        passportNumber,
+        expiryDate,
+        issueDate,
+        verificationStatus,
+        documentId,
+        fullName,
+        givenName,
+        surname,
+        dob,
+        gender,
+        age,
+        nid,
+        address,
+        placeOfBirth,
+        nationality,
+        fatherName,
+        motherName,
+        passportStatus,
+      } = z.object({
         passportNumber: z.string().min(1, "Passport Number is required"),
         expiryDate: z.string().nullish(),
         issueDate: z.string().nullish(),
         verificationStatus: z.string().nullish(),
+        documentId: z.string().nullish(),
+        fullName: z.string().nullish(),
+        givenName: z.string().nullish(),
+        surname: z.string().nullish(),
+        dob: z.string().nullish(),
+        gender: z.string().nullish(),
+        age: z.string().nullish(),
+        nid: z.string().nullish(),
+        address: z.string().nullish(),
+        placeOfBirth: z.string().nullish(),
+        nationality: z.string().nullish(),
+        fatherName: z.string().nullish(),
+        motherName: z.string().nullish(),
+        passportStatus: z.string().nullish(),
       }).parse(body);
 
       const cleanPassport = passportNumber.trim();
@@ -384,13 +688,77 @@ async function PATCHHandler(request: Request, { params }: { params: Promise<{ id
       const parsedExpiry = parseSafeDate(expiryDate) || new Date("2032-01-01");
       const status = verificationStatus || "Verified";
 
-      // 1. Update Candidate passportNo
+      const metaPayload = {
+        givenName: givenName || "",
+        surname: surname || "",
+        fullName: fullName || (givenName && surname ? `${givenName} ${surname}`.trim() : ""),
+        dob: dob || "",
+        age: age || "",
+        gender: gender || "",
+        nid: nid || "",
+        address: address || "",
+        placeOfBirth: placeOfBirth || "",
+        nationality: nationality || "BANGLADESHI",
+        fatherName: fatherName || "",
+        motherName: motherName || "",
+        passportStatus: passportStatus || "Available",
+      };
+      const remarksJson = JSON.stringify(metaPayload);
+
+      // 1. Update Candidate passportNo & bio data if provided
+      const candidateUpdate: Prisma.CandidateUpdateInput = {
+        passportNo: cleanPassport,
+      };
+      const resolvedName = fullName?.trim() || (givenName && surname ? `${givenName} ${surname}`.trim() : "");
+      if (resolvedName) candidateUpdate.fullName = resolvedName;
+      if (dob) {
+        const pd = parseSafeDate(dob);
+        if (pd) candidateUpdate.dob = pd;
+      }
+      if (gender && gender.trim()) candidateUpdate.gender = gender.trim();
+      if (nid && nid.trim()) candidateUpdate.nationalId = nid.trim();
+      if (address && address.trim()) candidateUpdate.address = address.trim();
+
       await prisma.candidate.update({
         where: { id: file.candidateId },
-        data: { passportNo: cleanPassport },
+        data: candidateUpdate,
       }).catch(() => {});
 
-      // 2. Upsert Passport Process
+      if (resolvedName) {
+        await prisma.workCall.updateMany({
+          where: { candidateId: file.candidateId },
+          data: { fullName: resolvedName },
+        }).catch(() => {});
+      }
+
+      // 2. Link Document if provided or found
+      let docId = documentId || undefined;
+      if (!docId) {
+        const latestDoc = await prisma.document.findFirst({
+          where: { fileId, type: { contains: "Passport" } },
+          orderBy: { createdAt: "desc" },
+          select: { id: true },
+        });
+        if (latestDoc) docId = latestDoc.id;
+      }
+
+      // 3. Check for conflicting passport on another file
+      const conflictingPassport = await prisma.passportProcess.findFirst({
+        where: {
+          passportNumber: cleanPassport,
+          fileId: { not: fileId },
+        },
+        select: { fileId: true, file: { select: { fileNo: true } } },
+      });
+      if (conflictingPassport) {
+        throw new AppError(
+          "CONFLICT",
+          `Passport number "${cleanPassport}" is already registered to file ${conflictingPassport.file?.fileNo || conflictingPassport.fileId}.`,
+          409
+        );
+      }
+
+      // Upsert Passport Process with full remarks metadata
       await prisma.passportProcess.upsert({
         where: { fileId },
         create: {
@@ -399,34 +767,40 @@ async function PATCHHandler(request: Request, { params }: { params: Promise<{ id
           passportType: "Ordinary",
           issueDate: parsedIssue,
           expiryDate: parsedExpiry,
+          issuePlace: placeOfBirth || null,
+          nationality: nationality || "BANGLADESHI",
           verificationStatus: status,
+          remarks: remarksJson,
+          documentId: docId || null,
         },
         update: {
           passportNumber: cleanPassport,
           expiryDate: parsedExpiry,
           issueDate: parsedIssue,
+          issuePlace: placeOfBirth || undefined,
+          nationality: nationality || undefined,
           verificationStatus: status,
+          remarks: remarksJson,
+          documentId: docId || undefined,
         },
-      }).catch(async () => {
-        const existing = await prisma.passportProcess.findFirst({ where: { fileId } });
-        if (existing) {
-          await prisma.passportProcess.update({
-            where: { id: existing.id },
-            data: {
-              passportNumber: cleanPassport,
-              expiryDate: parsedExpiry,
-              issueDate: parsedIssue,
-              verificationStatus: status,
-            },
-          });
-        }
       });
 
-      // 3. Move File to Medical Stage
+      if (docId) {
+        await prisma.document.update({
+          where: { id: docId },
+          data: { status: "VERIFIED", number: cleanPassport },
+        }).catch(() => {});
+      }
+
+      // 4. Move File to Medical Stage
       await prisma.processingFile.update({
         where: { id: fileId },
         data: { currentStage: "Medical", status: "ACTIVE" },
       });
+
+      revalidatePath(`/file/${id}`);
+      revalidatePath("/candidates");
+      revalidatePath("/dashboard");
 
       return NextResponse.json({ ok: true, message: "Passport details saved and candidate advanced to Medical stage!" });
     }

@@ -32,7 +32,11 @@ export async function ModulePage({ moduleId, initialTab }: { moduleId: string; i
   const session = await getSession();
   if (!session) redirect("/login");
   const { can } = await import("@/lib/authorization");
-  const permissionModule = /interview/i.test(initialTab) ? "registration" : moduleId;
+  const permissionModule = /interview/i.test(initialTab)
+    ? "registration"
+    : /demand|work/i.test(initialTab)
+      ? "office-vendor"
+      : moduleId;
   if (!await can(session, permissionModule, /^(Create|Add|New)\b/.test(initialTab) ? "create" : "read")) {
     return <section style={{ padding: 32 }}><h1>Access not granted</h1><p>Your role does not have access to this work. Ask your Super Administrator to update your role.</p></section>;
   }
@@ -49,12 +53,13 @@ function renderModuleContent(moduleId: string, initialTab: string, officerName: 
     if (initialTab === "Candidate List" || initialTab === "Candidates List" || initialTab === "All Candidates" || initialTab === "Work Call List") return <AllCandidatesListPage />;
     if (initialTab === "Officer Dashboard") return <OfficerDashboardPage />;
     if (initialTab === "Registration & interviews" || initialTab === "Registration & Interviews") return <InterviewListPage />;
+    if (initialTab === "Works & Demands" || initialTab === "Works & demands" || initialTab === "Works and Demands") return <WorksDemandsPage />;
     return <AllCandidatesListPage />;
   }
 
   // Office & Vendor module routes
   if (moduleId === "office-vendor" || moduleId === "partners") {
-    if (initialTab === "Works & Demands") return <WorksDemandsPage />;
+    if (initialTab === "Works & Demands" || initialTab === "Works and Demands") return <WorksDemandsPage />;
   }
 
   // Agents & Channel Partners module routes

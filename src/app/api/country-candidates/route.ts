@@ -202,6 +202,13 @@ async function GETHandler(request: Request) {
     let inHold = 0;
 
     // Country Working Agents aggregation
+    const agentIdLookup = new Map<string, string>();
+    for (const ag of agents) {
+      if (ag.id) agentIdLookup.set(ag.id.toLowerCase().trim(), ag.id);
+      if (ag.code) agentIdLookup.set(ag.code.toLowerCase().trim(), ag.id);
+      if (ag.name) agentIdLookup.set(ag.name.toLowerCase().trim(), ag.id);
+    }
+
     const agentMap = new Map<string, {
       id: string;
       code: string;
@@ -267,7 +274,11 @@ async function GETHandler(request: Request) {
 
     const rows = files.map((file) => {
       const paid = paidByFile.get(file.id) ?? 0;
-      const totalCost = /dubai/i.test(file.country) ? 300000 : 350000;
+      const rawGross = (file as any).contractPackage !== null && (file as any).contractPackage !== undefined
+        ? Number((file as any).contractPackage)
+        : (/dubai/i.test(file.country) ? 300000 : 350000);
+      const rawDisc = Number((file as any).discount || 0);
+      const totalCost = Math.max(0, rawGross - rawDisc);
       const balance = Math.max(0, totalCost - paid);
 
       const dob = file.candidate?.dob;
@@ -286,6 +297,9 @@ async function GETHandler(request: Request) {
         profession: file.profession || file.candidate?.profession || "General Worker",
         company: file.company || "N/A",
         agent: file.agent || file.candidate?.source || "Direct",
+        agentId: !/^(direct|direct walk-in|website|walk-in)$/i.test((file.agent || file.candidate?.source || "Direct").trim())
+          ? (agentIdLookup.get((file.agent || file.candidate?.source || "Direct").trim().toLowerCase()) || null)
+          : null,
         country: file.country,
         currentStage: file.currentStage,
         status: file.status,
@@ -294,6 +308,9 @@ async function GETHandler(request: Request) {
         medicalResult: file.medical?.[0]?.result || null,
         totalPaid: paid,
         totalPackage: totalCost,
+        grossPackage: rawGross,
+        discount: rawDisc,
+        packageTitle: (file as any).packageTitle || null,
         balanceDue: balance,
         officerName: file.assignedTo?.name || "Unassigned",
         officeName: file.office?.name || "Main Branch",

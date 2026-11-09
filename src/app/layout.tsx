@@ -23,28 +23,26 @@ import "./modal-design.css";
 import "./agent-detail-design.css";
 import "./action-buttons.css";
 import "./agent-portal-design.css";
+import "./cv-design.css";
 import { Toaster } from "sonner";
 import { Providers } from "@/components/layout/providers";
 
-const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-inter", display: "swap" });
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
   variable: "--font-dm-sans",
   display: "swap",
 });
 
 const manrope = Manrope({
   subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
   variable: "--font-manrope",
   display: "swap",
 });
 
 const jetBrainsMono = JetBrains_Mono({
   subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
   variable: "--font-jetbrains-mono",
   display: "swap",
 });

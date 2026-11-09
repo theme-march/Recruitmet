@@ -29,6 +29,7 @@ import {
   RefreshCcw,
   Search,
   Sparkles,
+  Upload,
   User,
   UserCheck,
   UsersRound,
@@ -39,6 +40,7 @@ import { Fragment, useState, useMemo } from "react";
 import { toast } from "sonner";
 import { moduleItemPath } from "@/lib/modules";
 import { CandidateProfileImageField } from "@/components/modules/candidate-profile-image-field";
+import { CandidateBulkUploadModal } from "@/components/modules/candidate-bulk-upload-modal";
 
 type CandidateItem = {
   id: string;
@@ -63,10 +65,15 @@ type CandidateItem = {
   passportNo: string;
   nationalId: string;
   source: string;
+  agent?: string;
+  agentId?: string | null;
   status: string;
   createdAt: string;
   totalPaid: number;
   packageCost?: number;
+  contractPackage?: number;
+  discount?: number;
+  packageTitle?: string;
   dueAmount?: number;
   activeFile: {
     id: string;
@@ -75,9 +82,11 @@ type CandidateItem = {
     status: string;
     company: string;
     officer: string;
+    agent?: string | null;
     medicalResult?: string | null;
     visaResult?: string | null;
     manpowerResult?: string | null;
+    stageDetails?: Record<string, Record<string, string | number | null | undefined>>;
   } | null;
   latestCall: {
     id: string;
@@ -92,6 +101,7 @@ type CandidateItem = {
     scheduledAt: string;
     title: string;
     company: string;
+    scheduleId?: string | null;
   } | null;
   interviewOptions: InterviewOptions;
 };
@@ -202,6 +212,10 @@ function formatDate(val?: string | null): string {
   }).format(d);
 }
 
+function formatTk(amount?: number | null): string {
+  return `৳ ${(amount || 0).toLocaleString()}`;
+}
+
 function getCountryStages(countryName: string): string[] {
   const norm = (countryName || "").trim().toLowerCase();
   if (!countryName || norm === "all" || norm === "all countries") {
@@ -303,6 +317,26 @@ function directoryStageStyle(stage: string) {
   return { background: "#eaf2ff", color: "#007aff" };
 }
 
+function interviewStatusStyle(status?: string | null): React.CSSProperties {
+  const norm = (status || "").trim().toLowerCase();
+  if (norm.includes("select") || norm.includes("pass")) {
+    return { background: "#ecfdf5", color: "#065f46", border: "1px solid #a7f3d0" };
+  }
+  if (norm.includes("reject") || norm.includes("fail")) {
+    return { background: "#fef2f2", color: "#991b1b", border: "1px solid #fecaca" };
+  }
+  if (norm.includes("absent")) {
+    return { background: "#f1f5f9", color: "#475569", border: "1px solid #cbd5e1" };
+  }
+  if (norm.includes("wait") || norm.includes("schedul")) {
+    return { background: "#fffbeb", color: "#92400e", border: "1px solid #fde68a" };
+  }
+  if (norm.includes("reschedul")) {
+    return { background: "#eff6ff", color: "#1e40af", border: "1px solid #bfdbfe" };
+  }
+  return { background: "#f8fafc", color: "#334155", border: "1px solid #e2e8f0" };
+}
+
 function DirectoryAvatar({ name, imageUrl }: { name: string; imageUrl?: string | null }) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   return <div className="candidate-mobile-avatar">
@@ -319,7 +353,9 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const queryClient = useQueryClient();
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateItem | null>(null);
+  const [activeStageTab, setActiveStageTab] = useState<string | null>(null);
   const [detailsPhotoFile, setDetailsPhotoFile] = useState<File | null>(null);
   const [updatingPhoto, setUpdatingPhoto] = useState(false);
   const [editingInterviewOptions, setEditingInterviewOptions] = useState(false);
@@ -332,6 +368,7 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
       ...candidate.interviewOptions,
     };
     setSelectedCandidate({ ...candidate, interviewOptions: normalizedOptions });
+    setActiveStageTab(candidate.activeFile?.currentStage || "Passport Entry");
     setInterviewDraft({
       ...normalizedOptions,
       interviewDate: toDateTimeLocal(normalizedOptions.interviewDate),
@@ -611,28 +648,44 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
       "District",
       "Target Country",
       "Profession",
+      "Agent",
+      "Interview Drive",
+      "Interview Status",
       "Processing File No",
       "Pipeline Stage",
-      "Interview Drive",
+      "Total Paid (BDT)",
+      "Package Cost (BDT)",
+      "Balance Due (BDT)",
       "Status",
       "Registration Date",
     ];
 
-    const rows = data.map((c, i) => [
-      (meta.page - 1) * meta.pageSize + i + 1,
-      c.candidateNo,
-      c.fullName,
-      c.phone,
-      c.passportNo,
-      c.district,
-      c.preferredCountry,
-      c.profession,
-      c.activeFile?.fileNo || "No File",
-      c.activeFile?.currentStage || "—",
-      c.latestInterview?.title || "—",
-      c.status,
-      formatDate(c.createdAt),
-    ]);
+    const rows = data.map((c, i) => {
+      const pkgCost = c.packageCost || (/dubai/i.test(c.rawCountry || c.preferredCountry) ? 300000 : 350000);
+      const paid = c.totalPaid || 0;
+      const due = c.dueAmount !== undefined ? c.dueAmount : Math.max(0, pkgCost - paid);
+
+      return [
+        (meta.page - 1) * meta.pageSize + i + 1,
+        c.candidateNo,
+        c.fullName,
+        c.phone,
+        c.passportNo,
+        c.district,
+        c.preferredCountry,
+        c.profession,
+        c.agent || c.source || "Direct Office",
+        c.latestInterview?.title || (c.interviewOptions?.interviewSchedule && c.interviewOptions.interviewSchedule !== "—" ? c.interviewOptions.interviewSchedule : "No Drive"),
+        c.latestInterview?.status || (c.interviewOptions?.interviewStatus && c.interviewOptions.interviewStatus !== "—" && c.interviewOptions.interviewStatus !== "Not Scheduled" ? c.interviewOptions.interviewStatus : (c.latestInterview?.title ? "Waiting For Interview" : "Not Scheduled")),
+        c.activeFile?.fileNo || "No File",
+        c.activeFile?.currentStage || "—",
+        paid,
+        pkgCost,
+        due,
+        c.status,
+        formatDate(c.createdAt),
+      ];
+    });
 
     const csvContent = [headers.map(escape).join(","), ...rows.map((r) => r.map(escape).join(","))].join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -654,6 +707,23 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
         </div>
         <div className="country-design-actions directory-design-actions">
           <button data-action-ui="neutral" data-action-size="normal" type="button" onClick={downloadCsv}><Download size={14} /> Export CSV</button>
+          <button
+            data-action-ui="secondary"
+            data-action-size="normal"
+            type="button"
+            onClick={() => setShowBulkUpload(true)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              background: "#f0edff",
+              color: "#4f46e5",
+              border: "1px solid #c7d2fe",
+              fontWeight: 700,
+            }}
+          >
+            <Upload size={14} /> Bulk Upload
+          </button>
           <Link data-action-ui="primary" data-action-size="normal" href={moduleItemPath("call-center", "Create Candidate")} className="directory-design-create"><Plus size={14} /> Create Candidate</Link>
         </div>
       </header>
@@ -699,14 +769,15 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
         </div>
         <div className="desktop-candidates-table country-design-table directory-design-table">
           <table>
-            <colgroup>{[50,170,210,135,150,125,150,140,215,175].map((width,i) => <col key={i} style={{width}} />)}</colgroup>
-            <thead><tr>{["SL","Actions","Candidate","Contact","Passport / NID","Target Country","Trade / Profession","Processing File","Recruitment Stage","Source"].map(label => <th key={label}>{label}</th>)}</tr></thead>
+            <colgroup>{[50,250,190,130,140,125,140,165,190,140,200,155].map((width,i) => <col key={i} style={{width}} />)}</colgroup>
+            <thead><tr>{["SL","Actions","Candidate","Contact","Passport / NID","Target Country","Trade / Profession","Agent","Interview","Processing File","Recruitment Stage","Financial Ledger"].map(label => <th key={label}>{label}</th>)}</tr></thead>
             <tbody style={{opacity:query.isFetching ? .75 : 1}}>
               {data.map((row,index) => (
                 <tr key={row.id}>
                   <td className="country-design-serial">{(meta.page - 1) * meta.pageSize + index + 1}</td>
                   <td><div className="directory-design-row-actions">
                     <button data-action-ui="secondary" data-action-size="compact" type="button" className="country-design-dossier" onClick={() => openCandidateProfile(row)} aria-label={`Details for ${row.fullName}`}><Eye size={12} /> Details</button>
+                    <Link data-action-ui="secondary" data-action-size="compact" href={`/candidate/${row.id}/cv`} title="Generate & Download Candidate CV" className="country-design-dossier"><FileText size={12} /> Generate CV</Link>
                     {row.activeFile && <Link data-action-ui="secondary" data-action-size="compact" href={`/file/${row.activeFile.id}?view=pipeline`} title="Open Interactive Stage Processing Pipeline" className="country-design-dossier"><Layers size={12} /> Pipeline →</Link>}
                   </div></td>
                   <td><div className="country-design-cell client"><b>{row.fullName}</b><span className="country-design-candidate-id">{row.candidateNo}</span></div></td>
@@ -714,6 +785,92 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
                   <td><div className="country-design-cell"><b>{row.passportNo}</b>{row.nationalId !== "—" && <small>NID: {row.nationalId}</small>}</div></td>
                   <td><span className="directory-design-country">{getCountryFlag(row.preferredCountry)} {row.preferredCountry}</span></td>
                   <td><div className="country-design-cell"><b>{row.profession}</b></div></td>
+                  <td>
+                    {(() => {
+                      const agentName = row.agent && !/^(direct|direct walk-in)$/i.test(row.agent)
+                        ? row.agent
+                        : (row.source && !/^(direct|direct walk-in|website|walk-in)$/i.test(row.source)
+                          ? row.source
+                          : "Direct Office");
+                      const isAgency = (row.agent && !/^(direct|direct walk-in)$/i.test(row.agent)) ||
+                        (row.source && !/^(direct|direct walk-in|website|walk-in)$/i.test(row.source));
+                      const badgeLabel = isAgency ? "Agency Partner" : (row.source || "Direct Intake");
+                      const agentTargetUrl = isAgency
+                        ? (row.agentId ? `/agent/${row.agentId}` : `/agent/${encodeURIComponent(agentName)}`)
+                        : `/agents`;
+
+                      return (
+                        <div className="country-design-cell">
+                          <b>
+                            <Link
+                              href={agentTargetUrl}
+                              className="hover:underline transition-colors"
+                              style={{
+                                color: isAgency ? "#007aff" : "inherit",
+                                textDecoration: "none",
+                              }}
+                              title={isAgency ? `Open Agent Profile: ${agentName}` : "View Registered Agents Directory"}
+                            >
+                              {agentName}
+                            </Link>
+                          </b>
+                          <small
+                            style={{
+                              color: isAgency ? "#6366f1" : "var(--muted)",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {badgeLabel}
+                          </small>
+                        </div>
+                      );
+                    })()}
+                  </td>
+                  <td>
+                    {(() => {
+                      const interviewDriveTitle = row.latestInterview?.title || (row.interviewOptions?.interviewSchedule && row.interviewOptions.interviewSchedule !== "—" ? row.interviewOptions.interviewSchedule : null);
+                      const rawInterviewStatus = row.latestInterview?.status || (row.interviewOptions?.interviewStatus && row.interviewOptions.interviewStatus !== "—" && row.interviewOptions.interviewStatus !== "Not Scheduled" ? row.interviewOptions.interviewStatus : null);
+                      const interviewStatus = rawInterviewStatus || (interviewDriveTitle ? "Waiting For Interview" : null);
+
+                      if (!interviewDriveTitle) {
+                        return <span className="directory-design-muted">No Interview</span>;
+                      }
+
+                      return (
+                        <div className="country-design-cell">
+                          <b>
+                            {row.latestInterview?.scheduleId ? (
+                              <Link
+                                href={`/module/registration/interview/${row.latestInterview.scheduleId}`}
+                                style={{ color: "inherit", textDecoration: "none" }}
+                                title={`View Interview Drive: ${interviewDriveTitle}`}
+                                className="hover:underline"
+                              >
+                                {interviewDriveTitle}
+                              </Link>
+                            ) : (
+                              interviewDriveTitle
+                            )}
+                          </b>
+                          <div style={{ display: "flex", alignItems: "center", gap: "5px", marginTop: "3px" }}>
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                padding: "1.5px 7px",
+                                borderRadius: "6px",
+                                fontSize: "10.5px",
+                                fontWeight: 600,
+                                ...interviewStatusStyle(interviewStatus),
+                              }}
+                            >
+                              {interviewStatus}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </td>
                   <td>{row.activeFile ? <div className="country-design-cell"><Link href={`/file/${row.activeFile.id}`} className="country-design-candidate-id directory-design-file">{row.activeFile.fileNo}</Link><small>{row.activeFile.company}</small></div> : <span className="directory-design-muted">No File Yet</span>}</td>
                   <td>{row.activeFile ? <div className="directory-design-stage-cell">
                     <span className="country-design-stage" style={directoryStageStyle(row.activeFile.currentStage)}><CheckCircle2 size={12} /> {row.activeFile.currentStage}</span>
@@ -721,14 +878,45 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
                       {row.activeFile.medicalResult && <span className={`directory-design-micro ${/fit/i.test(row.activeFile.medicalResult) ? "medical" : "warning"}`}>Med: {row.activeFile.medicalResult}</span>}
                       {row.activeFile.visaResult && <span className="directory-design-micro visa">Visa: {row.activeFile.visaResult}</span>}
                       {row.activeFile.manpowerResult && <span className="directory-design-micro manpower">BMET: {row.activeFile.manpowerResult}</span>}
-                      {row.totalPaid > 0 && <span className="directory-design-micro paid">৳ {(row.totalPaid / 1000).toFixed(0)}k Paid</span>}
                     </div>
                   </div> : <span className="directory-design-micro paid">Registered (No File)</span>}</td>
-                  <td><span className="directory-design-source"><span className={`directory-source-dot tone-${index % 3}`} />{row.source || "Direct"}</span></td>
+                  <td data-label="Financial Ledger">
+                    {(() => {
+                      const gross = Number(row.contractPackage || row.packageCost) || (/dubai/i.test(row.rawCountry || row.preferredCountry) ? 300000 : 350000);
+                      const discount = Number(row.discount || 0);
+                      const pkgCost = row.packageCost !== undefined ? row.packageCost : Math.max(0, gross - discount);
+                      const paid = row.totalPaid || 0;
+                      const due = row.dueAmount !== undefined ? row.dueAmount : Math.max(0, pkgCost - paid);
+                      const advance = Math.max(0, paid - pkgCost);
+
+                      return (
+                        <div className="country-design-cell financial" style={{ minWidth: "125px" }}>
+                          <b style={{ fontSize: "13.5px", color: paid > 0 ? "#059669" : "#1d1d1f", display: "block", fontWeight: 700 }}>
+                            {formatTk(paid)}
+                          </b>
+                          <small style={{ fontSize: "10.5px", color: "var(--muted)", display: "block", marginTop: "1px" }}>
+                            Package: {formatTk(pkgCost)}
+                            {discount > 0 && <span style={{ color: "#059669", fontWeight: 700, marginLeft: "3px" }}>(Disc: -{formatTk(discount)})</span>}
+                          </small>
+                          <div style={{ marginTop: "3px" }}>
+                            {due > 0 ? (
+                              <span style={{ fontSize: "10.5px", color: "#dc2626", fontWeight: 800, background: "#fef2f2", padding: "1px 6px", borderRadius: "3px", display: "inline-block" }}>
+                                Due: {formatTk(due)}
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: "10.5px", color: "#7c3aed", fontWeight: 800, background: "#f5f3ff", padding: "1px 6px", borderRadius: "3px", display: "inline-block" }}>
+                                {advance > 0 ? `+ ${formatTk(advance)} Advance` : "Paid in Full"}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </td>
                 </tr>
               ))}
-              {query.isLoading && <tr><td colSpan={10} className="country-design-empty">Loading candidates...</td></tr>}
-              {!query.isLoading && data.length === 0 && <tr><td colSpan={10} className="country-design-empty">No candidates found matching criteria.</td></tr>}
+              {query.isLoading && <tr><td colSpan={12} className="country-design-empty">Loading candidates...</td></tr>}
+              {!query.isLoading && data.length === 0 && <tr><td colSpan={12} className="country-design-empty">No candidates found matching criteria.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -773,6 +961,51 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
                 </div>
               </div>
 
+              {/* Interview Drive Strip (if assigned) */}
+              {(() => {
+                const interviewDriveTitle = row.latestInterview?.title || (row.interviewOptions?.interviewSchedule && row.interviewOptions.interviewSchedule !== "—" ? row.interviewOptions.interviewSchedule : null);
+                const rawInterviewStatus = row.latestInterview?.status || (row.interviewOptions?.interviewStatus && row.interviewOptions.interviewStatus !== "—" && row.interviewOptions.interviewStatus !== "Not Scheduled" ? row.interviewOptions.interviewStatus : null);
+                const interviewStatus = rawInterviewStatus || (interviewDriveTitle ? "Waiting For Interview" : null);
+
+                if (!interviewDriveTitle) return null;
+
+                return (
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "7px 11px",
+                    background: "#fdf4ff",
+                    border: "1px solid #f5d0fe",
+                    borderRadius: "9px",
+                    margin: "4px 0 8px",
+                    gap: "8px",
+                  }}>
+                    <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: "6px" }}>
+                      <span style={{ fontSize: "13px" }}>🎯</span>
+                      <div style={{ minWidth: 0 }}>
+                        <span style={{ display: "block", fontSize: "11.5px", fontWeight: 700, color: "#701a75", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {interviewDriveTitle}
+                        </span>
+                        <small style={{ color: "#a21caf", fontSize: "10px", fontWeight: 600 }}>Interview Drive</small>
+                      </div>
+                    </div>
+                    <span style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      padding: "2px 7px",
+                      borderRadius: "6px",
+                      fontSize: "10px",
+                      fontWeight: 700,
+                      flexShrink: 0,
+                      ...interviewStatusStyle(interviewStatus),
+                    }}>
+                      {interviewStatus}
+                    </span>
+                  </div>
+                );
+              })()}
+
               {/* Processing File Stack */}
               {row.activeFile ? (
                 <div className="candidate-mobile-file-strip">
@@ -781,17 +1014,61 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
                     <span className="candidate-mobile-file-no">{row.activeFile.fileNo}</span>
                     <span className="candidate-mobile-file-company">{row.activeFile.company}</span>
                   </div>
-                  {row.totalPaid > 0 && (
-                    <span className="candidate-mobile-paid-badge">
-                      ৳ {(row.totalPaid / 1000).toFixed(0)}k
-                    </span>
-                  )}
                 </div>
               ) : (
                 <div className="candidate-mobile-file-strip empty">
                   <span className="candidate-mobile-no-file-text">Awaiting Overseas File Opening</span>
                 </div>
               )}
+
+              {/* Financial Ledger Mobile Strip */}
+              {(() => {
+                const gross = Number(row.contractPackage || row.packageCost) || (/dubai/i.test(row.rawCountry || row.preferredCountry) ? 300000 : 350000);
+                const discount = Number(row.discount || 0);
+                const pkgCost = row.packageCost !== undefined ? row.packageCost : Math.max(0, gross - discount);
+                const paid = row.totalPaid || 0;
+                const due = row.dueAmount !== undefined ? row.dueAmount : Math.max(0, pkgCost - paid);
+                const advance = Math.max(0, paid - pkgCost);
+
+                return (
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "7px 11px",
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "9px",
+                    margin: "5px 0 8px",
+                    gap: "8px",
+                  }}>
+                    <div>
+                      <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.4px" }}>
+                        Financial Ledger
+                      </span>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: "5px", marginTop: "1px" }}>
+                        <b style={{ fontSize: "12.5px", color: paid > 0 ? "#059669" : "#1d1d1f", fontWeight: 700 }}>
+                          {formatTk(paid)}
+                        </b>
+                        <small style={{ fontSize: "10.5px", color: "var(--muted)" }}>
+                          / {formatTk(pkgCost)}
+                        </small>
+                      </div>
+                    </div>
+                    <div>
+                      {due > 0 ? (
+                        <span style={{ fontSize: "10.5px", color: "#dc2626", fontWeight: 800, background: "#fef2f2", padding: "2px 7px", borderRadius: "4px", display: "inline-block" }}>
+                          Due: {formatTk(due)}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: "10.5px", color: "#7c3aed", fontWeight: 800, background: "#f5f3ff", padding: "2px 7px", borderRadius: "4px", display: "inline-block" }}>
+                          {advance > 0 ? `+ ${formatTk(advance)} Adv` : "Paid in Full"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Stage Micro Badges */}
               <div className="candidate-mobile-micro-badges">
@@ -828,7 +1105,32 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
 
               {/* Action Footer */}
               <div className="candidate-mobile-footer">
-                <span className="candidate-mobile-src">Src: {row.source || "Direct Intake"}</span>
+                <span className="candidate-mobile-src">
+                  Agent:{" "}
+                  {(() => {
+                    const agentName = row.agent && !/^(direct|direct walk-in)$/i.test(row.agent)
+                      ? row.agent
+                      : (row.source && !/^(direct|direct walk-in|website|walk-in)$/i.test(row.source)
+                        ? row.source
+                        : "Direct Office");
+                    const isAgency = (row.agent && !/^(direct|direct walk-in)$/i.test(row.agent)) ||
+                      (row.source && !/^(direct|direct walk-in|website|walk-in)$/i.test(row.source));
+                    const targetUrl = isAgency
+                      ? (row.agentId ? `/agent/${row.agentId}` : `/agent/${encodeURIComponent(agentName)}`)
+                      : `/agents`;
+
+                    return (
+                      <Link
+                        href={targetUrl}
+                        className="hover:underline font-semibold"
+                        style={{ color: isAgency ? "#007aff" : "inherit", textDecoration: "none" }}
+                        title={isAgency ? `Open Agent Profile: ${agentName}` : "View Agents"}
+                      >
+                        {agentName}
+                      </Link>
+                    );
+                  })()}
+                </span>
                 <div className="candidate-mobile-actions">
                   <button data-action-ui="secondary" data-action-size="normal"
                     type="button"
@@ -837,6 +1139,14 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
                   >
                     <Eye size={14} /> Details
                   </button>
+                  <Link data-action-ui="secondary" data-action-size="normal"
+                    href={`/candidate/${row.id}/cv`}
+                    className="candidate-mobile-btn cv"
+                    style={{ textDecoration: "none" }}
+                    title="Generate & Download CV"
+                  >
+                    <FileText size={14} /> Generate CV
+                  </Link>
                   {row.activeFile && (
                     <Link data-action-ui="secondary" data-action-size="normal"
                       href={`/file/${row.activeFile.id}?view=pipeline`}
@@ -946,24 +1256,60 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
                     {selectedCandidate.fullName}
                   </h2>
                   <p style={{ fontSize: "12px", color: "var(--muted)", margin: "4px 0 0" }}>
-                    Registered on {formatDate(selectedCandidate.createdAt)} · Source: <b>{selectedCandidate.source}</b>
+                    {(() => {
+                      const agentName = selectedCandidate.agent && !/^(direct|direct walk-in)$/i.test(selectedCandidate.agent)
+                        ? selectedCandidate.agent
+                        : (selectedCandidate.source && !/^(direct|direct walk-in|website|walk-in)$/i.test(selectedCandidate.source)
+                          ? selectedCandidate.source
+                          : "Direct Office");
+                      const isAgency = (selectedCandidate.agent && !/^(direct|direct walk-in)$/i.test(selectedCandidate.agent)) ||
+                        (selectedCandidate.source && !/^(direct|direct walk-in|website|walk-in)$/i.test(selectedCandidate.source));
+                      const targetUrl = isAgency
+                        ? (selectedCandidate.agentId ? `/agent/${selectedCandidate.agentId}` : `/agent/${encodeURIComponent(agentName)}`)
+                        : `/agents`;
+
+                      return (
+                        <>
+                          Registered on {formatDate(selectedCandidate.createdAt)} · Agent:{" "}
+                          <Link
+                            href={targetUrl}
+                            style={{ color: isAgency ? "#007aff" : "inherit", textDecoration: "none" }}
+                            className="hover:underline font-bold"
+                            title={isAgency ? `Open ${agentName} Profile` : "View Agents Directory"}
+                          >
+                            {agentName}
+                          </Link>
+                        </>
+                      );
+                    })()}
                   </p>
                 </div>
               </div>
 
-              <button data-action-ui="neutral" data-action-size="icon" className="master-modal-close"
-                onClick={() => setSelectedCandidate(null)}
-                aria-label="Close candidate details"
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  color: "var(--muted)",
-                  cursor: "pointer",
-                  padding: "4px",
-                }}
-              >
-                <X size={20} />
-              </button>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <Link
+                  data-action-ui="primary"
+                  data-action-size="compact"
+                  href={`/candidate/${selectedCandidate.id}/cv`}
+                  style={{ textDecoration: "none" }}
+                  title="Generate and Download CV"
+                >
+                  <FileText size={12} /> Generate CV
+                </Link>
+                <button data-action-ui="neutral" data-action-size="icon" className="master-modal-close"
+                  onClick={() => setSelectedCandidate(null)}
+                  aria-label="Close candidate details"
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "var(--muted)",
+                    cursor: "pointer",
+                    padding: "4px",
+                  }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
             </div>
 
             {/* Modal Body */}
@@ -1040,6 +1386,36 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
                   <div><span style={{ color: "var(--muted)", display: "block", fontSize: "11px" }}>Date of Birth:</span><b>{selectedCandidate.dob}</b></div>
                   <div><span style={{ color: "var(--muted)", display: "block", fontSize: "11px" }}>Gender / Marital:</span><b>{selectedCandidate.gender} / {selectedCandidate.maritalStatus}</b></div>
                   <div><span style={{ color: "var(--muted)", display: "block", fontSize: "11px" }}>Last Education:</span><b>{selectedCandidate.education}</b></div>
+                  <div>
+                    <span style={{ color: "var(--muted)", display: "block", fontSize: "11px" }}>Agent / Partner:</span>
+                    {(() => {
+                      const agentName = selectedCandidate.agent && !/^(direct|direct walk-in)$/i.test(selectedCandidate.agent)
+                        ? selectedCandidate.agent
+                        : (selectedCandidate.source && !/^(direct|direct walk-in|website|walk-in)$/i.test(selectedCandidate.source)
+                          ? selectedCandidate.source
+                          : "Direct Office");
+                      const isAgency = (selectedCandidate.agent && !/^(direct|direct walk-in)$/i.test(selectedCandidate.agent)) ||
+                        (selectedCandidate.source && !/^(direct|direct walk-in|website|walk-in)$/i.test(selectedCandidate.source));
+                      const targetUrl = isAgency
+                        ? (selectedCandidate.agentId ? `/agent/${selectedCandidate.agentId}` : `/agent/${encodeURIComponent(agentName)}`)
+                        : `/agents`;
+
+                      return (
+                        <Link
+                          href={targetUrl}
+                          style={{
+                            color: isAgency ? "#007aff" : "inherit",
+                            textDecoration: "none",
+                            fontWeight: 700,
+                          }}
+                          className="hover:underline"
+                          title={isAgency ? `Open ${agentName} Profile` : "View Agents Directory"}
+                        >
+                          {agentName}
+                        </Link>
+                      );
+                    })()}
+                  </div>
                 </div>
               </div>
 
@@ -1085,8 +1461,8 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
 
                   {/* Visual Stage Pipeline Progression Bar */}
                   <div className="master-modal-panel" style={{ background: "#fff", padding: "12px", borderRadius: "10px", border: "1px solid #e9d5ff", marginBottom: "14px" }}>
-                    <div style={{ fontSize: "11px", fontWeight: 700, color: "#6b21a8", marginBottom: "8px", display: "flex", justifyContent: "space-between" }}>
-                      <span>Progress Stages ({selectedCandidate.preferredCountry})</span>
+                    <div style={{ fontSize: "11px", fontWeight: 700, color: "#6b21a8", marginBottom: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span>Progress Stages ({selectedCandidate.preferredCountry}) — Click any stage to preview info</span>
                       <span style={{ color: "#059669", fontWeight: 800 }}>
                         Current: {selectedCandidate.activeFile.currentStage}
                       </span>
@@ -1100,12 +1476,14 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
                           const currentIdx = arr.findIndex((x) => x.toLowerCase() === currentStageNorm);
                           const isDone = currentIdx !== -1 ? idx < currentIdx || selectedCandidate.activeFile?.status === "COMPLETED" : false;
                           const isCurrent = thisStageNorm === currentStageNorm && selectedCandidate.activeFile?.status !== "COMPLETED";
+                          const isSelected = (activeStageTab || selectedCandidate.activeFile?.currentStage || "").toLowerCase() === thisStageNorm;
 
                           return (
-                            <Link
+                            <button
+                              type="button"
                               key={st}
-                              href={`/file/${selectedCandidate.activeFile?.id}?stage=${encodeURIComponent(st)}`}
-                              title={`Click to open ${st} stage workflow`}
+                              onClick={() => setActiveStageTab(st)}
+                              title={`Click to preview ${st} stage details (in-modal)`}
                               style={{
                                 flexShrink: 0,
                                 display: "inline-flex",
@@ -1114,68 +1492,244 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
                                 gap: "4px",
                                 padding: "6px 10px",
                                 borderRadius: "8px",
-                                background: isCurrent ? "#1e1b4b" : isDone ? "#ecfdf5" : "#f8fafc",
-                                border: isCurrent ? "1.5px solid #1e1b4b" : isDone ? "1px solid #a7f3d0" : "1px solid #e2e8f0",
-                                color: isCurrent ? "#fff" : isDone ? "#065f46" : "#64748b",
-                                textDecoration: "none",
+                                background: isSelected ? "#1e1b4b" : isDone ? "#ecfdf5" : "#f8fafc",
+                                border: isSelected ? "2px solid #6366f1" : isCurrent ? "2px solid #1e1b4b" : isDone ? "1px solid #a7f3d0" : "1px solid #e2e8f0",
+                                color: isSelected ? "#fff" : isDone ? "#065f46" : "#64748b",
+                                cursor: "pointer",
                                 fontSize: "11px",
                                 fontWeight: 700,
-                                minWidth: "80px",
+                                minWidth: "82px",
                                 textAlign: "center",
                                 transition: "all 0.15s ease",
+                                boxShadow: isSelected ? "0 2px 8px rgba(30, 27, 75, 0.25)" : "none",
                               }}
                             >
                               <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                                <span style={{ fontSize: "10px", opacity: isCurrent ? 0.8 : 0.6 }}>#{idx + 1}</span>
+                                <span style={{ fontSize: "10px", opacity: isSelected ? 0.9 : 0.6 }}>#{idx + 1}</span>
                                 {isDone ? (
-                                  <CheckCircle2 size={12} color="#059669" />
+                                  <CheckCircle2 size={12} color={isSelected ? "#34d399" : "#059669"} />
                                 ) : isCurrent ? (
-                                  <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#a5b4fc", display: "inline-block" }} />
+                                  <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: isSelected ? "#818cf8" : "#4338ca", display: "inline-block" }} />
                                 ) : (
-                                  <Clock size={10} color="#94a3b8" />
+                                  <Clock size={10} color={isSelected ? "#cbd5e1" : "#94a3b8"} />
                                 )}
                               </div>
                               <span style={{ whiteSpace: "nowrap" }}>{st}</span>
-                            </Link>
+                            </button>
                           );
                         })}
                     </div>
                   </div>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "12.5px" }}>
-                    <div><span style={{ color: "#6b21a8", display: "block", fontSize: "11px" }}>File Number:</span><b>{selectedCandidate.activeFile.fileNo}</b></div>
-                    <div>
-                      <span style={{ color: "#6b21a8", display: "block", fontSize: "11px" }}>Current Stage:</span>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "#ecfdf5", color: "#059669", padding: "2px 8px", borderRadius: "6px", fontWeight: 800, fontSize: "11.5px" }}>
-                        <CheckCircle2 size={12} /> {selectedCandidate.activeFile.currentStage}
-                      </span>
-                    </div>
-                    <div>
-                      <span style={{ color: "#6b21a8", display: "block", fontSize: "11px" }}>Medical Fitness:</span>
-                      <b>{selectedCandidate.activeFile.medicalResult || "Pending / In Progress"}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "#6b21a8", display: "block", fontSize: "11px" }}>Visa Status:</span>
-                      <b>{selectedCandidate.activeFile.visaResult || "Pending / Processing"}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "#6b21a8", display: "block", fontSize: "11px" }}>BMET Manpower:</span>
-                      <b>{selectedCandidate.activeFile.manpowerResult || "Pending"}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "#6b21a8", display: "block", fontSize: "11px" }}>Assigned Officer:</span>
-                      <b>{selectedCandidate.activeFile.officer}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "#6b21a8", display: "block", fontSize: "11px" }}>Total Paid:</span>
-                      <b style={{ color: "#059669" }}>৳ {selectedCandidate.totalPaid.toLocaleString("en-IN")}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "#6b21a8", display: "block", fontSize: "11px" }}>Balance Due:</span>
-                      <b style={{ color: (selectedCandidate.dueAmount ?? 0) > 0 ? "#e11d48" : "#059669" }}>
-                        ৳ {(selectedCandidate.dueAmount ?? 0).toLocaleString("en-IN")}
-                      </b>
-                    </div>
+                  {/* Active Selected Stage Preview Card */}
+                  {(() => {
+                    const activeTab = activeStageTab || selectedCandidate.activeFile.currentStage;
+                    const stages = getCountryStages(selectedCandidate.preferredCountry).filter((st) => !["Hold File", "No File", "Visa Hold"].includes(st));
+                    const currentStageNorm = (selectedCandidate.activeFile?.currentStage || "").toLowerCase();
+                    const activeStageNorm = activeTab.toLowerCase();
+                    const currentIdx = stages.findIndex((x) => x.toLowerCase() === currentStageNorm);
+                    const activeIdx = stages.findIndex((x) => x.toLowerCase() === activeStageNorm);
+                    const isDone = currentIdx !== -1 ? activeIdx < currentIdx || selectedCandidate.activeFile?.status === "COMPLETED" : false;
+                    const isCurrent = activeStageNorm === currentStageNorm;
+
+                    return (
+                      <div style={{ background: "#ffffff", padding: "14px", borderRadius: "10px", border: "1.5px solid #d8b4fe", marginBottom: "12px", boxShadow: "0 2px 6px rgba(124, 58, 237, 0.06)" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", borderBottom: "1px solid #f3e8ff", paddingBottom: "8px", flexWrap: "wrap", gap: "6px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                            <span style={{ fontSize: "12.5px", fontWeight: 800, color: "#3b0764", display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                              <Layers size={14} color="#7c3aed" /> Stage #{activeIdx + 1}: {activeTab}
+                            </span>
+                            {isCurrent ? (
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: "3px", background: "#eff6ff", color: "#1d4ed8", padding: "2px 7px", borderRadius: "999px", fontSize: "10.5px", fontWeight: 700, border: "1px solid #bfdbfe" }}>
+                                ● Current In-Progress
+                              </span>
+                            ) : isDone ? (
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: "3px", background: "#ecfdf5", color: "#059669", padding: "2px 7px", borderRadius: "999px", fontSize: "10.5px", fontWeight: 700, border: "1px solid #a7f3d0" }}>
+                                ✓ Completed
+                              </span>
+                            ) : (
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: "3px", background: "#f8fafc", color: "#64748b", padding: "2px 7px", borderRadius: "999px", fontSize: "10.5px", fontWeight: 700, border: "1px solid #e2e8f0" }}>
+                                ⏱ Upcoming Stage
+                              </span>
+                            )}
+                          </div>
+                          <Link
+                            href={`/file/${selectedCandidate.activeFile.id}?stage=${encodeURIComponent(activeTab)}`}
+                            style={{
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              color: "#6d28d9",
+                              textDecoration: "none",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "3px",
+                              background: "#faf5ff",
+                              padding: "3px 8px",
+                              borderRadius: "6px",
+                              border: "1px solid #e9d5ff",
+                            }}
+                            title={`Open ${activeTab} in File Processing Workspace`}
+                          >
+                            Open in Pipeline ➔
+                          </Link>
+                        </div>
+
+                        {/* Stage Specific Fields */}
+                        {(() => {
+                          const details = selectedCandidate.activeFile.stageDetails?.[activeTab] || {};
+                          const stageNorm = activeTab.toLowerCase();
+
+                          const rowStyle: React.CSSProperties = { display: "flex", flexDirection: "column", gap: "2px" };
+                          const labelStyle: React.CSSProperties = { color: "#6b21a8", fontSize: "11px", fontWeight: 600 };
+                          const valStyle: React.CSSProperties = { color: "#1e1b4b", fontSize: "12.5px", fontWeight: 700 };
+
+                          if (stageNorm.includes("passport")) {
+                            return (
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                                <div style={rowStyle}><span style={labelStyle}>Passport Number:</span><b style={valStyle}>{String(details.number || selectedCandidate.passportNo || "—")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Verification Status:</span><b style={{ ...valStyle, color: "#059669" }}>{String(details.status || "Verified")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Issue Date:</span><b style={valStyle}>{String(details.issueDate || "2023-10-29")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Expiry Date:</span><b style={valStyle}>{String(details.expiryDate || "2033-10-28")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Issuing Authority:</span><b style={valStyle}>{String(details.authority || "DIP/DHAKA")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Place of Issue:</span><b style={valStyle}>DHAKA</b></div>
+                              </div>
+                            );
+                          }
+
+                          if (stageNorm.includes("medical")) {
+                            const isFit = /fit/i.test(String(details.result || selectedCandidate.activeFile.medicalResult || ""));
+                            return (
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                                <div style={rowStyle}>
+                                  <span style={labelStyle}>Medical Fitness:</span>
+                                  <b style={{ ...valStyle, color: isFit ? "#059669" : "#d97706" }}>
+                                    {String(details.result || selectedCandidate.activeFile.medicalResult || "Pending / In Progress")}
+                                  </b>
+                                </div>
+                                <div style={rowStyle}><span style={labelStyle}>Medical Center:</span><b style={valStyle}>{String(details.center || "Ibn Sina GCC Medical Center, Dhaka")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Test / Report Date:</span><b style={valStyle}>{String(details.testDate || "2026-11-03")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Validity Expiry:</span><b style={valStyle}>{String(details.expiryDate || "2027-02-01")}</b></div>
+                              </div>
+                            );
+                          }
+
+                          if (stageNorm.includes("mofa")) {
+                            return (
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                                <div style={rowStyle}><span style={labelStyle}>MOFA Number:</span><b style={valStyle}>{String(details.mofaNumber || "Pending MOFA Entry")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>MOFA Status:</span><b style={{ ...valStyle, color: /done|approved|ready/i.test(String(details.status || "")) ? "#059669" : "#d97706" }}>{String(details.status || "Pending")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Submit Date:</span><b style={valStyle}>{String(details.submitDate || "—")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Done Date:</span><b style={valStyle}>{String(details.doneDate || "—")}</b></div>
+                              </div>
+                            );
+                          }
+
+                          if (stageNorm.includes("takamul") || stageNorm.includes("skill")) {
+                            return (
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                                <div style={rowStyle}><span style={labelStyle}>Takamul Profession:</span><b style={valStyle}>{String(details.profession || selectedCandidate.profession || "Electrician")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Assessment Result:</span><b style={{ ...valStyle, color: "#059669" }}>{String(details.reportStatus || "Selected (Passed)")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Registration No:</span><b style={valStyle}>{String(details.regNo || "—")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Certificate No:</span><b style={valStyle}>{String(details.certNo || "—")}</b></div>
+                              </div>
+                            );
+                          }
+
+                          if (stageNorm.includes("finger") || stageNorm.includes("bio")) {
+                            return (
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                                <div style={rowStyle}><span style={labelStyle}>Biometrics Status:</span><b style={{ ...valStyle, color: /done|completed|approved/i.test(String(details.status || "")) ? "#059669" : "#6366f1" }}>{String(details.status || "Scheduled / Pending")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Biometric Center:</span><b style={valStyle}>{String(details.center || "VFS Global / GCC Bio Center")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Appointment Date:</span><b style={valStyle}>{String(details.date || "Scheduled")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Fingerprint Type:</span><b style={valStyle}>Ten Finger Biometric</b></div>
+                              </div>
+                            );
+                          }
+
+                          if (stageNorm.includes("police")) {
+                            return (
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                                <div style={rowStyle}><span style={labelStyle}>Police Clearance Result:</span><b style={{ ...valStyle, color: "#059669" }}>{String(details.result || "Clear / Verified")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Clearance Status:</span><b style={{ ...valStyle, color: "#059669" }}>{String(details.status || "Approved")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Application Number:</span><b style={valStyle}>{String(details.appNo || "PCC-FILE-KSA-001")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Issue Date:</span><b style={valStyle}>{String(details.issueDate || "2026-11-03")}</b></div>
+                              </div>
+                            );
+                          }
+
+                          if (stageNorm.includes("first payment")) {
+                            return (
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                                <div style={rowStyle}><span style={labelStyle}>Payment Status:</span><b style={{ ...valStyle, color: "#059669" }}>{String(details.status || "Deposited")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Total Deposited:</span><b style={{ ...valStyle, color: "#059669" }}>{String(details.totalPaid || `৳ ${selectedCandidate.totalPaid.toLocaleString("en-IN")}`)}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Balance Remaining:</span><b style={{ ...valStyle, color: (selectedCandidate.dueAmount ?? 0) > 0 ? "#e11d48" : "#059669" }}>{String(details.dueAmount || `৳ ${(selectedCandidate.dueAmount ?? 0).toLocaleString("en-IN")}`)}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Package Category:</span><b style={valStyle}>{String(details.packageTitle || "General Work Visa")}</b></div>
+                              </div>
+                            );
+                          }
+
+                          if (stageNorm.includes("visa")) {
+                            return (
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                                <div style={rowStyle}><span style={labelStyle}>Visa Number:</span><b style={valStyle}>{String(details.visaNumber || "VISA-KSA-SA-001")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Visa Status:</span><b style={{ ...valStyle, color: "#059669" }}>{String(details.status || selectedCandidate.activeFile.visaResult || "Visa Done")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Issue Date:</span><b style={valStyle}>{String(details.issueDate || "2026-11-03")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Expiry Date:</span><b style={valStyle}>{String(details.expiryDate || "2027-02-01")}</b></div>
+                              </div>
+                            );
+                          }
+
+                          if (stageNorm.includes("second payment")) {
+                            return (
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                                <div style={rowStyle}><span style={labelStyle}>Second Payment Status:</span><b style={{ ...valStyle, color: (selectedCandidate.dueAmount ?? 0) === 0 ? "#059669" : "#e11d48" }}>{String(details.status || ((selectedCandidate.dueAmount ?? 0) === 0 ? "Fully Paid" : "Due"))}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Paid Amount:</span><b style={{ ...valStyle, color: "#059669" }}>৳ {selectedCandidate.totalPaid.toLocaleString("en-IN")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Due Balance:</span><b style={{ ...valStyle, color: (selectedCandidate.dueAmount ?? 0) > 0 ? "#e11d48" : "#059669" }}>৳ {(selectedCandidate.dueAmount ?? 0).toLocaleString("en-IN")}</b></div>
+                              </div>
+                            );
+                          }
+
+                          if (stageNorm.includes("manpower") || stageNorm.includes("bmet")) {
+                            return (
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                                <div style={rowStyle}><span style={labelStyle}>BMET Smart Card / Ref:</span><b style={valStyle}>{String(details.smartCardNo || "BMET-CARD-SA-001")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Manpower Status:</span><b style={{ ...valStyle, color: "#059669" }}>{String(details.status || selectedCandidate.activeFile.manpowerResult || "Approved")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Sponsoring Company:</span><b style={valStyle}>{String(details.company || selectedCandidate.activeFile.company || "Almarai")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Approval Date:</span><b style={valStyle}>{String(details.approvedAt || "2026-11-03")}</b></div>
+                              </div>
+                            );
+                          }
+
+                          if (stageNorm.includes("flight") || stageNorm.includes("ticket")) {
+                            return (
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                                <div style={rowStyle}><span style={labelStyle}>Flight / Ticket Status:</span><b style={{ ...valStyle, color: "#059669" }}>{String(details.status || "Flight Ready")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>E-Ticket Number:</span><b style={valStyle}>{String(details.ticketNo || "TKT-95033370")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Baggage Allowance:</span><b style={valStyle}>{String(details.baggage || "30 kg Check-in + 7 kg Cabin")}</b></div>
+                                <div style={rowStyle}><span style={labelStyle}>Destination:</span><b style={valStyle}>{selectedCandidate.preferredCountry}</b></div>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                              <div style={rowStyle}><span style={labelStyle}>Stage Name:</span><b style={valStyle}>{activeTab}</b></div>
+                              <div style={rowStyle}><span style={labelStyle}>Stage Status:</span><b style={{ ...valStyle, color: isCurrent ? "#059669" : "#6b7280" }}>{isCurrent ? "Active In-Progress" : "Upcoming"}</b></div>
+                              <div style={rowStyle}><span style={labelStyle}>Associated File:</span><b style={valStyle}>{selectedCandidate.activeFile.fileNo}</b></div>
+                              <div style={rowStyle}><span style={labelStyle}>Assigned Officer:</span><b style={valStyle}>{selectedCandidate.activeFile.officer}</b></div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Overall File & Financial Summary Strip */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "12px", background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                    <div><span style={{ color: "#6b21a8", display: "block", fontSize: "10.5px" }}>File Number:</span><b>{selectedCandidate.activeFile.fileNo}</b></div>
+                    <div><span style={{ color: "#6b21a8", display: "block", fontSize: "10.5px" }}>Assigned Officer:</span><b>{selectedCandidate.activeFile.officer}</b></div>
+                    <div><span style={{ color: "#6b21a8", display: "block", fontSize: "10.5px" }}>Total Deposited:</span><b style={{ color: "#059669" }}>৳ {selectedCandidate.totalPaid.toLocaleString("en-IN")}</b></div>
+                    <div><span style={{ color: "#6b21a8", display: "block", fontSize: "10.5px" }}>Balance Due:</span><b style={{ color: (selectedCandidate.dueAmount ?? 0) > 0 ? "#e11d48" : "#059669" }}>৳ {(selectedCandidate.dueAmount ?? 0).toLocaleString("en-IN")}</b></div>
                   </div>
                 </div>
               ) : (
@@ -1190,7 +1744,7 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
               <div className="master-modal-panel" style={{ background: "#fdf4ff", padding: "16px", borderRadius: "12px", border: "1px solid #f5d0fe" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", marginBottom: "12px" }}>
                   <div>
-                    <h3 style={{ fontSize: "12px", fontWeight: 800, color: "#86198f", textTransform: "uppercase", letterSpacing: "0.5px", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
+                    <h3 style={{ fontSize: "12px", fontWeight: 700, color: "#86198f", textTransform: "uppercase", letterSpacing: "0.5px", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
                       <Calendar size={14} /> Interview &amp; Drive Options
                     </h3>
                     <p style={{ margin: "4px 0 0", color: "#a21caf", fontSize: "11px" }}>
@@ -1201,7 +1755,7 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
                     <button data-action-ui="secondary" data-action-size="normal"
                       type="button"
                       onClick={() => setEditingInterviewOptions(true)}
-                      style={{ padding: "6px 11px", borderRadius: "7px", border: "1px solid #e9d5ff", background: "#fff", color: "#86198f", fontSize: "11px", fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}
+                      style={{ padding: "6px 11px", borderRadius: "7px", border: "1px solid #e9d5ff", background: "#fff", color: "#86198f", fontSize: "11px", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}
                     >
                       Edit options
                     </button>
@@ -1302,6 +1856,8 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
                           setInterviewDraft({
                             ...emptyInterviewOptions,
                             ...selectedCandidate.interviewOptions,
+                            workSubCategory: selectedCandidate.interviewOptions?.workSubCategory || selectedCandidate.profession || "",
+                            company: selectedCandidate.interviewOptions?.company || selectedCandidate.activeFile?.company || "",
                             interviewDate: toDateTimeLocal(selectedCandidate.interviewOptions?.interviewDate || ""),
                           });
                           setEditingInterviewOptions(false);
@@ -1314,20 +1870,20 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
                         type="button"
                         disabled={savingInterviewOptions}
                         onClick={saveInterviewOptions}
-                        style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "7px 14px", borderRadius: "8px", border: "none", background: "#86198f", color: "#fff", fontSize: "11.5px", fontWeight: 800, cursor: savingInterviewOptions ? "not-allowed" : "pointer", opacity: savingInterviewOptions ? 0.65 : 1 }}
+                        style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "7px 14px", borderRadius: "8px", border: "none", background: "#86198f", color: "#fff", fontSize: "11.5px", fontWeight: 700, cursor: savingInterviewOptions ? "not-allowed" : "pointer", opacity: savingInterviewOptions ? 0.65 : 1 }}
                       >
                         <Save size={13} /> {savingInterviewOptions ? "Saving..." : "Save options"}
                       </button>
                     </div>
                   </div>
-                ) : selectedCandidate.latestInterview || Object.values(selectedCandidate.interviewOptions).some(Boolean) ? (
+                ) : selectedCandidate.latestInterview || Object.values(selectedCandidate.interviewOptions).some(Boolean) || selectedCandidate.profession || selectedCandidate.activeFile?.company ? (
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "12.5px" }}>
                     <div><span style={{ color: "#701a75", display: "block", fontSize: "11px" }}>Schedule:</span><b>{selectedCandidate.interviewOptions.interviewSchedule || selectedCandidate.latestInterview?.title || "—"}</b></div>
                     <div><span style={{ color: "#701a75", display: "block", fontSize: "11px" }}>Interview Status:</span><b>{selectedCandidate.interviewOptions.interviewStatus || selectedCandidate.latestInterview?.status || "—"}</b></div>
                     <div><span style={{ color: "#701a75", display: "block", fontSize: "11px" }}>Interview Date:</span><b>{formatDate(selectedCandidate.interviewOptions.interviewDate || selectedCandidate.latestInterview?.scheduledAt)}</b></div>
-                    <div><span style={{ color: "#701a75", display: "block", fontSize: "11px" }}>Interested Company:</span><b>{selectedCandidate.interviewOptions.company || selectedCandidate.latestInterview?.company || "—"}</b></div>
-                    <div><span style={{ color: "#701a75", display: "block", fontSize: "11px" }}>Work Category:</span><b>{selectedCandidate.interviewOptions.workCategory || "—"}</b></div>
-                    <div><span style={{ color: "#701a75", display: "block", fontSize: "11px" }}>Work Sub Category:</span><b>{selectedCandidate.interviewOptions.workSubCategory || "—"}</b></div>
+                    <div><span style={{ color: "#701a75", display: "block", fontSize: "11px" }}>Interested Company:</span><b>{selectedCandidate.interviewOptions.company || selectedCandidate.latestInterview?.company || selectedCandidate.activeFile?.company || "—"}</b></div>
+                    <div><span style={{ color: "#701a75", display: "block", fontSize: "11px" }}>Work Category:</span><b>{selectedCandidate.interviewOptions.workCategory || profileCategory?.name || "—"}</b></div>
+                    <div><span style={{ color: "#701a75", display: "block", fontSize: "11px" }}>Work Sub Category / Trade:</span><b>{selectedCandidate.interviewOptions.workSubCategory || selectedCandidate.profession || "—"}</b></div>
                     <div><span style={{ color: "#701a75", display: "block", fontSize: "11px" }}>File Status:</span><b>{selectedCandidate.interviewOptions.fileStatus || "—"}</b></div>
                   </div>
                 ) : (
@@ -1340,6 +1896,15 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
           </div>
         </div>
       )}
+
+      {/* 7. BULK UPLOAD CANDIDATES MODAL */}
+      <CandidateBulkUploadModal
+        isOpen={showBulkUpload}
+        onClose={() => setShowBulkUpload(false)}
+        onSuccess={() => {
+          void queryClient.invalidateQueries({ queryKey: ["all-candidates-list"] });
+        }}
+      />
     </div>
   );
 }

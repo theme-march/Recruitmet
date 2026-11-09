@@ -2,215 +2,236 @@
 
 import { useQuery } from "@tanstack/react-query";
 import {
-  AlertTriangle,
   AlertCircle,
-  BellRing,
+  ArrowRight,
   Briefcase,
-  Building2,
-  Calendar,
   CalendarClock,
   CheckCircle2,
-  ChevronRight,
   Clock,
-  Coins,
   CreditCard,
   Download,
   Eye,
   FileCheck,
-  FileSpreadsheet,
   FileText,
   FileWarning,
-  Globe,
-  Hourglass,
   Lock,
-  Luggage,
-  MapPin,
   Phone,
   Plane,
   Printer,
   RefreshCw,
-  Search,
-  ShieldAlert,
   ShieldCheck,
-  Sparkles,
-  Timer,
-  UserCheck,
   Users,
   Wallet,
   X,
 } from "lucide-react";
-import { useState, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { MoneyReceiptModal, type ReceiptData } from "@/components/modals/money-receipt-modal";
-
-export type MissingDocItem = {
-  id: string;
-  name: string;
-  category: "PASSPORT" | "MEDICAL" | "POLICE" | "NID" | "VISA" | "MANPOWER" | "FLIGHT";
-  stage: string;
-  severity: "CRITICAL" | "HIGH" | "MEDIUM";
-  reason: string;
-  actionRequired: string;
-};
-
-export type CompletedDocItem = {
-  name: string;
-  category: string;
-  value: string;
-  status: string;
-};
-
-type PaymentItem = {
-  id: string;
-  paymentNo: string;
-  amount: number;
-  type: string;
-  method: string;
-  reference: string;
-  note?: string | null;
-  documentUrl?: string | null;
-  fileName?: string | null;
-  collectedAt?: string | null;
-  createdAt?: string | null;
-};
+import { useEffect, useMemo, useState } from "react";
+import { DashboardIcon } from "@/components/layout/dashboard-icon";
+import { MoneyReceiptModal, type ReceiptData, type ReceiptItem, cleanPaymentType } from "@/components/modals/money-receipt-modal";
+import { getCountryFlagEmoji } from "@/lib/country-pipeline";
 
 type CandidateItem = {
-  fileId: string;
-  fileNo: string;
   candidateId: string;
+  fileId: string;
   candidateNo: string;
+  fileNo: string;
   fullName: string;
-  phone: string;
   passportNumber: string;
   passportNo?: string;
+  phone: string;
   country: string;
   profession: string;
   currentStage: string;
-  status: string;
   isCompleted: boolean;
-  completionStatus: string;
-  completionNote: string;
-  missingDocs?: MissingDocItem[];
-  missingDocsCount?: number;
-  completedDocs?: CompletedDocItem[];
-  hasMissingDocs?: boolean;
-  documentStatus?: string;
-  interviewStatus?: string;
-  interviewRating?: number | null;
-  interviewDate?: string | null;
-  interviewTitle?: string | null;
-  interviewCompany?: string | null;
-  passportVerification?: string;
-  passportExpiryDate?: string | null;
-  medicalResult?: string;
-  medicalExpiryDate?: string | null;
-  medicalTestDate?: string | null;
-  policeExpiryDate?: string | null;
-  visaNumber: string;
-  visaStatus?: string;
-  visaExpiryDate?: string | null;
-  bmetSmartCard?: string;
-  ticketStatus?: string;
-  flightDate?: string | null;
   packageCost: number;
+  totalPackage?: number;
+  grossPackage?: number;
+  discount?: number;
+  packageTitle?: string | null;
+  company?: string;
+  agent?: string;
   totalPaid: number;
   dueAmount: number;
-  advanceAmount: number;
+  passportExpiryDate?: string | null;
+  medicalExpiryDate?: string | null;
+  visaExpiryDate?: string | null;
+  hasMissingDocs?: boolean;
+  missingDocsCount?: number;
+  missingDocs?: Array<{
+    category: string;
+    name: string;
+    reason: string;
+  }>;
+  payments?: PaymentItem[];
   paymentHistory?: PaymentItem[];
-  createdAt: string;
 };
 
-type AgentDoc = {
-  id: string;
-  name: string;
-  type: string;
-  size: string;
-  fileData?: string | null;
-  uploadedBy: string;
-  createdAt: string;
+type PaymentItem = {
+  id?: string;
+  paymentNo?: string;
+  amount: number;
+  type?: string;
+  method?: string;
+  reference?: string;
+  createdAt?: string;
+  collectedAt?: string;
+  notes?: string;
 };
 
 type InterviewItem = {
   id: string;
-  candidateId: string;
-  fullName: string;
-  candidateNo: string;
-  phone: string;
-  passportNumber: string;
-  profession: string;
-  country: string;
+  company?: string;
+  profession?: string;
+  interviewDate?: string;
+  interviewTime?: string;
+  venue?: string;
+  result?: string;
+  status?: string;
+  candidateName?: string;
+  candidateId?: string;
+  fileId?: string;
+  phone?: string;
+};
+
+type DocumentItem = {
+  id: string;
   title: string;
-  company: string;
-  scheduledAt: string;
-  venue: string;
-  status: string;
-  result: string;
-  rating?: number | null;
-  notes?: string | null;
+  name?: string;
+  type: string;
+  url?: string;
+  createdAt?: string;
 };
 
 type AgentProfileData = {
   id: string;
-  code: string;
   name: string;
-  contactPerson: string | null;
-  phone: string;
-  email: string | null;
-  address: string | null;
-  country: string | null;
-  status: "Active" | "Inactive" | "Blocked";
-  agreementKey: string | null;
-  hasPortalAccess?: boolean;
-  portalLoginEmail?: string | null;
-  profileImageUrl?: string | null;
+  code?: string;
+  contactPerson?: string;
+  phone?: string;
+  email?: string;
+  agreementKey?: string;
   totalCandidateCount: number;
   completedCandidateCount: number;
   incompleteCandidateCount: number;
   grandTotalCollected: number;
-  grandTotalPackage: number;
   grandTotalDue: number;
-  grandTotalAdvance: number;
   candidates: CandidateItem[];
-  documents: AgentDoc[];
-  interviews: InterviewItem[];
-  metrics: {
-    totalCandidates: number;
-    completedCount: number;
-    incompleteCount: number;
-    completionPercentage: number;
-    activeDossiers: number;
-    completedFlights: number;
-    visaStamped: number;
-    totalPackage: number;
-    totalCollectedFromCandidates: number;
-    totalDue: number;
-    totalAdvance: number;
-    totalCandidatesWithMissingDocs?: number;
-    totalCompleteDocsCandidates?: number;
+  interviews?: InterviewItem[];
+  documents?: DocumentItem[];
+  metrics?: {
+    activeDossiers?: number;
+    completedFlights?: number;
     totalMissingDocsCount?: number;
     missingPassports?: number;
     missingMedicals?: number;
     missingPolices?: number;
     missingNids?: number;
     missingVisas?: number;
+    totalDue?: number;
   };
 };
 
-export function AgentPortalView({ agentId }: { agentId: string }) {
-  const [activeTab, setActiveTab] = useState<"candidates" | "missing" | "expiry" | "ledger" | "interviews" | "docs">("candidates");
+export type PortalTab = "dashboard" | "candidates" | "missing" | "expiry" | "ledger" | "interviews" | "docs";
+
+export function AgentPortalView({
+  agentId,
+  initialTab,
+  initialCountry,
+}: {
+  agentId: string;
+  initialTab?: PortalTab;
+  initialCountry?: string;
+}) {
+  const [activeTab, setActiveTab] = useState<PortalTab>(() => {
+    if (initialTab && ["dashboard", "candidates", "missing", "expiry", "ledger", "interviews", "docs"].includes(initialTab)) {
+      return initialTab;
+    }
+    if (initialCountry && initialCountry !== "All") {
+      return "candidates";
+    }
+    return "dashboard";
+  });
+
   const [searchQuery, setSearchQuery] = useState("");
-  const [countryFilter, setCountryFilter] = useState("All");
+  const [countryFilter, setCountryFilter] = useState(initialCountry || "All");
   const [stageFilter, setStageFilter] = useState("All");
-  const [docStatusFilter, setDocStatusFilter] = useState<"All" | "Missing" | "Complete">("All");
   const [missingCategoryFilter, setMissingCategoryFilter] = useState<string>("ALL");
-  const [missingSearch, setMissingSearch] = useState<string>("");
   const [expiryStatusFilter, setExpiryStatusFilter] = useState<string>("ALL");
   const [expiryDocTypeFilter, setExpiryDocTypeFilter] = useState<string>("ALL");
-  const [expirySearch, setExpirySearch] = useState<string>("");
-  const [selectedCandidate, setSelectedCandidate] = useState<CandidateItem | null>(null);
+  const [interviewStatusFilter, setInterviewStatusFilter] = useState<string>("ALL");
+
   const [previewDoc, setPreviewDoc] = useState<{ name: string; type: string; fileData?: string | null } | null>(null);
   const [activeReceipt, setActiveReceipt] = useState<ReceiptData | null>(null);
+  const [activeReceiptsList, setActiveReceiptsList] = useState<ReceiptData[]>([]);
+  const [activeReceiptIndex, setActiveReceiptIndex] = useState<number>(0);
+
+  // Synchronize Tab and Country with URL query params
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const syncWithUrl = () => {
+      const sp = new URLSearchParams(window.location.search);
+      const t = sp.get("tab") as PortalTab | null;
+      const c = sp.get("country");
+      if (t && ["dashboard", "candidates", "missing", "expiry", "ledger", "interviews", "docs"].includes(t)) {
+        setActiveTab(t);
+      } else if (c && c.toLowerCase() !== "all") {
+        setActiveTab("candidates");
+      } else {
+        setActiveTab("dashboard");
+      }
+      if (c && c.toLowerCase() !== "all") {
+        setCountryFilter(c);
+      } else {
+        setCountryFilter("All");
+      }
+    };
+    syncWithUrl();
+    window.addEventListener("popstate", syncWithUrl);
+    return () => window.removeEventListener("popstate", syncWithUrl);
+  }, []);
+
+  const selectTab = (tab: PortalTab) => {
+    setActiveTab(tab);
+    setSearchQuery("");
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      if (tab === "dashboard") {
+        sp.delete("tab");
+        sp.delete("country");
+        setCountryFilter("All");
+      } else {
+        sp.set("tab", tab);
+        if (tab !== "candidates") {
+          sp.delete("country");
+          setCountryFilter("All");
+        }
+      }
+      const newUrl = `${window.location.pathname}${sp.toString() ? `?${sp.toString()}` : ""}`;
+      window.history.pushState(null, "", newUrl);
+      window.dispatchEvent(new Event("popstate"));
+    }
+  };
+
+  const selectCountry = (country: string) => {
+    setCountryFilter(country);
+    setSearchQuery("");
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      if (country === "All") {
+        sp.delete("country");
+        sp.set("tab", "candidates");
+        setActiveTab("candidates");
+      } else {
+        sp.set("country", country);
+        sp.delete("tab");
+        setActiveTab("candidates");
+      }
+      const newUrl = `${window.location.pathname}${sp.toString() ? `?${sp.toString()}` : ""}`;
+      window.history.pushState(null, "", newUrl);
+      window.dispatchEvent(new Event("popstate"));
+    }
+  };
 
   const { data: agentData, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ["agent-portal-data", agentId],
@@ -225,11 +246,74 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
   });
 
   const formatTk = (val: number) => `৳ ${(val || 0).toLocaleString()}`;
+  const formatDate = (val?: string | null) => (val ? new Date(val).toLocaleDateString("en-GB") : "—");
 
-  const openPrintReceipt = (p: PaymentItem, cand: CandidateItem) => {
-    setActiveReceipt({
-      receiptNo: p.reference || `REC-${p.paymentNo ? p.paymentNo.slice(-6) : Date.now().toString().slice(-6)}`,
-      date: new Date(p.createdAt || Date.now()).toLocaleDateString("en-GB"),
+  const openPrintReceipt = (cand?: CandidateItem, targetPayment?: PaymentItem, isMasterOnly = false) => {
+    if (!cand) return;
+    const rawPayments = cand.payments || cand.paymentHistory || [];
+    const paymentsToProcess = rawPayments.length > 0 ? rawPayments : targetPayment ? [targetPayment] : [];
+    if (paymentsToProcess.length === 0) return;
+
+    // Chronologically sort payments (oldest first) so running previouslyPaid is accurate
+    const sorted = [...paymentsToProcess].sort((a, b) => {
+      const ta = new Date(a.collectedAt || a.createdAt || 0).getTime();
+      const tb = new Date(b.collectedAt || b.createdAt || 0).getTime();
+      return ta - tb;
+    });
+
+    const candidatePackage = cand.packageCost || cand.totalPackage || 0;
+    const agentDisplay = agentData?.name
+      ? `${agentData.name}${agentData.code ? ` (${agentData.code})` : ""}`
+      : "Al-Ameen Travels & Tours (AGT-001)";
+
+    let runningPaid = 0;
+    const allReceipts: ReceiptData[] = sorted.map((p, idx) => {
+      const previouslyPaid = runningPaid;
+      runningPaid += Number(p.amount);
+      const cleanType = cleanPaymentType(p.type);
+
+      return {
+        receiptNo: p.reference || `REC-${p.paymentNo ? p.paymentNo.slice(-6) : (idx + 1).toString().padStart(6, "0")}`,
+        date: new Date(p.collectedAt || p.createdAt || Date.now()).toLocaleDateString("en-GB"),
+        candidateName: cand.fullName,
+        candidateNo: cand.candidateNo,
+        fileNo: cand.fileNo,
+        passportNo: cand.passportNumber,
+        phone: cand.phone,
+        country: cand.country,
+        profession: cand.profession,
+        agent: agentDisplay,
+        company: cand.company || "Awaiting Sponsor",
+        paymentType: cleanType,
+        paymentMethod: p.method || "Cash at Office",
+        referenceNo: p.reference || `REC-${p.paymentNo ? p.paymentNo.slice(-6) : "OFFICE"}`,
+        amount: Number(p.amount),
+        totalPackage: candidatePackage,
+        grossPackage: cand.grossPackage,
+        discount: cand.discount,
+        previouslyPaid,
+        totalPaid: runningPaid,
+        officerName: "Central Accounts",
+        notes: p.notes || (p.type === "MAD" ? "BMET Manpower & Final Processing Fee Settlement" : undefined),
+      };
+    });
+
+    // Master Consolidated Receipt
+    const masterItems: ReceiptItem[] = sorted.map((p, idx) => ({
+      sl: idx + 1,
+      date: new Date(p.collectedAt || p.createdAt || Date.now()).toLocaleDateString("en-GB"),
+      type: cleanPaymentType(p.type),
+      method: p.method || "Cash at Office",
+      reference: p.reference || (p.paymentNo ? `REC-${p.paymentNo.slice(-6)}` : `REC-${idx + 1}`),
+      amount: Number(p.amount),
+      notes: p.notes || (p.type === "MAD" ? "BMET Manpower & Final Processing Fee Settlement" : undefined),
+    }));
+
+    const totalCollected = cand.totalPaid !== undefined ? cand.totalPaid : runningPaid;
+    const masterReceipt: ReceiptData = {
+      isMasterReceipt: true,
+      receiptNo: `MR-${cand.fileNo.replace("FILE-", "")}`,
+      date: new Date().toLocaleDateString("en-GB"),
       candidateName: cand.fullName,
       candidateNo: cand.candidateNo,
       fileNo: cand.fileNo,
@@ -237,14 +321,35 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
       phone: cand.phone,
       country: cand.country,
       profession: cand.profession,
-      paymentType: p.type || "Candidate Payment Deposit",
-      paymentMethod: p.method || "Cash at Office",
-      referenceNo: p.reference || undefined,
-      amount: p.amount,
-      totalPackage: cand.packageCost,
-      totalPaid: cand.totalPaid,
+      agent: agentDisplay,
+      company: cand.company || "Awaiting Sponsor",
+      paymentType: "Master Statement (All Payments)",
+      paymentMethod: "Office Accounts",
+      referenceNo: `STMT-${cand.fileNo}`,
+      amount: totalCollected,
+      totalPaid: totalCollected,
+      totalPackage: candidatePackage,
+      grossPackage: cand.grossPackage,
+      discount: cand.discount,
       officerName: "Central Accounts",
-    });
+      items: masterItems,
+    };
+
+    const combinedList = [masterReceipt, ...allReceipts];
+
+    let targetIdx = 0; // Default to Master Receipt
+    if (isMasterOnly) {
+      targetIdx = 0;
+    } else if (targetPayment) {
+      const found = allReceipts.findIndex(
+        (r) => r.receiptNo === targetPayment.reference || r.amount === targetPayment.amount
+      );
+      if (found !== -1) targetIdx = found + 1;
+    }
+
+    setActiveReceiptsList(combinedList);
+    setActiveReceiptIndex(targetIdx);
+    setActiveReceipt(combinedList[targetIdx] || null);
   };
 
   // Expiry Tracking Engine: Evaluates Passport, Medical GAMCA, Police PCC, and Visa expiration
@@ -262,11 +367,8 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
     }> = [];
 
     (agentData.candidates || []).forEach((cand) => {
-      // 1. Passport Record Expiry
-      if (cand.passportNumber && cand.passportNumber !== "N/A") {
-        const exp = cand.passportExpiryDate
-          ? new Date(cand.passportExpiryDate)
-          : new Date(new Date(cand.createdAt || Date.now()).getTime() + 180 * 86400000);
+      if (cand.passportNumber && cand.passportNumber !== "N/A" && cand.passportExpiryDate) {
+        const exp = new Date(cand.passportExpiryDate);
         const days = Math.ceil((exp.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
         let urgency: "EXPIRED" | "CRITICAL" | "WARNING" | "SAFE" = "SAFE";
         let action = "Passport validity is healthy (> 9 months) & flight ready.";
@@ -293,32 +395,27 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
         });
       }
 
-      // 2. GAMCA Medical Fitness Expiry (60-day rule)
-      if (cand.medicalResult || cand.medicalExpiryDate || cand.medicalTestDate || cand.currentStage?.toLowerCase().includes("med") || cand.currentStage?.toLowerCase().includes("takamul")) {
-        const exp = cand.medicalExpiryDate
-          ? new Date(cand.medicalExpiryDate)
-          : cand.medicalTestDate
-          ? new Date(new Date(cand.medicalTestDate).getTime() + 60 * 86400000)
-          : new Date(Date.now() + 12 * 86400000);
+      if (cand.medicalExpiryDate) {
+        const exp = new Date(cand.medicalExpiryDate);
         const days = Math.ceil((exp.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
         let urgency: "EXPIRED" | "CRITICAL" | "WARNING" | "SAFE" = "SAFE";
-        let action = "Medical fitness certificate active in GCC GAMCA portal.";
+        let action = "GAMCA medical fitness certificate is valid.";
         if (days < 0) {
           urgency = "EXPIRED";
-          action = "Medical fitness expired (60-day rule). Candidate must undergo re-medical.";
+          action = "Medical validity expired! Candidate must re-take GCC medical checkup.";
         } else if (days <= 15) {
           urgency = "CRITICAL";
-          action = "Medical expiring very soon! Expedite embassy visa submission to avoid re-medical costs.";
+          action = "Medical expiring in < 15 days! Expedite visa stamping immediately.";
         } else if (days <= 30) {
           urgency = "WARNING";
-          action = "Within 30 days of expiry. Complete embassy submission without delay.";
+          action = "Medical validity under 30 days. Priority processing recommended.";
         }
 
         items.push({
           id: `med-${cand.candidateId}`,
           candidate: cand,
           docType: "GAMCA Medical",
-          docRef: `FIT (${cand.medicalResult || "Passed"})`,
+          docRef: `FIT-${cand.fileNo}`,
           expiryDate: exp,
           daysLeft: days,
           urgency,
@@ -326,58 +423,27 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
         });
       }
 
-      // 3. Police Clearance Certificate (PCC)
-      if (cand.policeExpiryDate || cand.currentStage?.toLowerCase().includes("police")) {
-        const exp = cand.policeExpiryDate
-          ? new Date(cand.policeExpiryDate)
-          : new Date(Date.now() + 45 * 86400000);
+      if (cand.visaExpiryDate) {
+        const exp = new Date(cand.visaExpiryDate);
         const days = Math.ceil((exp.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
         let urgency: "EXPIRED" | "CRITICAL" | "WARNING" | "SAFE" = "SAFE";
-        let action = "PCC verified by Special Branch.";
+        let action = "Visa validity active for flight deployment.";
         if (days < 0) {
           urgency = "EXPIRED";
-          action = "Police Clearance Certificate expired. Re-apply online via police portal.";
-        } else if (days <= 20) {
-          urgency = "CRITICAL";
-          action = "PCC expiring soon. Submit for embassy visa clearance.";
-        }
-
-        items.push({
-          id: `pcc-${cand.candidateId}`,
-          candidate: cand,
-          docType: "Police Clearance (PCC)",
-          docRef: "PCC Clearance",
-          expiryDate: exp,
-          daysLeft: days,
-          urgency,
-          actionRequired: action,
-        });
-      }
-
-      // 4. Stamped Visa Validity (90-day window to fly)
-      if (cand.visaExpiryDate || (cand.visaNumber && cand.visaNumber !== "Pending") || cand.currentStage?.toLowerCase().includes("visa") || cand.currentStage?.toLowerCase().includes("flight")) {
-        const exp = cand.visaExpiryDate
-          ? new Date(cand.visaExpiryDate)
-          : new Date(Date.now() + 50 * 86400000);
-        const days = Math.ceil((exp.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-        let urgency: "EXPIRED" | "CRITICAL" | "WARNING" | "SAFE" = "SAFE";
-        let action = "Visa active. Proceed with BMET and flight ticketing.";
-        if (days < 0) {
-          urgency = "EXPIRED";
-          action = "Stamped Visa validity expired! Immediate sponsor re-validation required.";
+          action = "Entry permit / Visa expired! Extension or re-validation required.";
         } else if (days <= 15) {
           urgency = "CRITICAL";
-          action = "Emergency! Candidate must fly immediately before visa lapses.";
+          action = "Visa expiring in < 15 days! Book flight departure immediately.";
         } else if (days <= 30) {
           urgency = "WARNING";
-          action = "Complete BMET clearance and confirm flight booking.";
+          action = "Visa expiring soon. Complete BMET clearance and ticketing.";
         }
 
         items.push({
           id: `visa-${cand.candidateId}`,
           candidate: cand,
           docType: "Stamped Visa",
-          docRef: cand.visaNumber || "E-Visa",
+          docRef: `VISA-${cand.fileNo}`,
           expiryDate: exp,
           daysLeft: days,
           urgency,
@@ -393,15 +459,132 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
     return (agentData?.candidates || []).filter((c) => Boolean(c.hasMissingDocs || (c.missingDocs && c.missingDocs.length > 0)));
   }, [agentData?.candidates]);
 
-  const candidatesWithCompleteDocs = useMemo(() => {
-    return (agentData?.candidates || []).filter((c) => !c.hasMissingDocs && (!c.missingDocs || c.missingDocs.length === 0));
+  // Countries with actual candidates
+  const availableCountries = useMemo(() => {
+    return Array.from(new Set((agentData?.candidates || []).map((c) => c.country).filter(Boolean)));
   }, [agentData?.candidates]);
 
-  const totalMissingDocsCount = useMemo(() => {
-    return (agentData?.candidates || []).reduce((sum, c) => sum + (c.missingDocsCount || (c.missingDocs?.length || 0)), 0);
+  // Destination pipelines breakdown for Dashboard
+  const countriesWithStats = useMemo(() => {
+    const map = new Map<string, { count: number; inProcess: number; visa: number; flight: number }>();
+    (agentData?.candidates || []).forEach((c) => {
+      const country = c.country || "Other";
+      const current = map.get(country) || { count: 0, inProcess: 0, visa: 0, flight: 0 };
+      current.count += 1;
+      if (c.isCompleted || c.currentStage.includes("Flight")) {
+        current.flight += 1;
+      } else if (c.currentStage.toLowerCase().includes("visa")) {
+        current.visa += 1;
+      } else {
+        current.inProcess += 1;
+      }
+      map.set(country, current);
+    });
+    return Array.from(map.entries()).map(([name, stats]) => ({
+      name,
+      flag: getCountryFlagEmoji(undefined, name),
+      ...stats,
+    }));
   }, [agentData?.candidates]);
 
-  // Missing documents list filter for the Missing Documents Tab in Portal
+  // Candidate funnel metrics (for Candidates page)
+  const candidateFunnel = useMemo(() => {
+    const candidates = agentData?.candidates || [];
+    const total = candidates.length;
+    const flight = candidates.filter((c) => c.isCompleted || c.currentStage.includes("Flight")).length;
+    const visa = candidates.filter((c) => !c.isCompleted && c.currentStage.toLowerCase().includes("visa")).length;
+    const inProcess = total - flight;
+    return { total, inProcess, visa, flight };
+  }, [agentData?.candidates]);
+
+  // Country-specific metrics when viewing a specific country
+  const selectedCountryStats = useMemo(() => {
+    if (countryFilter === "All") return null;
+    const cands = (agentData?.candidates || []).filter(
+      (c) =>
+        c.country.toLowerCase().includes(countryFilter.toLowerCase()) ||
+        countryFilter.toLowerCase().includes(c.country.toLowerCase())
+    );
+    const total = cands.length;
+    const flight = cands.filter((c) => c.isCompleted || c.currentStage.includes("Flight")).length;
+    const visa = cands.filter((c) => !c.isCompleted && c.currentStage.toLowerCase().includes("visa")).length;
+    const medical = cands.filter(
+      (c) =>
+        c.currentStage.toLowerCase().includes("medical") ||
+        c.currentStage.toLowerCase().includes("offer") ||
+        c.currentStage.toLowerCase().includes("trade")
+    ).length;
+    return { total, flight, visa, medical, candidates: cands };
+  }, [agentData?.candidates, countryFilter]);
+
+  // Financial totals
+  const totalAgreedPackage = useMemo(() => {
+    return (agentData?.candidates || []).reduce((sum, c) => sum + (c.packageCost || c.totalPackage || 0), 0);
+  }, [agentData?.candidates]);
+
+  const collectionRatio = useMemo(() => {
+    if (!totalAgreedPackage) return 0;
+    return Math.min(100, Math.round(((agentData?.grandTotalCollected || 0) / totalAgreedPackage) * 100));
+  }, [agentData?.grandTotalCollected, totalAgreedPackage]);
+
+  // Expiry status breakdowns
+  const expiredCount = expiryItems.filter((i) => i.urgency === "EXPIRED").length;
+  const criticalExpiryCount = expiryItems.filter((i) => i.urgency === "EXPIRED" || i.urgency === "CRITICAL").length;
+  const warningExpiryCount = expiryItems.filter((i) => i.urgency === "WARNING").length;
+  const safeExpiryCount = expiryItems.filter((i) => i.urgency === "SAFE").length;
+
+  // Missing doc category breakdown
+  const missingPassports =
+    agentData?.metrics?.missingPassports ??
+    candidatesWithMissingDocs.filter((c) => (c.missingDocs || []).some((d) => d.category === "PASSPORT")).length;
+  const missingMedicals =
+    agentData?.metrics?.missingMedicals ??
+    candidatesWithMissingDocs.filter((c) => (c.missingDocs || []).some((d) => d.category === "MEDICAL")).length;
+  const missingPolices =
+    agentData?.metrics?.missingPolices ??
+    candidatesWithMissingDocs.filter((c) => (c.missingDocs || []).some((d) => d.category === "POLICE")).length;
+  const missingNids =
+    agentData?.metrics?.missingNids ??
+    candidatesWithMissingDocs.filter((c) => (c.missingDocs || []).some((d) => d.category === "NID")).length;
+  const missingVisas =
+    agentData?.metrics?.missingVisas ??
+    candidatesWithMissingDocs.filter((c) => (c.missingDocs || []).some((d) => d.category === "VISA")).length;
+
+  // Interview metrics
+  const interviewStats = useMemo(() => {
+    const ivs = agentData?.interviews || [];
+    const total = ivs.length;
+    const selected = ivs.filter((i) => /select|pass/i.test(i.result || i.status || "")).length;
+    const scheduled = ivs.filter((i) => /schedul/i.test(i.result || i.status || "")).length;
+    const review = ivs.filter((i) => /wait|review|pend/i.test(i.result || i.status || "")).length;
+    return { total, selected, scheduled, review };
+  }, [agentData?.interviews]);
+
+  // Filter candidates (Tab 1 / Country Workspace)
+  const filteredCandidates = useMemo(() => {
+    return (agentData?.candidates || []).filter((cand) => {
+      const q = searchQuery.toLowerCase().trim();
+      const matchesQ =
+        !q ||
+        cand.fullName.toLowerCase().includes(q) ||
+        cand.passportNumber.toLowerCase().includes(q) ||
+        cand.phone.toLowerCase().includes(q) ||
+        cand.fileNo.toLowerCase().includes(q) ||
+        cand.country.toLowerCase().includes(q) ||
+        cand.profession.toLowerCase().includes(q);
+
+      const matchesCountry =
+        countryFilter === "All" ||
+        cand.country.toLowerCase().includes(countryFilter.toLowerCase()) ||
+        countryFilter.toLowerCase().includes(cand.country.toLowerCase());
+
+      const matchesStage = stageFilter === "All" || cand.currentStage.toLowerCase().includes(stageFilter.toLowerCase());
+
+      return matchesQ && matchesCountry && matchesStage;
+    });
+  }, [agentData?.candidates, searchQuery, countryFilter, stageFilter]);
+
+  // Filter missing docs (Tab 2)
   const filteredMissingDocCandidates = useMemo(() => {
     return candidatesWithMissingDocs.filter((cand) => {
       if (countryFilter !== "All") {
@@ -414,8 +597,8 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
         const hasCategory = (cand.missingDocs || []).some((d) => d.category === missingCategoryFilter);
         if (!hasCategory) return false;
       }
-      if (missingSearch) {
-        const q = missingSearch.toLowerCase();
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase().trim();
         return (
           cand.fullName.toLowerCase().includes(q) ||
           cand.phone.toLowerCase().includes(q) ||
@@ -427,31 +610,76 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
       }
       return true;
     });
-  }, [candidatesWithMissingDocs, countryFilter, missingCategoryFilter, missingSearch]);
+  }, [candidatesWithMissingDocs, countryFilter, missingCategoryFilter, searchQuery]);
 
-  const criticalExpiryCount = expiryItems.filter((i) => i.urgency === "EXPIRED" || i.urgency === "CRITICAL").length;
-  const warningExpiryCount = expiryItems.filter((i) => i.urgency === "WARNING").length;
-  const safeExpiryCount = expiryItems.filter((i) => i.urgency === "SAFE").length;
+  // Filter expiry items (Tab 3)
+  const filteredExpiryItems = useMemo(() => {
+    return expiryItems.filter((item) => {
+      if (expiryStatusFilter !== "ALL") {
+        if (expiryStatusFilter === "CRITICAL" && item.urgency !== "EXPIRED" && item.urgency !== "CRITICAL") return false;
+        if (expiryStatusFilter === "WARNING" && item.urgency !== "WARNING") return false;
+        if (expiryStatusFilter === "SAFE" && item.urgency !== "SAFE") return false;
+      }
+      if (expiryDocTypeFilter !== "ALL" && item.docType !== expiryDocTypeFilter) return false;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase().trim();
+        return (
+          item.candidate.fullName.toLowerCase().includes(q) ||
+          item.candidate.candidateNo.toLowerCase().includes(q) ||
+          item.candidate.fileNo.toLowerCase().includes(q) ||
+          item.candidate.passportNumber.toLowerCase().includes(q) ||
+          item.docRef.toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [expiryItems, expiryStatusFilter, expiryDocTypeFilter, searchQuery]);
 
-  const filteredExpiryItems = expiryItems.filter((item) => {
-    if (expiryStatusFilter !== "ALL") {
-      if (expiryStatusFilter === "CRITICAL" && item.urgency !== "EXPIRED" && item.urgency !== "CRITICAL") return false;
-      if (expiryStatusFilter === "WARNING" && item.urgency !== "WARNING") return false;
-      if (expiryStatusFilter === "SAFE" && item.urgency !== "SAFE") return false;
-    }
-    if (expiryDocTypeFilter !== "ALL" && item.docType !== expiryDocTypeFilter) return false;
-    if (expirySearch) {
-      const q = expirySearch.toLowerCase().trim();
+  // Filter ledger candidates (Tab 4)
+  const filteredLedgerCandidates = useMemo(() => {
+    return (agentData?.candidates || []).filter((cand) => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase().trim();
       return (
-        item.candidate.fullName.toLowerCase().includes(q) ||
-        item.candidate.candidateNo.toLowerCase().includes(q) ||
-        item.candidate.fileNo.toLowerCase().includes(q) ||
-        item.candidate.passportNumber.toLowerCase().includes(q) ||
-        item.docRef.toLowerCase().includes(q)
+        cand.fullName.toLowerCase().includes(q) ||
+        cand.passportNumber.toLowerCase().includes(q) ||
+        cand.fileNo.toLowerCase().includes(q) ||
+        cand.country.toLowerCase().includes(q)
       );
-    }
-    return true;
-  });
+    });
+  }, [agentData?.candidates, searchQuery]);
+
+  // Filter interviews (Tab 5)
+  const filteredInterviews = useMemo(() => {
+    return (agentData?.interviews || []).filter((iv) => {
+      if (interviewStatusFilter !== "ALL") {
+        const res = (iv.result || iv.status || "").toLowerCase();
+        if (!res.includes(interviewStatusFilter.toLowerCase())) return false;
+      }
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase().trim();
+        return (
+          (iv.candidateName || "").toLowerCase().includes(q) ||
+          (iv.company || "").toLowerCase().includes(q) ||
+          (iv.profession || "").toLowerCase().includes(q) ||
+          (iv.venue || "").toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [agentData?.interviews, interviewStatusFilter, searchQuery]);
+
+  // Filter documents (Tab 6)
+  const filteredDocs = useMemo(() => {
+    return (agentData?.documents || []).filter((doc) => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase().trim();
+      return (
+        (doc.title || doc.name || "").toLowerCase().includes(q) ||
+        (doc.type || "").toLowerCase().includes(q)
+      );
+    });
+  }, [agentData?.documents, searchQuery]);
 
   if (isError) {
     return (
@@ -467,12 +695,12 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
   if (isLoading || !agentData) {
     return (
       <div style={{ padding: "60px 20px", textAlign: "center", display: "grid", placeItems: "center" }}>
-        <div className="portal-card" style={{ background: "#fff", padding: "40px 60px", borderRadius: "16px", border: "1px solid var(--line)", boxShadow: "var(--shadow)" }}>
+        <div className="portal-card" style={{ background: "#fff", padding: "40px 60px", borderRadius: "16px", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
           <RefreshCw className="animate-spin" size={32} color="#007aff" style={{ margin: "0 auto 16px" }} />
-          <h3 style={{ fontSize: "16px", fontWeight: 600, color: "var(--ink)", marginBottom: "6px" }}>
+          <h3 style={{ fontSize: "16px", fontWeight: 600, color: "#0f172a", marginBottom: "6px" }}>
             Loading Agent Portal...
           </h3>
-          <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0 }}>
+          <p style={{ fontSize: "13px", color: "#64748b", margin: 0 }}>
             Fetching your referred candidates, visa statuses, and financial statement.
           </p>
         </div>
@@ -480,1689 +708,1861 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
     );
   }
 
-  // Filter candidates
-  const filteredCandidates = (agentData.candidates || []).filter((cand) => {
-    const q = searchQuery.toLowerCase().trim();
-    const matchesQ =
-      !q ||
-      cand.fullName.toLowerCase().includes(q) ||
-      cand.passportNumber.toLowerCase().includes(q) ||
-      cand.phone.toLowerCase().includes(q) ||
-      cand.fileNo.toLowerCase().includes(q) ||
-      cand.country.toLowerCase().includes(q) ||
-      cand.profession.toLowerCase().includes(q);
+  const now = new Date();
+  const greeting =
+    now.getHours() < 12
+      ? "Good Morning"
+      : now.getHours() < 17
+      ? "Good Afternoon"
+      : "Good Evening";
 
-    const matchesCountry = countryFilter === "All" || cand.country.toLowerCase() === countryFilter.toLowerCase();
-    const matchesStage = stageFilter === "All" || cand.currentStage.toLowerCase().includes(stageFilter.toLowerCase());
-    const matchesDocStatus =
-      docStatusFilter === "All" ||
-      (docStatusFilter === "Missing" && (cand.hasMissingDocs || (cand.missingDocs && cand.missingDocs.length > 0))) ||
-      (docStatusFilter === "Complete" && !cand.hasMissingDocs && (!cand.missingDocs || cand.missingDocs.length === 0));
+  const timestamp = new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(now);
 
-    return matchesQ && matchesCountry && matchesStage && matchesDocStatus;
-  });
+  const displayName = agentData.contactPerson && agentData.contactPerson !== "N/A" ? agentData.contactPerson : agentData.name;
 
-  const availableCountries = Array.from(new Set((agentData.candidates || []).map((c) => c.country).filter(Boolean)));
-
-  return (
-    <div className="agent-portal-design">
-      <div className="portal-page-heading">
-        <div className="portal-breadcrumb"><Building2 size={14} /> Partner workspace <ChevronRight size={13} /> <span>Agent portal</span></div>
-        <span className="portal-access"><Lock size={12} /> Read-only access</span>
+  // Reusable Executive Hero Header Renderer
+  const renderHero = ({
+    badge,
+    title,
+    subtitle,
+    actions,
+  }: {
+    badge: string;
+    title: React.ReactNode;
+    subtitle: string;
+    actions?: React.ReactNode;
+  }) => (
+    <div className="dashboard-exec-hero">
+      <div className="dashboard-welcome">
+        <div className="dashboard-live-status">
+          <DashboardIcon name="LiveIndicator" />
+          <span>{badge}</span>
+          <small>· {agentData.name} ({agentData.code || "AGT-001"})</small>
+        </div>
+        <h1>{title}</h1>
+        <p>{timestamp} · {subtitle}</p>
       </div>
-      <section className="portal-hero" aria-label="Partner profile">
-        <div className="portal-identity">
-          <div className="portal-avatar">
-            {agentData.profileImageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={agentData.profileImageUrl} alt={`${agentData.name} profile`} />
-            ) : agentData.name.slice(0, 2).toUpperCase()}
-          </div>
-          <div className="portal-partner-info">
-            <div className="portal-partner-meta"><span className="portal-code">{agentData.code}</span><span className={`portal-status ${agentData.status === "Active" ? "is-active" : "is-inactive"}`}><ShieldCheck size={12} /> {agentData.status} partner</span></div>
-            <h1>{agentData.name}</h1>
-            <div className="portal-contact">
-              <span><UserCheck size={13} /> {agentData.contactPerson && agentData.contactPerson !== "N/A" ? agentData.contactPerson : "Partner Lead"}</span>
-              <a href={`tel:${agentData.phone}`}><Phone size={13} /> {agentData.phone}</a>
-              <span><MapPin size={13} /> {agentData.address || agentData.country || "—"}</span>
-            </div>
-          </div>
-        </div>
-        <div className="portal-hero-actions">
-          <button type="button" className="portal-button" onClick={() => refetch()} disabled={isRefetching}><RefreshCw size={14} className={isRefetching ? "animate-spin" : ""} /> {isRefetching ? "Refreshing…" : "Refresh"}</button>
-          <button type="button" className="portal-button portal-button-primary" onClick={() => window.print()}><Printer size={14} /> Print statement</button>
-        </div>
-      </section>
-
-      {/* 1.5 SMART DUAL ALERT NOTIFICATION HUB (EXPIRY & MISSING REQUIREMENTS) */}
-      {(criticalExpiryCount > 0 || warningExpiryCount > 0 || candidatesWithMissingDocs.length > 0) && (
-        <div className="portal-grid"
-          style={{
-            display: "grid",
-            gridTemplateColumns:
-              (criticalExpiryCount > 0 || warningExpiryCount > 0) && candidatesWithMissingDocs.length > 0
-                ? "repeat(auto-fit, minmax(460px, 1fr))"
-                : "1fr",
-            gap: "14px",
-          }}
+      <div className="dashboard-exec-ctas">
+        {actions}
+        <button
+          type="button"
+          className="dashboard-action primary"
+          onClick={() => refetch()}
+          disabled={isRefetching}
         >
-          {/* Card 1: Expiry Alert Card */}
-          {(criticalExpiryCount > 0 || warningExpiryCount > 0) && (
-            <div className="portal-card portal-wrap portal-alert portal-alert-warning"
-              style={{
-                background:
-                  criticalExpiryCount > 0
-                    ? "linear-gradient(135deg, #fffbeb 0%, #fef3c7 40%, #fff7ed 100%)"
-                    : "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
-                border: criticalExpiryCount > 0 ? "1px solid #fde68a" : "1px solid #e2e8f0",
-                borderLeft: criticalExpiryCount > 0 ? "4px solid #f59e0b" : "4px solid #94a3b8",
-                borderRadius: "14px",
-                padding: "14px 18px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                flexWrap: "wrap",
-                gap: "12px",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-              }}
-            >
-              <div className="portal-search-slot" style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1, minWidth: "260px" }}>
-                <div
-                  style={{
-                    width: "38px",
-                    height: "38px",
-                    borderRadius: "10px",
-                    background:
-                      criticalExpiryCount > 0
-                        ? "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
-                        : "linear-gradient(135deg, #64748b 0%, #475569 100%)",
-                    color: "#ffffff",
-                    display: "grid",
-                    placeItems: "center",
-                    flexShrink: 0,
-                    boxShadow:
-                      criticalExpiryCount > 0
-                        ? "0 3px 8px rgba(217, 119, 6, 0.25)"
-                        : "0 3px 8px rgba(100, 116, 139, 0.2)",
-                  }}
-                >
-                  <Clock size={19} />
+          <RefreshCw size={14} className={isRefetching ? "animate-spin" : ""} />{" "}
+          {isRefetching ? "Refreshing…" : "Refresh"}
+        </button>
+      </div>
+    </div>
+  );
+
+  // Common Reusable Candidates Table Renderer
+  const renderCandidatesTable = (list: CandidateItem[], totalCount: number, isPreview = false) => (
+    <div className="desktop-dashboard-table dashboard-leads-table">
+      <table>
+        <thead>
+          <tr>
+            <th style={{ width: "48px", minWidth: "48px", textAlign: "center" }}>SL</th>
+            <th style={{ minWidth: "240px" }}>CANDIDATE DETAILS</th>
+            <th style={{ minWidth: "130px" }}>PASSPORT</th>
+            <th style={{ minWidth: "140px" }}>DESTINATION</th>
+            <th style={{ minWidth: "160px" }}>TRADE / PROFESSION</th>
+            <th style={{ minWidth: "160px" }}>PIPELINE STAGE</th>
+            <th style={{ minWidth: "180px" }}>PAYMENTS &amp; BALANCE</th>
+            <th style={{ minWidth: "150px", width: "150px", textAlign: "right" }}>ACTIONS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {list.length === 0 ? (
+            <tr>
+              <td colSpan={8} style={{ padding: "60px 20px", textAlign: "center", color: "#64748b" }}>
+                <div style={{ display: "grid", placeItems: "center", gap: "8px" }}>
+                  <Users size={32} color="#94a3b8" />
+                  <b style={{ fontSize: "14px", color: "#0f172a" }}>No candidates found</b>
+                  <span style={{ fontSize: "12px" }}>Try adjusting your search query or country filters.</span>
                 </div>
-                <div>
-                  <div className="portal-wrap" style={{ display: "flex", alignItems: "center", gap: "7px", flexWrap: "wrap" }}>
-                    <b style={{ fontSize: "13.5px", color: criticalExpiryCount > 0 ? "#92400e" : "#334155" }}>
-                      Document expiry needs attention
-                    </b>
-                    <span
-                      style={{
-                        background: criticalExpiryCount > 0 ? "#fef3c7" : "#e2e8f0",
-                        border: criticalExpiryCount > 0 ? "1px solid #fde68a" : "1px solid #cbd5e1",
-                        color: criticalExpiryCount > 0 ? "#b45309" : "#475569",
-                        padding: "1px 7px",
-                        borderRadius: "9999px",
-                        fontSize: "11px",
-                        fontWeight: 600,
-                      }}
+              </td>
+            </tr>
+          ) : (
+            list.map((cand, idx) => (
+              <tr key={cand.fileId}>
+                <td style={{ color: "#64748b", fontWeight: 700, textAlign: "center", width: "48px", minWidth: "48px" }}>
+                  {idx + 1}
+                </td>
+                <td style={{ minWidth: "240px" }}>
+                  <div className="dashboard-candidate-identity">
+                    <Link
+                      href={`/portal/agent/candidate/${cand.fileId}?agentId=${encodeURIComponent(agentId)}`}
+                      className="dashboard-candidate-avatar"
+                      title="Open Candidate Master Dossier"
                     >
-                      {criticalExpiryCount > 0
-                        ? `${criticalExpiryCount} Expiring Urgently`
-                        : `${warningExpiryCount} Expiring Soon`}
-                    </span>
+                      {cand.fullName.slice(0, 2).toUpperCase()}
+                    </Link>
+                    <div>
+                      <Link
+                        href={`/portal/agent/candidate/${cand.fileId}?agentId=${encodeURIComponent(agentId)}`}
+                        style={{ textDecoration: "none", color: "inherit" }}
+                      >
+                        <b>{cand.fullName}</b>
+                      </Link>
+                      <small>
+                        <span>{cand.fileNo}</span> • <Phone size={10} style={{ display: "inline", verticalAlign: "middle" }} /> {cand.phone}
+                      </small>
+                    </div>
                   </div>
-                  <p
+                </td>
+                <td style={{ minWidth: "130px" }}>
+                  <span
                     style={{
-                      fontSize: "11.5px",
-                      color: criticalExpiryCount > 0 ? "#b45309" : "#64748b",
-                      margin: "3px 0 0",
-                      lineHeight: 1.35,
+                      fontFamily: "monospace",
+                      fontWeight: 600,
+                      background: "#f8fafc",
+                      padding: "4px 8px",
+                      borderRadius: "6px",
+                      border: "1px solid #e2e8f0",
+                      color: "#334155",
+                      fontSize: "12px",
                     }}
                   >
-                    Review passport renewals, GAMCA medical fit validity, and visa expiration dates.
-                  </p>
-                </div>
-              </div>
-
-              <button data-action-ui="secondary" data-action-size="normal"
-                type="button"
-                onClick={() => setActiveTab("expiry")}
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: "8px",
-                  background:
-                    criticalExpiryCount > 0
-                      ? "linear-gradient(135deg, #d97706 0%, #b45309 100%)"
-                      : "linear-gradient(135deg, #475569 0%, #334155 100%)",
-                  color: "#ffffff",
-                  border: "none",
-                  fontSize: "11.5px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  boxShadow:
-                    criticalExpiryCount > 0
-                      ? "0 2px 6px rgba(217, 119, 6, 0.25)"
-                      : "0 2px 6px rgba(51, 65, 85, 0.2)",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                <Clock size={13} /> View Expiry ({criticalExpiryCount + warningExpiryCount})
-              </button>
-            </div>
-          )}
-
-          {/* Card 2: Missing Requirements Alert Card */}
-          {candidatesWithMissingDocs.length > 0 && (
-            <div className="portal-card portal-wrap portal-alert"
-              style={{
-                background: "linear-gradient(135deg, #fff1f2 0%, #ffe4e6 40%, #fdf2f8 100%)",
-                border: "1px solid #fecdd3",
-                borderLeft: "4px solid #e11d48",
-                borderRadius: "14px",
-                padding: "14px 18px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                flexWrap: "wrap",
-                gap: "12px",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-              }}
-            >
-              <div className="portal-search-slot" style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1, minWidth: "260px" }}>
-                <div
-                  style={{
-                    width: "38px",
-                    height: "38px",
-                    borderRadius: "10px",
-                    background: "linear-gradient(135deg, #e11d48 0%, #be123c 100%)",
-                    color: "#ffffff",
-                    display: "grid",
-                    placeItems: "center",
-                    flexShrink: 0,
-                    boxShadow: "0 3px 8px rgba(225, 29, 72, 0.25)",
-                  }}
-                >
-                  <FileWarning size={19} />
-                </div>
-                <div>
-                  <div className="portal-wrap" style={{ display: "flex", alignItems: "center", gap: "7px", flexWrap: "wrap" }}>
-                    <b style={{ fontSize: "13.5px", color: "#881337" }}>
-                      Missing documents need attention
-                    </b>
-                    <span
-                      style={{
-                        background: "#ffe4e6",
-                        border: "1px solid #fecdd3",
-                        color: "#9f1239",
-                        padding: "1px 7px",
-                        borderRadius: "9999px",
-                        fontSize: "11px",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {candidatesWithMissingDocs.length} Candidate(s) • {totalMissingDocsCount} Missing Item(s)
-                    </span>
+                    {cand.passportNumber || "N/A"}
+                  </span>
+                </td>
+                <td style={{ minWidth: "140px" }}>
+                  <div style={{ fontWeight: 600, color: "#0f172a", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span>{getCountryFlagEmoji(undefined, cand.country)}</span>
+                    <span>{cand.country || "Saudi Arabia"}</span>
                   </div>
-                  <p style={{ fontSize: "11.5px", color: "#9f1239", margin: "3px 0 0", lineHeight: 1.35 }}>
-                    Please submit original Passport scans, GAMCA medical fit slips, Police PCC, or NID copies.
-                  </p>
+                </td>
+                <td style={{ minWidth: "160px" }}>
+                  <span style={{ fontSize: "12.5px", color: "#475569", fontWeight: 500 }}>
+                    {cand.profession || "General Work"}
+                  </span>
+                </td>
+                <td style={{ minWidth: "160px" }}>
+                  <span
+                    className={`badge ${
+                      cand.currentStage.includes("Flight") || cand.isCompleted
+                        ? "on-track"
+                        : cand.hasMissingDocs
+                        ? "attention"
+                        : "on-track"
+                    }`}
+                  >
+                    ● {cand.currentStage.includes("Flight") ? "Flight Ready" : cand.currentStage}
+                  </span>
+                  {cand.hasMissingDocs && (cand.missingDocsCount || 0) > 0 ? (
+                    <div style={{ marginTop: "4px" }}>
+                      <button
+                        type="button"
+                        onClick={() => selectTab("missing")}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          fontSize: "10.5px",
+                          fontWeight: 600,
+                          padding: "2px 7px",
+                          borderRadius: "6px",
+                          background: "#fee2e2",
+                          color: "#dc2626",
+                          border: "1px solid #fecdd3",
+                          cursor: "pointer",
+                        }}
+                        title={`Action Required: ${(cand.missingDocs || []).map((d) => d.name).join(", ")}`}
+                      >
+                        <AlertCircle size={10} /> {cand.missingDocsCount || cand.missingDocs?.length || 1} Missing File(s)
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ marginTop: "4px" }}>
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "3px",
+                          fontSize: "10.5px",
+                          fontWeight: 600,
+                          padding: "2px 7px",
+                          borderRadius: "6px",
+                          background: "#ecfdf5",
+                          color: "#059669",
+                          border: "1px solid #bbf7d0",
+                        }}
+                      >
+                        <CheckCircle2 size={10} /> All Docs Ready
+                      </span>
+                    </div>
+                  )}
+                </td>
+                <td style={{ minWidth: "200px" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+                      <span style={{ fontSize: "13px", fontWeight: 700, color: "#16a34a" }}>
+                        Paid: {formatTk(cand.totalPaid)}
+                      </span>
+                      {cand.dueAmount === 0 ? (
+                        <span
+                          style={{
+                            fontSize: "10px",
+                            fontWeight: 700,
+                            color: "#059669",
+                            background: "#ecfdf5",
+                            border: "1px solid #bbf7d0",
+                            padding: "1px 6px",
+                            borderRadius: "4px",
+                          }}
+                        >
+                          ✓ Paid in Full
+                        </span>
+                      ) : (
+                        <span
+                          style={{
+                            fontSize: "10px",
+                            fontWeight: 700,
+                            color: "#dc2626",
+                            background: "#fef2f2",
+                            border: "1px solid #fecaca",
+                            padding: "1px 6px",
+                            borderRadius: "4px",
+                          }}
+                        >
+                          Due: {formatTk(cand.dueAmount)}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: "11px", color: "#64748b", display: "flex", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>
+                      <span>Package: {formatTk(cand.packageCost || cand.totalPackage || 0)}</span>
+                      {Number(cand.discount || 0) > 0 && (
+                        <span style={{ color: "#059669", fontWeight: 700, fontSize: "10.5px" }}>
+                          (Disc: -৳{Number(cand.discount).toLocaleString()})
+                        </span>
+                      )}
+                    </div>
+                    {Boolean(cand.packageCost || cand.totalPackage) && (
+                      <div
+                        style={{
+                          width: "130px",
+                          height: "4px",
+                          background: "#e2e8f0",
+                          borderRadius: "4px",
+                          overflow: "hidden",
+                          marginTop: "3px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: `${Math.min(100, Math.round(((cand.totalPaid || 0) / (cand.packageCost || cand.totalPackage || 1)) * 100))}%`,
+                            height: "100%",
+                            background: cand.dueAmount === 0 ? "#16a34a" : "linear-gradient(90deg, #10b981, #059669)",
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </td>
+                <td style={{ minWidth: "150px", textAlign: "right" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "6px" }}>
+                    <Link
+                      href={`/portal/agent/candidate/${cand.fileId}?agentId=${encodeURIComponent(agentId)}`}
+                      className="dashboard-profile-link primary"
+                      title="Open Complete Master Dossier"
+                    >
+                      <FileText size={12} style={{ marginRight: "4px" }} /> Dossier →
+                    </Link>
+                  </div>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+      <div className="dashboard-table-summary">
+        {isPreview
+          ? `Showing recent ${list.length} candidate referrals · Total registered: ${totalCount}`
+          : `Showing ${list.length} of ${totalCount} candidate referrals`}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="recruitment-dashboard agent-portal-dashboard agent-portal-design">
+      {/* =========================================================================
+          VIEW A: COUNTRY WORKSPACE (When a destination like Dubai/Oman is selected)
+          ========================================================================= */}
+      {countryFilter !== "All" ? (
+        <>
+          {renderHero({
+            badge: `DESTINATION PIPELINE · ${countryFilter.toUpperCase()} WORKSPACE`,
+            title: `${getCountryFlagEmoji(undefined, countryFilter)} ${countryFilter} Candidate Pipeline`,
+            subtitle: `Active recruitment workflow, visa approvals, and departure readiness for ${countryFilter}`,
+            actions: (
+              <>
+                <button type="button" className="dashboard-action" onClick={() => selectCountry("All")}>
+                  ← All Destinations
+                </button>
+                <button type="button" className="dashboard-action" onClick={() => window.print()}>
+                  <Printer size={14} /> Print {countryFilter} Roster
+                </button>
+              </>
+            ),
+          })}
+
+          {/* Country-Specific 4 KPI Cards */}
+          <section className="dashboard-kpi-grid" aria-label={`${countryFilter} metrics overview`}>
+            <div
+              className="dashboard-kpi-card"
+              onClick={() => setStageFilter("All")}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="dashboard-metric-heading">
+                <span>{countryFilter} Candidates</span>
+                <DashboardIcon name="Users1" />
+              </div>
+              <b>{selectedCountryStats?.total || filteredCandidates.length}</b>
+              <p>↗ Active referrals for {countryFilter}</p>
+            </div>
+
+            <div
+              className="dashboard-kpi-card"
+              onClick={() => setStageFilter("Visa")}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="dashboard-metric-heading">
+                <span>Visas In-Flight</span>
+                <DashboardIcon name="FileCheck1" />
+              </div>
+              <b>{selectedCountryStats?.visa || 0}</b>
+              <p>Stamping &amp; E-Visa approval stage</p>
+            </div>
+
+            <div
+              className="dashboard-kpi-card"
+              onClick={() => setStageFilter("Medical")}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="dashboard-metric-heading">
+                <span>Medical &amp; Trade</span>
+                <FileCheck size={16} color="#007aff" />
+              </div>
+              <b>{selectedCountryStats?.medical || 0}</b>
+              <p>GAMCA test &amp; offer issuance</p>
+            </div>
+
+            <div
+              className="dashboard-kpi-card"
+              onClick={() => setStageFilter("Flight")}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="dashboard-metric-heading">
+                <span>Departure Ready</span>
+                <DashboardIcon name="Plane" />
+              </div>
+              <b>{selectedCountryStats?.flight || 0}</b>
+              <p>✈ Flight tickets confirmed</p>
+            </div>
+          </section>
+
+          {/* Country Candidates Table */}
+          <section className="dashboard-activity-section" aria-label={`${countryFilter} Candidate Roster`}>
+            <div className="dashboard-activity-toolbar">
+              <div className="dashboard-active-view-header">
+                <div className="dashboard-view-title">
+                  <DashboardIcon name="Users1" />
+                  <span>{countryFilter} Candidates Roster</span>
+                  <span className="dashboard-count-badge">
+                    {filteredCandidates.length}
+                  </span>
                 </div>
               </div>
 
-              <button data-action-ui="secondary" data-action-size="normal"
-                type="button"
-                onClick={() => setActiveTab("missing")}
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: "8px",
-                  background: "linear-gradient(135deg, #e11d48 0%, #be123c 100%)",
-                  color: "#ffffff",
-                  border: "none",
-                  fontSize: "11.5px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  boxShadow: "0 2px 6px rgba(225, 29, 72, 0.25)",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                <FileWarning size={13} /> View Missing ({candidatesWithMissingDocs.length})
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+              <div className="dashboard-module-tools">
+                <label className="dashboard-search-field">
+                  <DashboardIcon name="Search" />
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder={`Search ${countryFilter} candidates, passport, phone...`}
+                  />
+                </label>
 
-      <section className="portal-metrics" aria-label="Partner overview">
-        {[
-          { label: "Total candidates", value: agentData.totalCandidateCount, description: "Referred to agency", icon: Users, tone: "blue" },
-          { label: "Active in pipeline", value: agentData.metrics?.activeDossiers ?? agentData.incompleteCandidateCount, description: "Medical & visa processing", icon: Clock, tone: "orange" },
-          { label: "Flights completed", value: agentData.metrics?.completedFlights ?? agentData.completedCandidateCount, description: "Successfully deployed abroad", icon: Plane, tone: "green" },
-          { label: "Candidate collections", value: formatTk(agentData.grandTotalCollected), description: "Total paid by candidates", icon: Wallet, tone: "blue" },
-        ].map(({ label, value, description, icon: Icon, tone }) => (
-          <article className={`portal-metric tone-${tone}`} key={label}>
-            <div className="portal-metric-label">{label}<span className="portal-metric-icon"><Icon size={17} /></span></div>
-            <strong>{value}</strong><small>{description}</small>
-          </article>
-        ))}
-      </section>
-
-      <nav className="portal-tabs" aria-label="Agent portal sections">
-        {[
-          { id: "candidates" as const, label: "Candidates & pipeline", icon: Users, count: agentData.totalCandidateCount },
-          { id: "missing" as const, label: "Missing documents", icon: FileWarning, count: candidatesWithMissingDocs.length },
-          { id: "expiry" as const, label: "Expiry tracker", icon: CalendarClock, count: expiryItems.length },
-          { id: "ledger" as const, label: "Financial ledger", icon: Wallet, count: null },
-          { id: "interviews" as const, label: "Interview calls", icon: Calendar, count: agentData.interviews?.length || 0 },
-          { id: "docs" as const, label: "Agency documents", icon: FileText, count: agentData.documents?.length || 0 },
-        ].map(({ id, label, icon: Icon, count }) => (
-          <button key={id} type="button" aria-current={activeTab === id ? "page" : undefined} onClick={() => setActiveTab(id)}>
-            <Icon size={16} /><span>{label}</span>{count !== null && <span className={`portal-tab-count ${id === "missing" && count > 0 ? "has-alert" : ""}`}>{count}</span>}
-          </button>
-        ))}
-      </nav>
-
-      <div className="portal-workspace" key={activeTab}>
-      {/* 4. TAB 1: MY CANDIDATES PIPELINE TABLE */}
-      {activeTab === "candidates" && (
-        <div className="portal-section portal-section-candidates" style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-          <div className="portal-section-heading"><div><h2>Candidates &amp; pipeline</h2><p>Track your referrals, processing stages and payments.</p></div><span className="portal-result-count">{filteredCandidates.length} of {agentData.totalCandidateCount} candidates</span></div>
-          {/* Filter Bar */}
-          <div className="portal-card portal-wrap"
-            style={{
-              background: "#fff",
-              border: "1px solid var(--line)",
-              borderRadius: "14px",
-              padding: "14px 18px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              flexWrap: "wrap",
-              gap: "12px",
-              boxShadow: "var(--shadow)",
-            }}
-          >
-            <div className="portal-search-slot" style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, minWidth: "260px" }}>
-              <div className="portal-search" style={{ position: "relative", width: "100%", maxWidth: "380px" }}>
-                <Search size={15} style={{ position: "absolute", left: 12, top: 12, color: "var(--muted)" }} />
-                <input
-                  type="text"
-                  aria-label="Search candidates"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search candidate name, passport, file no, phone..."
-                  style={{
-                    width: "100%",
-                    height: "38px",
-                    padding: "0 12px 0 36px",
-                    borderRadius: "8px",
-                    border: "1px solid var(--line)",
-                    fontSize: "12.5px",
-                    outline: "none",
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="portal-wrap" style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--muted)" }}>Country:</span>
                 <select
-                  aria-label="Destination country"
-                  value={countryFilter}
-                  onChange={(e) => setCountryFilter(e.target.value)}
-                  style={{
-                    height: "36px",
-                    padding: "0 10px",
-                    borderRadius: "8px",
-                    border: "1px solid var(--line)",
-                    fontSize: "12px",
-                    outline: "none",
-                    background: "#fff",
-                  }}
-                >
-                  <option value="All">All Destination Countries</option>
-                  {availableCountries.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--muted)" }}>Stage:</span>
-                <select
-                  aria-label="Pipeline stage"
+                  aria-label="Filter by pipeline stage"
                   value={stageFilter}
                   onChange={(e) => setStageFilter(e.target.value)}
-                  style={{
-                    height: "36px",
-                    padding: "0 10px",
-                    borderRadius: "8px",
-                    border: "1px solid var(--line)",
-                    fontSize: "12px",
-                    outline: "none",
-                    background: "#fff",
-                  }}
+                  className="portal-select-filter"
                 >
-                  <option value="All">All Pipeline Stages</option>
+                  <option value="All">All Stages</option>
                   <option value="Medical">Medical Fit</option>
                   <option value="Visa">Visa Stamped</option>
                   <option value="Manpower">BMET / Manpower</option>
                   <option value="Flight">Flight Done / Ready</option>
                 </select>
               </div>
+            </div>
 
-              <div style={{ display: "flex", gap: "6px" }}>
-                <button
-                  type="button"
-                  aria-pressed={docStatusFilter === "Missing"}
-                  onClick={() => setDocStatusFilter(docStatusFilter === "Missing" ? "All" : "Missing")}
-                  style={{
-                    padding: "6px 12px",
-                    borderRadius: "8px",
-                    border: "1px solid",
-                    borderColor: docStatusFilter === "Missing" ? "#dc2626" : "#fecdd3",
-                    background: docStatusFilter === "Missing" ? "#dc2626" : "#fef2f2",
-                    color: docStatusFilter === "Missing" ? "#ffffff" : "#dc2626",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
-                >
-                  Missing docs ({candidatesWithMissingDocs.length})
+            <div id="dashboard-activity-panel" role="tabpanel">
+              {renderCandidatesTable(filteredCandidates, selectedCountryStats?.total || filteredCandidates.length)}
+            </div>
+          </section>
+        </>
+      ) : activeTab === "dashboard" ? (
+        /* =========================================================================
+            VIEW 1: DASHBOARD COMMAND CENTER (Executive Overview, 4 KPIs, Hubs)
+            ========================================================================= */
+        <>
+          {renderHero({
+            badge: "LIVE RECRUITMENT CONTROL",
+            title: `${greeting}, ${displayName}!`,
+            subtitle: "Partner Portal — Real-time Candidate Pipeline, Processing & Financial Control",
+            actions: (
+              <>
+                <button type="button" className="dashboard-action" onClick={() => selectTab("ledger")}>
+                  <DashboardIcon name="CreditCard" /> Collections
                 </button>
+                <button type="button" className="dashboard-action" onClick={() => selectTab("docs")}>
+                  <DashboardIcon name="FileCheck" /> Documents
+                </button>
+                <button type="button" className="dashboard-action" onClick={() => window.print()}>
+                  <Printer size={14} /> Print Statement
+                </button>
+              </>
+            ),
+          })}
+
+          {/* Top 4 Executive KPI Metric Cards */}
+          <section className="dashboard-kpi-grid" aria-label="Partner overview">
+            <div
+              className="dashboard-kpi-card"
+              onClick={() => {
+                selectTab("candidates");
+                setStageFilter("All");
+                selectCountry("All");
+              }}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="dashboard-metric-heading">
+                <span>Total Candidates</span>
+                <DashboardIcon name="Users1" />
+              </div>
+              <b>{agentData.totalCandidateCount}</b>
+              <p>↗ {agentData.incompleteCandidateCount} In-Process ({agentData.totalCandidateCount} Referred)</p>
+            </div>
+
+            <div
+              className="dashboard-kpi-card collections"
+              onClick={() => selectTab("ledger")}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="dashboard-metric-heading">
+                <span>Cash Collections</span>
+                <DashboardIcon name="Wallet1" />
+              </div>
+              <b>{formatTk(agentData.grandTotalCollected)}</b>
+              <div className="dashboard-collection-breakdown">
+                <span className="due">Due: {formatTk(agentData.grandTotalDue ?? agentData.metrics?.totalDue ?? 0)}</span>
+              </div>
+            </div>
+
+            <div
+              className="dashboard-kpi-card"
+              onClick={() => {
+                selectTab("candidates");
+                setStageFilter("Visa");
+              }}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="dashboard-metric-heading">
+                <span>Visas In-Flight</span>
+                <DashboardIcon name="FileCheck1" />
+              </div>
+              <b>{agentData.metrics?.activeDossiers ?? agentData.incompleteCandidateCount}</b>
+              <p>🇸🇦 Saudi MOFA + 🇦🇪 Dubai E-Visa</p>
+            </div>
+
+            <div
+              className="dashboard-kpi-card"
+              onClick={() => {
+                selectTab("candidates");
+                setStageFilter("Flight");
+              }}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="dashboard-metric-heading">
+                <span>Departure Ready</span>
+                <DashboardIcon name="Plane" />
+              </div>
+              <b>{agentData.metrics?.completedFlights ?? agentData.completedCandidateCount}</b>
+              <p>✈ Tickets Confirmed · Manpower Issued</p>
+            </div>
+          </section>
+
+          {/* Active Destination Workspaces (Clickable Country Pipelines) */}
+          {countriesWithStats.length > 0 && (
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                <div>
+                  <h3 style={{ fontSize: "17px", lineHeight: "21px", fontWeight: 700, color: "#0f172a", margin: 0 }}>
+                    Active Destination Pipelines
+                  </h3>
+                  <span style={{ fontSize: "12px", color: "#64748b" }}>
+                    Country distribution for referred candidate processing
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => selectTab("candidates")}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#007aff",
+                    fontSize: "12.5px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                  }}
+                >
+                  View All Candidates <ArrowRight size={13} />
+                </button>
+              </div>
+
+              <div className="portal-destinations-grid">
+                {countriesWithStats.map((item) => (
+                  <div
+                    key={item.name}
+                    className="portal-destination-card"
+                    onClick={() => selectCountry(item.name)}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <span style={{ fontSize: "24px" }}>{item.flag}</span>
+                        <div>
+                          <b style={{ fontSize: "15px", color: "#0f172a", display: "block" }}>{item.name}</b>
+                          <span style={{ fontSize: "11.5px", color: "#64748b" }}>Destination Pipeline</span>
+                        </div>
+                      </div>
+                      <span className="dashboard-count-badge" style={{ fontSize: "12px", padding: "3px 10px" }}>
+                        {item.count} {item.count === 1 ? "File" : "Files"}
+                      </span>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", paddingTop: "8px", borderTop: "1px solid #f1f5f9", fontSize: "12px" }}>
+                      <div>
+                        <span style={{ color: "#94a3b8", display: "block", fontSize: "11px" }}>In-Process</span>
+                        <b style={{ color: "#334155" }}>{item.inProcess} Candidates</b>
+                      </div>
+                      <div>
+                        <span style={{ color: "#94a3b8", display: "block", fontSize: "11px" }}>Visa &amp; Flight</span>
+                        <b style={{ color: "#16a34a" }}>{item.visa + item.flight} Ready</b>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", color: "#007aff", fontSize: "12px", fontWeight: 700 }}>
+                      Open {item.name} Pipeline →
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Recent Candidate Pipeline Preview Table */}
+          <section className="dashboard-activity-section" aria-label="Recent Candidate Activity">
+            <div className="dashboard-activity-toolbar">
+              <div className="dashboard-active-view-header">
+                <div className="dashboard-view-title">
+                  <DashboardIcon name="Users1" />
+                  <span>Recent Candidate Referrals</span>
+                  <span className="dashboard-count-badge">
+                    {filteredCandidates.length}
+                  </span>
+                </div>
+              </div>
+
+              <div className="dashboard-module-tools">
+                <label className="dashboard-search-field">
+                  <DashboardIcon name="Search" />
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search candidate, passport, phone..."
+                  />
+                </label>
 
                 <button
                   type="button"
-                  aria-pressed={docStatusFilter === "Complete"}
-                  onClick={() => setDocStatusFilter(docStatusFilter === "Complete" ? "All" : "Complete")}
-                  style={{
-                    padding: "6px 12px",
-                    borderRadius: "8px",
-                    border: "1px solid",
-                    borderColor: docStatusFilter === "Complete" ? "#059669" : "#a7f3d0",
-                    background: docStatusFilter === "Complete" ? "#059669" : "#ecfdf5",
-                    color: docStatusFilter === "Complete" ? "#ffffff" : "#059669",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
+                  className="portal-toolbar-btn"
+                  onClick={() => selectTab("candidates")}
+                  style={{ background: "#eff6ff", color: "#007aff", borderColor: "#bfdbfe", fontWeight: 700 }}
                 >
-                  Docs complete ({candidatesWithCompleteDocs.length})
+                  View Full Candidate Roster →
                 </button>
               </div>
             </div>
+
+            <div id="dashboard-activity-panel" role="tabpanel">
+              {renderCandidatesTable(filteredCandidates.slice(0, 8), agentData.totalCandidateCount, true)}
+            </div>
+          </section>
+
+          {/* Operations & Compliance Hub */}
+          <div className="portal-quick-hub">
+            <div
+              className="portal-quick-card"
+              onClick={() => selectTab("missing")}
+              role="button"
+              tabIndex={0}
+            >
+              <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+                <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "#fee2e2", color: "#dc2626", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                  <FileWarning size={20} />
+                </div>
+                <div>
+                  <b style={{ fontSize: "14px", color: "#0f172a", display: "block" }}>Missing Documents</b>
+                  <p style={{ fontSize: "12px", color: "#64748b", margin: "4px 0 0" }}>
+                    {candidatesWithMissingDocs.length} candidates pending mandatory verification uploads.
+                  </p>
+                </div>
+              </div>
+              <span style={{ fontSize: "12px", fontWeight: 700, color: "#dc2626" }}>Audit Missing Files →</span>
+            </div>
+
+            <div
+              className="portal-quick-card"
+              onClick={() => selectTab("expiry")}
+              role="button"
+              tabIndex={0}
+            >
+              <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+                <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "#fffbeb", color: "#d97706", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                  <Clock size={20} />
+                </div>
+                <div>
+                  <b style={{ fontSize: "14px", color: "#0f172a", display: "block" }}>Expiry Tracker</b>
+                  <p style={{ fontSize: "12px", color: "#64748b", margin: "4px 0 0" }}>
+                    {criticalExpiryCount} critical documents approaching expiration deadline.
+                  </p>
+                </div>
+              </div>
+              <span style={{ fontSize: "12px", fontWeight: 700, color: "#d97706" }}>Review Expiries →</span>
+            </div>
+
+            <div
+              className="portal-quick-card"
+              onClick={() => selectTab("docs")}
+              role="button"
+              tabIndex={0}
+            >
+              <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+                <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "#eff6ff", color: "#007aff", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                  <FileCheck size={20} />
+                </div>
+                <div>
+                  <b style={{ fontSize: "14px", color: "#0f172a", display: "block" }}>Agency Repository</b>
+                  <p style={{ fontSize: "12px", color: "#64748b", margin: "4px 0 0" }}>
+                    Access official agency agreement, license credentials, and permits.
+                  </p>
+                </div>
+              </div>
+              <span style={{ fontSize: "12px", fontWeight: 700, color: "#007aff" }}>Open Documents Vault →</span>
+            </div>
           </div>
+        </>
+      ) : activeTab === "candidates" ? (
+        /* =========================================================================
+            VIEW 2: CANDIDATES MASTER ROSTER
+            ========================================================================= */
+        <>
+          {renderHero({
+            badge: "CANDIDATE RECRUITMENT DIRECTORY",
+            title: "Candidates & Recruitment Pipeline",
+            subtitle: "Comprehensive directory of all referred candidates across all destinations and processing milestones",
+            actions: (
+              <button type="button" className="dashboard-action" onClick={() => window.print()}>
+                <Printer size={14} /> Print Roster
+              </button>
+            ),
+          })}
 
-          {/* Candidates Master Table */}
-          <div className="portal-card"
-            style={{
-              background: "#fff",
-              borderRadius: "16px",
-              border: "1px solid var(--line)",
-              overflow: "hidden",
-              boxShadow: "var(--shadow)",
-            }}
-          >
-            <div className="portal-scroll" style={{ overflowX: "auto" }}>
-              <table className="portal-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px" }}>
-                <thead>
-                  <tr style={{ background: "#f8fafc", borderBottom: "1px solid var(--line)", textAlign: "left" }}>
-                    <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px", width: "45px" }}>SL</th>
-                    <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px" }}>Candidate &amp; File</th>
-                    <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px" }}>Passport</th>
-                    <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px" }}>Country &amp; Trade</th>
-                    <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px" }}>Current Stage</th>
-                    <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px" }}>Candidate Payments</th>
-                    <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px", textAlign: "right", width: "130px" }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredCandidates.length === 0 ? (
+          {/* Candidate Pipeline Funnel KPI Cards */}
+          <section className="dashboard-kpi-grid" aria-label="Candidate pipeline funnel">
+            <div
+              className="dashboard-kpi-card"
+              onClick={() => {
+                setStageFilter("All");
+                selectCountry("All");
+              }}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="dashboard-metric-heading">
+                <span>Total Candidates</span>
+                <Users size={16} color="#007aff" />
+              </div>
+              <b>{candidateFunnel.total}</b>
+              <p>All registered candidate files</p>
+            </div>
+
+            <div
+              className="dashboard-kpi-card"
+              onClick={() => setStageFilter("Medical")}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="dashboard-metric-heading">
+                <span>Active In-Process</span>
+                <Briefcase size={16} color="#3b82f6" />
+              </div>
+              <b>{candidateFunnel.inProcess}</b>
+              <p>Under trade, medical &amp; verification</p>
+            </div>
+
+            <div
+              className="dashboard-kpi-card"
+              onClick={() => setStageFilter("Visa")}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="dashboard-metric-heading">
+                <span>Visa Stamped</span>
+                <FileCheck size={16} color="#8b5cf6" />
+              </div>
+              <b>{candidateFunnel.visa}</b>
+              <p>Visas approved &amp; in-flight</p>
+            </div>
+
+            <div
+              className="dashboard-kpi-card"
+              onClick={() => setStageFilter("Flight")}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="dashboard-metric-heading">
+                <span>Flight Ready</span>
+                <Plane size={16} color="#16a34a" />
+              </div>
+              <b>{candidateFunnel.flight}</b>
+              <p>✈ BMET cleared &amp; departure ready</p>
+            </div>
+          </section>
+
+          {/* Candidates Activity Workspace */}
+          <section className="dashboard-activity-section" aria-label="Candidates directory workspace">
+            <div className="dashboard-activity-toolbar">
+              <div className="dashboard-active-view-header">
+                <div className="dashboard-view-title">
+                  <DashboardIcon name="Users1" />
+                  <span>Candidates &amp; Pipeline Roster</span>
+                  <span className="dashboard-count-badge">
+                    {filteredCandidates.length}
+                  </span>
+                </div>
+              </div>
+
+              <div className="dashboard-module-tools">
+                <label className="dashboard-search-field">
+                  <DashboardIcon name="Search" />
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search candidate, passport, phone..."
+                  />
+                </label>
+
+                <select
+                  aria-label="Filter by destination country"
+                  value={countryFilter}
+                  onChange={(e) => selectCountry(e.target.value)}
+                  className="portal-select-filter"
+                >
+                  <option value="All">All Countries</option>
+                  {availableCountries.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+
+                <select
+                  aria-label="Filter by pipeline stage"
+                  value={stageFilter}
+                  onChange={(e) => setStageFilter(e.target.value)}
+                  className="portal-select-filter"
+                >
+                  <option value="All">All Stages</option>
+                  <option value="Medical">Medical Fit</option>
+                  <option value="Visa">Visa Stamped</option>
+                  <option value="Manpower">BMET / Manpower</option>
+                  <option value="Flight">Flight Done / Ready</option>
+                </select>
+              </div>
+            </div>
+
+            <div id="dashboard-activity-panel" role="tabpanel">
+              {renderCandidatesTable(filteredCandidates, agentData.totalCandidateCount)}
+            </div>
+          </section>
+        </>
+      ) : activeTab === "ledger" ? (
+        /* =========================================================================
+            VIEW 3: PAYMENT COLLECTION & FINANCIAL LEDGER
+            ========================================================================= */
+        <>
+          {renderHero({
+            badge: "FINANCIAL CONTROL & VAULT",
+            title: "Payment Collection & Accounts Ledger",
+            subtitle: "Transparent record of candidate package costs, collected payments, deposit receipts, and balance dues",
+            actions: (
+              <button type="button" className="dashboard-action" onClick={() => window.print()}>
+                <Printer size={14} /> Print Statement
+              </button>
+            ),
+          })}
+
+          {/* 4 Financial KPI Cards */}
+          <section className="dashboard-kpi-grid" aria-label="Financial overview">
+            <div className="dashboard-kpi-card">
+              <div className="dashboard-metric-heading">
+                <span>Total Package Value</span>
+                <Wallet size={16} color="#007aff" />
+              </div>
+              <b>{formatTk(totalAgreedPackage)}</b>
+              <p>Agreed processing packages</p>
+            </div>
+
+            <div className="dashboard-kpi-card collections">
+              <div className="dashboard-metric-heading">
+                <span>Cash Collected</span>
+                <CreditCard size={16} color="#16a34a" />
+              </div>
+              <b style={{ color: "#16a34a" }}>{formatTk(agentData.grandTotalCollected)}</b>
+              <p style={{ color: "#16a34a", fontWeight: 600 }}>Deposited into central vault</p>
+            </div>
+
+            <div className="dashboard-kpi-card">
+              <div className="dashboard-metric-heading">
+                <span>Remaining Due Balance</span>
+                <AlertCircle size={16} color="#dc2626" />
+              </div>
+              <b style={{ color: agentData.grandTotalDue > 0 ? "#dc2626" : "#16a34a" }}>
+                {formatTk(agentData.grandTotalDue)}
+              </b>
+              <p>Outstanding candidate collections</p>
+            </div>
+
+            <div className="dashboard-kpi-card">
+              <div className="dashboard-metric-heading">
+                <span>Overall Collection Rate</span>
+                <CheckCircle2 size={16} color="#059669" />
+              </div>
+              <b>{collectionRatio}%</b>
+              <div style={{ width: "100%", height: "6px", background: "#e2e8f0", borderRadius: "4px", overflow: "hidden", marginTop: "2px" }}>
+                <div style={{ width: `${collectionRatio}%`, height: "100%", background: "#16a34a" }} />
+              </div>
+            </div>
+          </section>
+
+          {/* Financial Ledger Table */}
+          <section className="dashboard-activity-section" aria-label="Financial accounts ledger">
+            <div className="dashboard-activity-toolbar">
+              <div className="dashboard-active-view-header">
+                <div className="dashboard-view-title">
+                  <DashboardIcon name="Wallet1" />
+                  <span>Payment Collection &amp; Accounts Ledger</span>
+                  <span className="dashboard-count-badge success">
+                    {filteredLedgerCandidates.length}
+                  </span>
+                </div>
+              </div>
+
+              <div className="dashboard-module-tools">
+                <label className="dashboard-search-field">
+                  <DashboardIcon name="Search" />
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search ledger candidate, file no..."
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  className="portal-toolbar-btn"
+                  onClick={() => window.print()}
+                >
+                  <Printer size={13} /> Print Statement
+                </button>
+              </div>
+            </div>
+
+            <div id="dashboard-activity-panel" role="tabpanel">
+              <div className="desktop-dashboard-table dashboard-leads-table">
+                <table>
+                  <thead>
                     <tr>
-                      <td colSpan={7} style={{ padding: "45px", textAlign: "center", color: "var(--muted)" }}>
-                        No candidates found matching your filter criteria.
-                      </td>
+                      <th style={{ width: "48px", minWidth: "48px", textAlign: "center" }}>SL</th>
+                      <th style={{ minWidth: "240px" }}>CANDIDATE DETAILS</th>
+                      <th style={{ minWidth: "170px" }}>PASSPORT &amp; DESTINATION</th>
+                      <th style={{ minWidth: "130px" }}>PACKAGE COST</th>
+                      <th style={{ minWidth: "130px" }}>PAID AMOUNT</th>
+                      <th style={{ minWidth: "130px" }}>DUE BALANCE</th>
+                      <th style={{ minWidth: "150px", textAlign: "right" }}>RECEIPTS / VOUCHER</th>
+                      <th style={{ minWidth: "140px", width: "140px", textAlign: "right" }}>ACTIONS</th>
                     </tr>
-                  ) : (
-                    filteredCandidates.map((cand, idx) => (
-                      <tr key={cand.fileId} style={{ borderBottom: "1px solid #f1f5f9" }} className="hover:bg-slate-50">
-                        <td data-label="SL" style={{ padding: "14px 16px", color: "var(--muted)", fontWeight: 700 }}>
-                          {idx + 1}
-                        </td>
-
-                        <td data-label="Candidate & File" style={{ padding: "14px 16px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                            <div
-                              style={{
-                                width: "36px",
-                                height: "36px",
-                                borderRadius: "10px",
-                                background: "#eaf2ff",
-                                color: "#007aff",
-                                display: "grid",
-                                placeItems: "center",
-                                fontWeight: 600,
-                                fontSize: "13px",
-                                flexShrink: 0,
-                              }}
-                            >
-                              {cand.fullName.slice(0, 2).toUpperCase()}
-                            </div>
-                            <div>
-                              <b style={{ color: "var(--ink)", display: "block", fontSize: "13px" }}>
-                                {cand.fullName}
-                              </b>
-                              <span style={{ fontSize: "11px", color: "var(--muted)", fontFamily: "monospace" }}>
-                                File: {cand.fileNo} • {cand.phone}
-                              </span>
-                            </div>
-                          </div>
-                        </td>
-
-                        <td data-label="Passport" style={{ padding: "14px 16px" }}>
-                          <span
-                            style={{
-                              fontFamily: "monospace",
-                              fontWeight: 600,
-                              background: "#f8fafc",
-                              padding: "3px 8px",
-                              borderRadius: "6px",
-                              border: "1px solid var(--line)",
-                              color: "var(--ink)",
-                            }}
-                          >
-                            {cand.passportNumber || "N/A"}
-                          </span>
-                        </td>
-
-                        <td data-label="Country & Trade" style={{ padding: "14px 16px" }}>
-                          <div style={{ fontWeight: 700, color: "var(--ink)" }}>
-                            {cand.country || "Saudi Arabia"}
-                          </div>
-                          <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>
-                            {cand.profession || "General Work"}
-                          </span>
-                        </td>
-
-                        <td data-label="Current Stage" style={{ padding: "14px 16px" }}>
-                          <span
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px",
-                              padding: "4px 10px",
-                              borderRadius: "9999px",
-                              fontSize: "11.5px",
-                              fontWeight: 600,
-                              background:
-                                cand.currentStage.includes("Flight") || cand.isCompleted
-                                  ? "#ecfdf5"
-                                  : cand.currentStage.includes("Visa")
-                                  ? "#eff6ff"
-                                  : "#fef3c7",
-                              color:
-                                cand.currentStage.includes("Flight") || cand.isCompleted
-                                  ? "#059669"
-                                  : cand.currentStage.includes("Visa")
-                                  ? "#2563eb"
-                                  : "#d97706",
-                              border:
-                                cand.currentStage.includes("Flight") || cand.isCompleted
-                                  ? "1px solid #a7f3d0"
-                                  : cand.currentStage.includes("Visa")
-                                  ? "1px solid #bfdbfe"
-                                  : "1px solid #fde68a",
-                            }}
-                          >
-                            {cand.currentStage.includes("Flight") ? "Flight Ready" : cand.currentStage}
-                          </span>
-
-                          {cand.hasMissingDocs || (cand.missingDocs && cand.missingDocs.length > 0) ? (
-                            <div style={{ marginTop: "4px" }}>
-                              <button data-action-ui="secondary" data-action-size="compact"
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setActiveTab("missing");
-                                }}
-                                style={{
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: "4px",
-                                  fontSize: "10.5px",
-                                  fontWeight: 600,
-                                  padding: "2px 7px",
-                                  borderRadius: "5px",
-                                  background: "#fef2f2",
-                                  color: "#dc2626",
-                                  border: "1px solid #fecdd3",
-                                  cursor: "pointer",
-                                }}
-                                title={`Missing: ${(cand.missingDocs || []).map((d) => d.name).join(", ")}`}
-                              >
-                                <AlertCircle size={11} /> {cand.missingDocsCount || cand.missingDocs?.length || 1} Missing File(s)
-                              </button>
-                            </div>
-                          ) : (
-                            <div style={{ marginTop: "4px" }}>
-                              <span
-                                style={{
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: "4px",
-                                  fontSize: "10.5px",
-                                  fontWeight: 600,
-                                  padding: "2px 7px",
-                                  borderRadius: "5px",
-                                  background: "#ecfdf5",
-                                  color: "#059669",
-                                  border: "1px solid #a7f3d0",
-                                }}
-                              >
-                                <CheckCircle2 size={11} /> Docs Complete
-                              </span>
-                            </div>
-                          )}
-                        </td>
-
-                        <td data-label="Candidate Payments" style={{ padding: "14px 16px" }}>
-                          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                            <span style={{ fontSize: "12px", fontWeight: 600, color: "#059669" }}>
-                              Paid: {formatTk(cand.totalPaid)}
-                            </span>
-                            <span style={{ fontSize: "11px", color: "var(--muted)" }}>
-                              Package: {formatTk(cand.packageCost)} | Due: {formatTk(cand.dueAmount)}
-                            </span>
-                          </div>
-                        </td>
-
-                        <td data-label="Actions" style={{ padding: "14px 16px", textAlign: "right" }}>
-                          <Link data-action-ui="secondary" data-action-size="compact"
-                            href={`/portal/agent/candidate/${cand.fileId}?agentId=${encodeURIComponent(agentId)}`}
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "5px",
-                              padding: "6px 12px",
-                              borderRadius: "8px",
-                              background: "#eaf2ff",
-                              color: "#007aff",
-                              border: "1px solid #d0e2ff",
-                              fontSize: "11.5px",
-                              fontWeight: 700,
-                              textDecoration: "none",
-                            }}
-                          >
-                            <Eye size={13} /> View Dossier
-                          </Link>
+                  </thead>
+                  <tbody>
+                    {filteredLedgerCandidates.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} style={{ padding: "60px 20px", textAlign: "center", color: "#64748b" }}>
+                          No financial ledger entries found.
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 4.4 TAB: CANDIDATE MISSING DOCUMENTS TRACKER */}
-      {activeTab === "missing" && (
-        <div className="portal-section portal-section-missing" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          {/* Header & Stats Banner */}
-          <div className="portal-card portal-wrap"
-            style={{
-              background: "#fef2f2",
-              borderRadius: "16px",
-              border: "1px solid #fecdd3",
-              padding: "20px 24px",
-              boxShadow: "var(--shadow)",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              flexWrap: "wrap",
-              gap: "14px",
-            }}
-          >
-            <div>
-              <h3 style={{ fontSize: "17px", fontWeight: 700, color: "#1d1d1f", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
-                <FileWarning size={20} color="#dc2626" /> Missing documents
-              </h3>
-              <p style={{ fontSize: "12.5px", color: "#6e6e73", margin: "4px 0 0" }}>
-                The following candidate files require original Passport copies, GCC GAMCA Medical fit slips, Police PCCs, or NID copies before they can proceed.
-              </p>
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span
-                style={{
-                  background: "#dc2626",
-                  color: "#ffffff",
-                  padding: "7px 16px",
-                  borderRadius: "10px",
-                  fontSize: "12.5px",
-                  fontWeight: 600,
-                }}
-              >
-                {candidatesWithMissingDocs.length} Candidates Missing Docs ({totalMissingDocsCount} Total Items)
-              </span>
-            </div>
-          </div>
-
-          {/* Quick KPI Strip for Missing Categories */}
-          <div className="portal-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "12px" }}>
-            <div className="portal-card" style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "12px", padding: "14px 16px", boxShadow: "var(--shadow)" }}>
-              <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase" }}>Passports Missing</span>
-              <div style={{ fontSize: "20px", fontWeight: 700, color: "#dc2626", marginTop: "2px" }}>
-                {agentData.metrics?.missingPassports || candidatesWithMissingDocs.filter((c) => (c.missingDocs || []).some((d) => d.category === "PASSPORT")).length}
+                    ) : (
+                      filteredLedgerCandidates.map((cand, idx) => (
+                        <tr key={cand.fileId}>
+                          <td style={{ color: "#64748b", fontWeight: 700, textAlign: "center", width: "48px", minWidth: "48px" }}>{idx + 1}</td>
+                          <td style={{ minWidth: "240px" }}>
+                            <div className="dashboard-candidate-identity">
+                              <Link
+                                href={`/portal/agent/candidate/${cand.fileId}?agentId=${encodeURIComponent(agentId)}`}
+                                className="dashboard-candidate-avatar"
+                              >
+                                {cand.fullName.slice(0, 2).toUpperCase()}
+                              </Link>
+                              <div>
+                                <Link
+                                  href={`/portal/agent/candidate/${cand.fileId}?agentId=${encodeURIComponent(agentId)}`}
+                                  style={{ textDecoration: "none", color: "inherit" }}
+                                >
+                                  <b>{cand.fullName}</b>
+                                </Link>
+                                <small>File: {cand.fileNo}</small>
+                              </div>
+                            </div>
+                          </td>
+                          <td style={{ minWidth: "170px" }}>
+                            <div style={{ fontWeight: 600, color: "#0f172a" }}>
+                              {cand.passportNumber || "No Passport"}
+                            </div>
+                            <small style={{ color: "#64748b" }}>
+                              {getCountryFlagEmoji(undefined, cand.country)} {cand.country}
+                            </small>
+                          </td>
+                          <td style={{ minWidth: "140px" }}>
+                            <div style={{ display: "flex", flexDirection: "column" }}>
+                              <b style={{ color: "#0f172a" }}>{formatTk(cand.packageCost || cand.totalPackage || 0)}</b>
+                              {Number(cand.discount || 0) > 0 && (
+                                <span style={{ fontSize: "10.5px", color: "#059669", fontWeight: 700 }}>
+                                  (Disc: -৳{Number(cand.discount).toLocaleString()})
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td style={{ minWidth: "130px" }}>
+                            <b style={{ color: "#16a34a" }}>{formatTk(cand.totalPaid)}</b>
+                          </td>
+                          <td style={{ minWidth: "130px" }}>
+                            <b style={{ color: cand.dueAmount > 0 ? "#dc2626" : "#16a34a" }}>
+                              {formatTk(cand.dueAmount)}
+                            </b>
+                          </td>
+                          <td style={{ minWidth: "220px", textAlign: "right" }}>
+                            {((cand.payments && cand.payments.length > 0) || (cand.paymentHistory && cand.paymentHistory.length > 0)) ? (
+                              <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end", flexWrap: "wrap" }}>
+                                <button
+                                  type="button"
+                                  className="portal-voucher-btn"
+                                  style={{
+                                    background: "#eff6ff",
+                                    color: "#2563eb",
+                                    borderColor: "#bfdbfe",
+                                  }}
+                                  onClick={() => openPrintReceipt(cand, undefined, true)}
+                                  title="Print Consolidated Master Money Receipt (All Payments)"
+                                >
+                                  <Printer size={12} /> Master Receipt
+                                </button>
+                                <button
+                                  type="button"
+                                  className="portal-voucher-btn"
+                                  onClick={() => openPrintReceipt(cand)}
+                                  title="Print Candidate Deposit Money Receipt Voucher"
+                                >
+                                  <Printer size={12} /> Voucher ({(cand.payments || cand.paymentHistory)!.length})
+                                </button>
+                              </div>
+                            ) : (
+                              <span style={{ fontSize: "11px", color: "#94a3b8" }}>No receipts</span>
+                            )}
+                          </td>
+                          <td style={{ minWidth: "140px", textAlign: "right" }}>
+                            <Link
+                              href={`/portal/agent/candidate/${cand.fileId}?agentId=${encodeURIComponent(agentId)}`}
+                              className="dashboard-profile-link primary"
+                            >
+                              <FileText size={12} style={{ marginRight: "4px" }} /> Dossier →
+                            </Link>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+                <div className="dashboard-table-summary">
+                  Showing {filteredLedgerCandidates.length} of {agentData.candidates.length} candidate accounts · Total Collected: {formatTk(agentData.grandTotalCollected)} · Total Due: {formatTk(agentData.grandTotalDue)}
+                </div>
               </div>
-              <small style={{ fontSize: "11px", color: "var(--muted)" }}>Scan / Number missing</small>
             </div>
+          </section>
+        </>
+      ) : activeTab === "missing" ? (
+        /* =========================================================================
+            VIEW 4: MISSING DOCUMENTS ATTENTION
+            ========================================================================= */
+        <>
+          {renderHero({
+            badge: "COMPLIANCE & RISK MANAGEMENT",
+            title: "Missing Documents & Compliance Attention",
+            subtitle: "Urgent candidate files pending documentation (Passport, Medical GAMCA, Police Clearance, Visas)",
+            actions: (
+              <button type="button" className="dashboard-action" onClick={() => window.print()}>
+                <Printer size={14} /> Print Checklist
+              </button>
+            ),
+          })}
 
-            <div className="portal-card" style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "12px", padding: "14px 16px", boxShadow: "var(--shadow)" }}>
-              <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase" }}>Medical Slips Missing</span>
-              <div style={{ fontSize: "20px", fontWeight: 700, color: "#d97706", marginTop: "2px" }}>
-                {agentData.metrics?.missingMedicals || candidatesWithMissingDocs.filter((c) => (c.missingDocs || []).some((d) => d.category === "MEDICAL")).length}
-              </div>
-              <small style={{ fontSize: "11px", color: "var(--muted)" }}>GAMCA checkup pending</small>
+          {/* Compliance Category Strip */}
+          <div className="portal-summary-strip">
+            <div className="portal-summary-pill">
+              <span>Passports Missing</span>
+              <b style={{ color: "#dc2626" }}>{missingPassports}</b>
             </div>
-
-            <div className="portal-card" style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "12px", padding: "14px 16px", boxShadow: "var(--shadow)" }}>
-              <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase" }}>Police PCC Missing</span>
-              <div style={{ fontSize: "20px", fontWeight: 700, color: "#2563eb", marginTop: "2px" }}>
-                {agentData.metrics?.missingPolices || candidatesWithMissingDocs.filter((c) => (c.missingDocs || []).some((d) => d.category === "POLICE")).length}
-              </div>
-              <small style={{ fontSize: "11px", color: "var(--muted)" }}>Clearance slip needed</small>
+            <div className="portal-summary-pill">
+              <span>Medical Slips Missing</span>
+              <b style={{ color: "#d97706" }}>{missingMedicals}</b>
             </div>
-
-            <div className="portal-card" style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "12px", padding: "14px 16px", boxShadow: "var(--shadow)" }}>
-              <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase" }}>NID Cards Missing</span>
-              <div style={{ fontSize: "20px", fontWeight: 700, color: "#7c3aed", marginTop: "2px" }}>
-                {agentData.metrics?.missingNids || candidatesWithMissingDocs.filter((c) => (c.missingDocs || []).some((d) => d.category === "NID")).length}
-              </div>
-              <small style={{ fontSize: "11px", color: "var(--muted)" }}>Smart card copy missing</small>
+            <div className="portal-summary-pill">
+              <span>Police PCC Missing</span>
+              <b style={{ color: "#2563eb" }}>{missingPolices}</b>
             </div>
-
-            <div className="portal-card" style={{ background: "#ffffff", border: "1px solid var(--line)", borderRadius: "12px", padding: "14px 16px", boxShadow: "var(--shadow)" }}>
-              <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase" }}>Visas Missing</span>
-              <div style={{ fontSize: "20px", fontWeight: 700, color: "#059669", marginTop: "2px" }}>
-                {agentData.metrics?.missingVisas || candidatesWithMissingDocs.filter((c) => (c.missingDocs || []).some((d) => d.category === "VISA")).length}
-              </div>
-              <small style={{ fontSize: "11px", color: "var(--muted)" }}>Stamped copy missing</small>
+            <div className="portal-summary-pill">
+              <span>NID Cards Missing</span>
+              <b style={{ color: "#7c3aed" }}>{missingNids}</b>
             </div>
-          </div>
-
-          {/* Filter & Search Bar */}
-          <div className="portal-card portal-wrap" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", background: "#fff", padding: "14px 18px", borderRadius: "14px", border: "1px solid var(--line)", boxShadow: "var(--shadow)" }}>
-            <div className="portal-wrap" style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-              {[
-                { id: "ALL", label: `All Missing (${candidatesWithMissingDocs.length})` },
-                { id: "PASSPORT", label: "Passports" },
-                { id: "MEDICAL", label: "GAMCA Medical" },
-                { id: "POLICE", label: "Police PCC" },
-                { id: "NID", label: "NID Copy" },
-                { id: "VISA", label: "Visa Copy" },
-              ].map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  aria-pressed={missingCategoryFilter === cat.id}
-                  onClick={() => setMissingCategoryFilter(cat.id)}
-                  style={{
-                    padding: "6px 12px",
-                    borderRadius: "8px",
-                    border: "1px solid",
-                    borderColor: missingCategoryFilter === cat.id ? "#dc2626" : "#e2e8f0",
-                    background: missingCategoryFilter === cat.id ? "#dc2626" : "#ffffff",
-                    color: missingCategoryFilter === cat.id ? "#ffffff" : "#475569",
-                    fontSize: "12px",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                  }}
-                >
-                  {cat.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="portal-search" style={{ position: "relative" }}>
-              <Search size={14} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "var(--muted)" }} />
-              <input
-                type="text"
-                aria-label="Search missing documents"
-                  value={missingSearch}
-                onChange={(e) => setMissingSearch(e.target.value)}
-                placeholder="Search missing docs, candidate, phone..."
-                style={{
-                  height: "36px",
-                  padding: "0 12px 0 32px",
-                  borderRadius: "8px",
-                  border: "1px solid var(--line)",
-                  background: "#fafafd",
-                  fontSize: "12px",
-                  color: "var(--ink)",
-                  outline: "none",
-                  width: "260px",
-                }}
-              />
+            <div className="portal-summary-pill">
+              <span>Visas Missing</span>
+              <b style={{ color: "#059669" }}>{missingVisas}</b>
             </div>
           </div>
 
           {/* Missing Documents Table */}
-          <div className="portal-card"
-            style={{
-              background: "#fff",
-              borderRadius: "16px",
-              border: "1px solid var(--line)",
-              overflow: "hidden",
-              boxShadow: "var(--shadow)",
-            }}
-          >
-            <div className="portal-scroll" style={{ overflowX: "auto" }}>
-              <table className="portal-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12.5px" }}>
-                <thead>
-                  <tr style={{ background: "#f8fafc", borderBottom: "1px solid var(--line)", color: "var(--muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    <th style={{ padding: "14px 16px", width: "45px" }}>#</th>
-                    <th style={{ padding: "14px 16px" }}>Candidate &amp; Contact</th>
-                    <th style={{ padding: "14px 16px" }}>Trade &amp; Destination</th>
-                    <th style={{ padding: "14px 16px" }}>Current Stage</th>
-                    <th style={{ padding: "14px 16px" }}>Missing Documents &amp; Reason</th>
-                    <th style={{ padding: "14px 16px" }}>Action Required</th>
-                    <th style={{ padding: "14px 16px", textAlign: "right" }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredMissingDocCandidates.map((cand, idx) => (
-                    <tr
-                      key={cand.fileId}
-                      style={{ borderBottom: "1px solid var(--line)", transition: "background 0.15s ease" }}
-                      className="hover:bg-slate-50"
-                    >
-                      <td data-label="#" style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)" }}>
-                        {idx + 1}
-                      </td>
+          <section className="dashboard-activity-section" aria-label="Missing documents table">
+            <div className="dashboard-activity-toolbar">
+              <div className="dashboard-active-view-header">
+                <div className="dashboard-view-title">
+                  <FileWarning size={18} color="#e11d48" />
+                  <span>Missing Documents Attention</span>
+                  <span className="dashboard-count-badge alert">
+                    {filteredMissingDocCandidates.length}
+                  </span>
+                </div>
+              </div>
 
-                      <td data-label="Candidate & Contact" style={{ padding: "14px 16px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                          <div
-                            style={{
-                              width: "36px",
-                              height: "36px",
-                              borderRadius: "10px",
-                              background: "#fee2e2",
-                              color: "#dc2626",
-                              display: "grid",
-                              placeItems: "center",
-                              fontWeight: 600,
-                              fontSize: "13px",
-                              flexShrink: 0,
-                            }}
-                          >
-                            {cand.fullName.slice(0, 2).toUpperCase()}
-                          </div>
-                          <div>
-                            <b style={{ fontSize: "13px", color: "var(--ink)", display: "block" }}>
-                              {cand.fullName}
-                            </b>
-                            <small style={{ color: "var(--muted)", fontSize: "11px", display: "block" }}>
-                              File: {cand.fileNo} · {cand.phone}
-                            </small>
-                          </div>
-                        </div>
-                      </td>
+              <div className="dashboard-module-tools">
+                <label className="dashboard-search-field">
+                  <DashboardIcon name="Search" />
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search missing documents, name..."
+                  />
+                </label>
 
-                      <td data-label="Trade & Destination" style={{ padding: "14px 16px" }}>
-                        <div>
-                          <span style={{ fontSize: "12.5px", fontWeight: 700, display: "block" }}>
-                            {cand.country}
-                          </span>
-                          <small style={{ color: "#475569", fontSize: "11.5px" }}>{cand.profession}</small>
-                        </div>
-                      </td>
-
-                      <td data-label="Current Stage" style={{ padding: "14px 16px" }}>
-                        <span
-                          style={{
-                            fontSize: "11px",
-                            fontWeight: 600,
-                            padding: "4px 10px",
-                            borderRadius: "9999px",
-                            background: "#eff6ff",
-                            color: "#2563eb",
-                            border: "1px solid #bfdbfe",
-                            display: "inline-block",
-                          }}
-                        >
-                          {cand.currentStage || "Passport Entry"}
-                        </span>
-                      </td>
-
-                      <td data-label="Missing Documents & Reason" style={{ padding: "14px 16px" }}>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                          {(cand.missingDocs || []).map((doc, dIdx) => (
-                            <div className="portal-card"
-                              key={dIdx}
-                              style={{
-                                background: "#fef2f2",
-                                border: "1px solid #fecdd3",
-                                borderRadius: "6px",
-                                padding: "4px 8px",
-                                display: "inline-flex",
-                                flexDirection: "column",
-                                gap: "2px",
-                              }}
-                            >
-                              <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                                <span style={{ fontSize: "11px", fontWeight: 600, color: "#dc2626" }}>
-                                  {doc.name}
-                                </span>
-                                <span style={{ fontSize: "9.5px", fontWeight: 600, background: "#dc2626", color: "#fff", padding: "1px 4px", borderRadius: "3px" }}>
-                                  {doc.severity}
-                                </span>
-                              </div>
-                              <small style={{ fontSize: "10.5px", color: "#1d1d1f" }}>
-                                {doc.reason}
-                              </small>
-                            </div>
-                          ))}
-                        </div>
-                      </td>
-
-                      <td data-label="Action Required" style={{ padding: "14px 16px" }}>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                          {(cand.missingDocs || []).map((doc, dIdx) => (
-                            <span key={dIdx} style={{ fontSize: "11.5px", color: "#334155", display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                              {doc.actionRequired}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-
-                      <td data-label="Actions" style={{ padding: "14px 16px", textAlign: "right" }}>
-                        <Link data-action-ui="secondary" data-action-size="compact"
-                          href={`/portal/agent/candidate/${cand.fileId}?agentId=${encodeURIComponent(agentId)}`}
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "5px",
-                            padding: "6px 12px",
-                            borderRadius: "8px",
-                            background: "#eaf2ff",
-                            color: "#007aff",
-                            border: "1px solid #d0e2ff",
-                            fontSize: "11.5px",
-                            fontWeight: 700,
-                            textDecoration: "none",
-                          }}
-                        >
-                          <Eye size={13} /> View Dossier
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-
-                  {filteredMissingDocCandidates.length === 0 && (
-                    <tr>
-                      <td colSpan={7} style={{ padding: "45px 20px", textAlign: "center", color: "var(--muted)" }}>
-                        <CheckCircle2 size={36} color="#059669" style={{ margin: "0 auto 8px" }} />
-                        <b style={{ fontSize: "14px", color: "#059669", display: "block" }}>No Missing Documents!</b>
-                        <span style={{ fontSize: "12px" }}>All candidate files referred by your agency have completed required documentation.</span>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 4.5 TAB: CANDIDATE DOCUMENT EXPIRY & RENEWALS TRACKER */}
-      {activeTab === "expiry" && (
-        <div className="portal-section portal-section-expiry" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          {/* Expiry Header & Stats */}
-          <div className="portal-card portal-wrap"
-            style={{
-              background: "#fff",
-              borderRadius: "16px",
-              border: "1px solid var(--line)",
-              padding: "22px 24px",
-              boxShadow: "var(--shadow)",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              flexWrap: "wrap",
-              gap: "14px",
-            }}
-          >
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <h3 style={{ fontSize: "16px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "8px" }}>
-                  Document expiry tracker
-                </h3>
-                <span
-                  style={{
-                    background: "#ecfdf5",
-                    color: "#059669",
-                    border: "1px solid #a7f3d0",
-                    padding: "3px 10px",
-                    borderRadius: "9999px",
-                    fontSize: "11px",
-                    fontWeight: 600,
-                  }}
+                <select
+                  aria-label="Filter by missing category"
+                  value={missingCategoryFilter}
+                  onChange={(e) => setMissingCategoryFilter(e.target.value)}
+                  className="portal-select-filter"
                 >
-                  Live Monitoring Active
-                </span>
-              </div>
-              <p style={{ fontSize: "12.5px", color: "var(--muted)", margin: "4px 0 0" }}>
-                Automated expiration alerts for Passport (6-month rule), GAMCA Medical Fitness (60-day rule), Police Clearance PCC, and Stamped Visa departure deadlines.
-              </p>
-            </div>
-
-            <div className="portal-wrap" style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-              <div className="portal-card" style={{ background: "#fff1f2", border: "1px solid #fecdd3", borderRadius: "10px", padding: "8px 14px", textAlign: "center" }}>
-                <span style={{ fontSize: "10.5px", fontWeight: 600, color: "#e11d48", textTransform: "uppercase", display: "block" }}>Critical (&lt; 15d)</span>
-                <b style={{ fontSize: "16px", color: "#9f1239" }}>{criticalExpiryCount}</b>
-              </div>
-              <div className="portal-card" style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "10px", padding: "8px 14px", textAlign: "center" }}>
-                <span style={{ fontSize: "10.5px", fontWeight: 600, color: "#d97706", textTransform: "uppercase", display: "block" }}>Warning (16-60d)</span>
-                <b style={{ fontSize: "16px", color: "#92400e" }}>{warningExpiryCount}</b>
-              </div>
-              <div className="portal-card" style={{ background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "10px", padding: "8px 14px", textAlign: "center" }}>
-                <span style={{ fontSize: "10.5px", fontWeight: 600, color: "#059669", textTransform: "uppercase", display: "block" }}>Safe Valid</span>
-                <b style={{ fontSize: "16px", color: "#065f46" }}>{safeExpiryCount}</b>
-              </div>
-            </div>
-          </div>
-
-          {/* Filter Bar */}
-          <div className="portal-card portal-wrap"
-            style={{
-              background: "#fff",
-              border: "1px solid var(--line)",
-              borderRadius: "14px",
-              padding: "14px 18px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              flexWrap: "wrap",
-              gap: "12px",
-              boxShadow: "var(--shadow)",
-            }}
-          >
-            <div className="portal-search-slot" style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, minWidth: "260px" }}>
-              <div className="portal-search" style={{ position: "relative", width: "100%", maxWidth: "360px" }}>
-                <Search size={15} style={{ position: "absolute", left: 12, top: 12, color: "var(--muted)" }} />
-                <input
-                  type="text"
-                  aria-label="Search expiring documents"
-                  value={expirySearch}
-                  onChange={(e) => setExpirySearch(e.target.value)}
-                  placeholder="Search candidate name, passport, file no..."
-                  style={{
-                    width: "100%",
-                    height: "38px",
-                    padding: "0 12px 0 36px",
-                    borderRadius: "8px",
-                    border: "1px solid var(--line)",
-                    fontSize: "12.5px",
-                    background: "#f8fafc",
-                  }}
-                />
+                  <option value="ALL">All Categories ({candidatesWithMissingDocs.length})</option>
+                  <option value="PASSPORT">Passports Missing</option>
+                  <option value="MEDICAL">GAMCA Medical Missing</option>
+                  <option value="POLICE">Police PCC Missing</option>
+                  <option value="NID">NID Copy Missing</option>
+                  <option value="VISA">Visa Copy Missing</option>
+                </select>
               </div>
             </div>
 
-            <div className="portal-wrap" style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-              {/* Urgency Filter */}
-              <div style={{ display: "flex", gap: "4px", background: "#f1f5f9", padding: "3px", borderRadius: "8px" }}>
-                {[
-                  { id: "ALL", label: `All (${expiryItems.length})` },
-                  { id: "CRITICAL", label: `Urgent (${criticalExpiryCount})` },
-                  { id: "WARNING", label: `Warning (${warningExpiryCount})` },
-                  { id: "SAFE", label: `Safe (${safeExpiryCount})` },
-                ].map((f) => (
-                  <button
-                    key={f.id}
-                    type="button"
-                    aria-pressed={expiryStatusFilter === f.id}
-                    onClick={() => setExpiryStatusFilter(f.id)}
-                    style={{
-                      padding: "5px 10px",
-                      borderRadius: "6px",
-                      border: "none",
-                      fontSize: "11.5px",
-                      fontWeight: expiryStatusFilter === f.id ? 800 : 600,
-                      background: expiryStatusFilter === f.id ? "#007aff" : "transparent",
-                      color: expiryStatusFilter === f.id ? "#fff" : "var(--muted)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Doc Type Filter */}
-              <select
-                aria-label="Document type"
-                  value={expiryDocTypeFilter}
-                onChange={(e) => setExpiryDocTypeFilter(e.target.value)}
-                style={{
-                  height: "36px",
-                  padding: "0 12px",
-                  borderRadius: "8px",
-                  border: "1px solid var(--line)",
-                  fontSize: "12px",
-                  background: "#fff",
-                  color: "var(--ink)",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                <option value="ALL">All Document Types</option>
-                <option value="Passport">Passport</option>
-                <option value="GAMCA Medical">GAMCA Medical</option>
-                <option value="Police Clearance (PCC)">Police PCC</option>
-                <option value="Stamped Visa">Stamped Visa</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Master Expiry Table */}
-          <div className="portal-card"
-            style={{
-              background: "#fff",
-              borderRadius: "16px",
-              border: "1px solid var(--line)",
-              overflow: "hidden",
-              boxShadow: "var(--shadow)",
-            }}
-          >
-            <div className="portal-scroll" style={{ overflowX: "auto" }}>
-              <table className="portal-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px" }}>
-                <thead>
-                  <tr style={{ background: "#f8fafc", borderBottom: "1px solid var(--line)", textAlign: "left" }}>
-                    <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>SL</th>
-                    <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>Candidate &amp; Destination</th>
-                    <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>Document Type &amp; Ref</th>
-                    <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>Expiry Date</th>
-                    <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>Countdown &amp; Status</th>
-                    <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase" }}>Recommended Operational Action</th>
-                    <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--muted)", fontSize: "11px", textTransform: "uppercase", textAlign: "right" }}>Dossier</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredExpiryItems.length === 0 ? (
+            <div id="dashboard-activity-panel" role="tabpanel">
+              <div className="desktop-dashboard-table dashboard-leads-table">
+                <table>
+                  <thead>
                     <tr>
-                      <td colSpan={7} style={{ padding: "48px 16px", textAlign: "center" }}>
-                        <ShieldCheck size={36} color="#10b981" style={{ margin: "0 auto 8px" }} />
-                        <h4 style={{ fontSize: "14px", fontWeight: 600, color: "var(--ink)", margin: "0 0 4px" }}>
-                          No Expiring Documents Matching Filter
-                        </h4>
-                        <span style={{ fontSize: "12px", color: "var(--muted)" }}>
-                          All candidate documents are currently valid or within safe processing windows.
-                        </span>
-                      </td>
+                      <th style={{ width: "48px", minWidth: "48px", textAlign: "center" }}>SL</th>
+                      <th style={{ minWidth: "240px" }}>CANDIDATE &amp; CONTACT</th>
+                      <th style={{ minWidth: "160px" }}>TRADE &amp; DESTINATION</th>
+                      <th style={{ minWidth: "140px" }}>CURRENT STAGE</th>
+                      <th style={{ minWidth: "340px" }}>MISSING DOCUMENTS &amp; REASON</th>
+                      <th style={{ minWidth: "240px" }}>ACTION REQUIRED</th>
+                      <th style={{ minWidth: "140px", width: "140px", textAlign: "right" }}>ACTIONS</th>
                     </tr>
-                  ) : (
-                    filteredExpiryItems.map((item, idx) => (
-                      <tr
-                        key={item.id || idx}
-                        style={{
-                          borderBottom: "1px solid #f1f5f9",
-                          background: item.urgency === "EXPIRED" || item.urgency === "CRITICAL" ? "#fffafb" : "transparent",
-                        }}
-                      >
-                        <td data-label="SL" style={{ padding: "14px 16px", color: "var(--muted)", fontWeight: 700 }}>
-                          {idx + 1}
-                        </td>
-
-                        <td data-label="Candidate & Destination" style={{ padding: "14px 16px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                            <div
-                              style={{
-                                width: "34px",
-                                height: "34px",
-                                borderRadius: "8px",
-                                background: "#eaf2ff",
-                                color: "#007aff",
-                                display: "grid",
-                                placeItems: "center",
-                                fontWeight: 600,
-                                fontSize: "12px",
-                                flexShrink: 0,
-                              }}
-                            >
-                              {(item.candidate.fullName || "CA").slice(0, 2).toUpperCase()}
-                            </div>
-                            <div>
-                              <b style={{ fontSize: "13px", color: "var(--ink)", display: "block" }}>
-                                {item.candidate.fullName}
-                              </b>
-                              <span style={{ fontSize: "11px", color: "var(--muted)", display: "block" }}>
-                                {item.candidate.fileNo} • {item.candidate.phone}
-                              </span>
-                              <span style={{ fontSize: "11px", color: "#4338ca", fontWeight: 700 }}>
-                                {item.candidate.country} ({item.candidate.profession})
-                              </span>
-                            </div>
+                  </thead>
+                  <tbody>
+                    {filteredMissingDocCandidates.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} style={{ padding: "60px 20px", textAlign: "center", color: "#64748b" }}>
+                          <div style={{ display: "grid", placeItems: "center", gap: "8px" }}>
+                            <CheckCircle2 size={32} color="#16a34a" />
+                            <b style={{ fontSize: "14px", color: "#0f172a" }}>All candidate documentation complete!</b>
+                            <span style={{ fontSize: "12px" }}>No missing passport, medical, PCC, or visa files found.</span>
                           </div>
-                        </td>
-
-                        <td data-label="Document Type & Ref" style={{ padding: "14px 16px" }}>
-                          <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", marginBottom: "3px" }}>
-                            <FileText size={14} color="#007aff" />
-                            <b style={{ fontSize: "12.5px", color: "var(--ink)" }}>{item.docType}</b>
-                          </div>
-                          <span style={{ fontSize: "11.5px", color: "var(--muted)", fontFamily: "monospace", display: "block", fontWeight: 600 }}>
-                            {item.docRef}
-                          </span>
-                        </td>
-
-                        <td data-label="Expiry Date" style={{ padding: "14px 16px" }}>
-                          <b style={{ fontSize: "13px", color: "var(--ink)", fontFamily: "monospace", display: "block" }}>
-                            {item.expiryDate.toLocaleDateString("en-GB")}
-                          </b>
-                          <span style={{ fontSize: "10.5px", color: "var(--muted)" }}>
-                            Expiry deadline
-                          </span>
-                        </td>
-
-                        <td data-label="Countdown & Status" style={{ padding: "14px 16px" }}>
-                          {item.urgency === "EXPIRED" ? (
-                            <span
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "4px",
-                                padding: "4px 10px",
-                                borderRadius: "8px",
-                                fontSize: "11.5px",
-                                fontWeight: 600,
-                                background: "#ffe4e6",
-                                color: "#e11d48",
-                                border: "1px solid #fecdd3",
-                              }}
-                            >
-                              EXPIRED ({Math.abs(item.daysLeft)}d ago)
-                            </span>
-                          ) : item.urgency === "CRITICAL" ? (
-                            <span
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "4px",
-                                padding: "4px 10px",
-                                borderRadius: "8px",
-                                fontSize: "11.5px",
-                                fontWeight: 600,
-                                background: "#fff1f2",
-                                color: "#e11d48",
-                                border: "1px solid #fecdd3",
-                              }}
-                            >
-                              {item.daysLeft} Days Left (&lt; 15d)
-                            </span>
-                          ) : item.urgency === "WARNING" ? (
-                            <span
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "4px",
-                                padding: "4px 10px",
-                                borderRadius: "8px",
-                                fontSize: "11.5px",
-                                fontWeight: 600,
-                                background: "#fffbeb",
-                                color: "#d97706",
-                                border: "1px solid #fde68a",
-                              }}
-                            >
-                              {item.daysLeft} Days Remaining
-                            </span>
-                          ) : (
-                            <span
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "4px",
-                                padding: "4px 10px",
-                                borderRadius: "8px",
-                                fontSize: "11.5px",
-                                fontWeight: 600,
-                                background: "#ecfdf5",
-                                color: "#059669",
-                                border: "1px solid #a7f3d0",
-                              }}
-                            >
-                              Valid ({item.daysLeft}d left)
-                            </span>
-                          )}
-                        </td>
-
-                        <td data-label="Recommended Operational Action" style={{ padding: "14px 16px", maxWidth: "340px" }}>
-                          <span style={{ fontSize: "12px", color: item.urgency === "CRITICAL" || item.urgency === "EXPIRED" ? "#6e6e73" : "var(--ink)", fontWeight: 600, lineHeight: 1.4, display: "block" }}>
-                            {item.actionRequired}
-                          </span>
-                        </td>
-
-                        <td data-label="Dossier" style={{ padding: "14px 16px", textAlign: "right" }}>
-                          <Link data-action-ui="secondary" data-action-size="compact"
-                            href={`/portal/agent/candidate/${item.candidate.fileId}?agentId=${encodeURIComponent(agentId)}`}
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "5px",
-                              padding: "6px 12px",
-                              borderRadius: "8px",
-                              background: "#eaf2ff",
-                              color: "#007aff",
-                              border: "1px solid #d0e2ff",
-                              fontSize: "11.5px",
-                              fontWeight: 700,
-                              textDecoration: "none",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            <Eye size={13} /> View Dossier
-                          </Link>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 5. TAB 2: FINANCIAL LEDGER & COLLECTIONS */}
-      {activeTab === "ledger" && (
-        <div className="portal-section portal-section-ledger" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          
-          <div className="portal-card portal-wrap"
-            style={{
-              background: "#fff",
-              borderRadius: "16px",
-              border: "1px solid var(--line)",
-              padding: "22px 24px",
-              boxShadow: "var(--shadow)",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              flexWrap: "wrap",
-              gap: "14px",
-            }}
-          >
-            <div>
-              <h3 style={{ fontSize: "16px", fontWeight: 600, margin: 0, color: "var(--ink)" }}>
-                Financial ledger & collections
-              </h3>
-              <p style={{ fontSize: "12.5px", color: "var(--muted)", margin: "4px 0 0" }}>
-                Candidate-by-candidate accounts record and payment ledger under partner agreement: <b>{agentData.agreementKey || "Standard"}</b>
-              </p>
-            </div>
-            <button data-action-ui="neutral" data-action-size="normal"
-              type="button"
-              onClick={() => window.print()}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "9px 18px",
-                borderRadius: "8px",
-                background: "#007aff",
-                color: "#fff",
-                border: "none",
-                fontSize: "12.5px",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              <Printer size={14} /> Print Master Ledger
-            </button>
-          </div>
-
-          <div className="portal-card"
-            style={{
-              background: "#fff",
-              borderRadius: "16px",
-              border: "1px solid var(--line)",
-              overflow: "hidden",
-              boxShadow: "var(--shadow)",
-            }}
-          >
-            <div className="portal-scroll" style={{ overflowX: "auto" }}>
-              <table className="portal-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px" }}>
-                <thead>
-                  <tr style={{ background: "#f8fafc", borderBottom: "1px solid var(--line)", textAlign: "left" }}>
-                    <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px" }}>Candidate</th>
-                    <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px" }}>Passport &amp; Country</th>
-                    <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px" }}>Package Cost</th>
-                    <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px" }}>Paid Amount</th>
-                    <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px" }}>Due Balance</th>
-                    <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px", textAlign: "right" }}>Receipts</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(agentData.candidates || []).map((cand) => (
-                    <tr key={cand.fileId} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                      <td data-label="Candidate" style={{ padding: "14px 16px" }}>
-                        <b style={{ color: "var(--ink)", display: "block" }}>{cand.fullName}</b>
-                        <span style={{ fontSize: "11px", color: "var(--muted)", fontFamily: "monospace" }}>File: {cand.fileNo}</span>
-                      </td>
-                      <td data-label="Passport & Country" style={{ padding: "14px 16px" }}>
-                        <div>{cand.passportNumber}</div>
-                        <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>{cand.country}</span>
-                      </td>
-                      <td data-label="Package Cost" style={{ padding: "14px 16px", fontWeight: 700 }}>{formatTk(cand.packageCost)}</td>
-                      <td data-label="Paid Amount" style={{ padding: "14px 16px", fontWeight: 600, color: "#059669" }}>{formatTk(cand.totalPaid)}</td>
-                      <td data-label="Due Balance" style={{ padding: "14px 16px", fontWeight: 700, color: cand.dueAmount > 0 ? "#e11d48" : "#059669" }}>
-                        {formatTk(cand.dueAmount)}
-                      </td>
-                      <td data-label="Receipts" style={{ padding: "14px 16px", textAlign: "right" }}>
-                        {cand.paymentHistory && cand.paymentHistory.length > 0 ? (
-                          <button data-action-ui="secondary" data-action-size="compact"
-                            type="button"
-                            onClick={() => openPrintReceipt(cand.paymentHistory![0], cand)}
-                            style={{
-                              padding: "5px 10px",
-                              borderRadius: "6px",
-                              background: "#ecfdf5",
-                              color: "#059669",
-                              border: "1px solid #a7f3d0",
-                              fontSize: "11px",
-                              fontWeight: 700,
-                              cursor: "pointer",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px",
-                            }}
-                          >
-                            <Printer size={12} /> Voucher ({cand.paymentHistory.length})
-                          </button>
-                        ) : (
-                          <span style={{ fontSize: "11px", color: "var(--muted)" }}>No receipts</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 6. TAB 3: INTERVIEW CALLS & SELECTIONS */}
-      {activeTab === "interviews" && (
-        <div className="portal-section portal-section-interviews portal-card"
-          style={{
-            background: "#fff",
-            borderRadius: "16px",
-            border: "1px solid var(--line)",
-            overflow: "hidden",
-            boxShadow: "var(--shadow)",
-          }}
-        >
-          <div style={{ padding: "18px 22px", borderBottom: "1px solid var(--line)" }}>
-            <h3 style={{ fontSize: "15px", fontWeight: 600, margin: 0, color: "var(--ink)" }}>
-              Interview calls & selections
-            </h3>
-            <p style={{ fontSize: "12px", color: "var(--muted)", margin: "3px 0 0" }}>
-              Interview schedules and client selection results for candidates referred by {agentData.name}
-            </p>
-          </div>
-
-          <div className="portal-scroll" style={{ overflowX: "auto" }}>
-            <table className="portal-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px" }}>
-              <thead>
-                <tr style={{ background: "#f8fafc", borderBottom: "1px solid var(--line)", textAlign: "left" }}>
-                  <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px" }}>Candidate</th>
-                  <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px" }}>Trade &amp; Country</th>
-                  <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px" }}>Interview Company</th>
-                  <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px" }}>Interview Date</th>
-                  <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px" }}>Selection Result</th>
-                  <th style={{ padding: "14px 16px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", fontSize: "11px" }}>Remarks / Notes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(agentData.interviews && agentData.interviews.length > 0) ? (
-                  agentData.interviews.map((iv) => (
-                    <tr key={iv.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                      <td data-label="Candidate" style={{ padding: "14px 16px" }}>
-                        <b style={{ color: "var(--ink)", display: "block" }}>{iv.fullName}</b>
-                        <span style={{ fontSize: "11px", color: "var(--muted)", fontFamily: "monospace" }}>{iv.passportNumber}</span>
-                      </td>
-                      <td data-label="Trade & Country" style={{ padding: "14px 16px" }}>
-                        <div>{iv.profession}</div>
-                        <span style={{ fontSize: "11px", color: "var(--muted)" }}>{iv.country}</span>
-                      </td>
-                      <td data-label="Interview Company" style={{ padding: "14px 16px", fontWeight: 600 }}>{iv.company || "Delegation Direct"}</td>
-                      <td data-label="Interview Date" style={{ padding: "14px 16px" }}>
-                        {iv.scheduledAt ? new Date(iv.scheduledAt).toLocaleDateString("en-GB") : "Scheduled"}
-                      </td>
-                      <td data-label="Selection Result" style={{ padding: "14px 16px" }}>
-                        <span
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "4px",
-                            padding: "3px 9px",
-                            borderRadius: "6px",
-                            fontSize: "11px",
-                            fontWeight: 600,
-                            background: iv.result === "Selected" ? "#ecfdf5" : "#fff1f2",
-                            color: iv.result === "Selected" ? "#059669" : "#e11d48",
-                            border: iv.result === "Selected" ? "1px solid #a7f3d0" : "1px solid #fecdd3",
-                          }}
-                        >
-                          {iv.result || iv.status || "Pending"}
-                        </span>
-                      </td>
-                      <td data-label="Remarks / Notes" style={{ padding: "14px 16px", color: "var(--muted)", fontSize: "12px" }}>
-                        {iv.notes || "Client interview cleared successfully."}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  (agentData.candidates || []).map((cand) => (
-                    <tr key={cand.fileId} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                      <td data-label="Candidate" style={{ padding: "14px 16px" }}>
-                        <b style={{ color: "var(--ink)", display: "block" }}>{cand.fullName}</b>
-                        <span style={{ fontSize: "11px", color: "var(--muted)", fontFamily: "monospace" }}>{cand.passportNumber}</span>
-                      </td>
-                      <td data-label="Trade & Country" style={{ padding: "14px 16px" }}>
-                        <div>{cand.profession}</div>
-                        <span style={{ fontSize: "11px", color: "var(--muted)" }}>{cand.country}</span>
-                      </td>
-                      <td data-label="Interview Company" style={{ padding: "14px 16px", fontWeight: 600 }}>Al-Rajhi Recruitment Delegation</td>
-                      <td data-label="Interview Date" style={{ padding: "14px 16px" }}>12/08/2026</td>
-                      <td data-label="Selection Result" style={{ padding: "14px 16px" }}>
-                        <span
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "4px",
-                            padding: "3px 9px",
-                            borderRadius: "6px",
-                            fontSize: "11px",
-                            fontWeight: 600,
-                            background: "#ecfdf5",
-                            color: "#059669",
-                            border: "1px solid #a7f3d0",
-                          }}
-                        >
-                          Selected
-                        </span>
-                      </td>
-                      <td data-label="Remarks / Notes" style={{ padding: "14px 16px", color: "var(--muted)", fontSize: "12px" }}>
-                        Direct selection passed by foreign delegation.
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* 7. TAB 4: AGENCY DOCUMENTS */}
-      {activeTab === "docs" && (
-        <div className="portal-section portal-section-docs portal-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" }}>
-          <div className="portal-section-heading"><div><h2>Agency documents</h2><p>Your partner agreements and supporting files in one place.</p></div><span className="portal-result-count">{agentData.documents?.length || 0} documents</span></div>
-          {(agentData.documents || []).length === 0 ? (
-            <div className="portal-card" style={{ gridColumn: "1 / -1", background: "#fff", padding: "40px", textAlign: "center", borderRadius: "14px", border: "1px solid var(--line)" }}>
-              <FileText size={32} color="var(--muted)" style={{ margin: "0 auto 10px" }} />
-              <p style={{ color: "var(--muted)", margin: 0, fontSize: "13px" }}>No documents uploaded for this agency yet.</p>
-            </div>
-          ) : (
-            (agentData.documents || []).map((doc) => (
-              <div className="portal-card"
-                key={doc.id}
-                style={{
-                  background: "#fff",
-                  borderRadius: "14px",
-                  border: "1px solid var(--line)",
-                  padding: "18px 20px",
-                  boxShadow: "var(--shadow)",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                  gap: "14px",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
-                  <div style={{ width: "42px", height: "42px", borderRadius: "10px", background: "#eaf2ff", color: "#007aff", display: "grid", placeItems: "center", flexShrink: 0 }}>
-                    <FileText size={22} />
-                  </div>
-                  <div>
-                    <b style={{ fontSize: "13px", color: "var(--ink)", display: "block", wordBreak: "break-all" }}>
-                      {doc.name}
-                    </b>
-                    <span style={{ fontSize: "11px", color: "var(--muted)" }}>
-                      {doc.type} • {doc.size}
-                    </span>
-                  </div>
-                </div>
-
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #f1f5f9", paddingTop: "12px" }}>
-                  <span style={{ fontSize: "11px", color: "var(--muted)" }}>
-                    {doc.createdAt ? new Date(doc.createdAt).toLocaleDateString("en-GB") : "Verified"}
-                  </span>
-                  <button data-action-ui="secondary" data-action-size="normal"
-                    type="button"
-                    onClick={() => setPreviewDoc(doc)}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "4px",
-                      padding: "6px 12px",
-                      borderRadius: "8px",
-                      background: "#eaf2ff",
-                      color: "#007aff",
-                      border: "none",
-                      fontSize: "11.5px",
-                      fontWeight: 700,
-                      cursor: "pointer",
-                    }}
-                  >
-                    <Eye size={13} /> View File
-                  </button>
+                    ) : (
+                      filteredMissingDocCandidates.map((cand, idx) => (
+                        <tr key={cand.fileId}>
+                          <td style={{ color: "#64748b", fontWeight: 700, textAlign: "center", width: "48px", minWidth: "48px" }}>{idx + 1}</td>
+                          <td style={{ minWidth: "240px" }}>
+                            <div className="dashboard-candidate-identity">
+                              <Link
+                                href={`/portal/agent/candidate/${cand.fileId}?agentId=${encodeURIComponent(agentId)}`}
+                                className="dashboard-candidate-avatar"
+                                style={{ background: "#fee2e2", color: "#dc2626", borderColor: "#fecaca" }}
+                              >
+                                {cand.fullName.slice(0, 2).toUpperCase()}
+                              </Link>
+                              <div>
+                                <Link
+                                  href={`/portal/agent/candidate/${cand.fileId}?agentId=${encodeURIComponent(agentId)}`}
+                                  style={{ textDecoration: "none", color: "inherit" }}
+                                >
+                                  <b>{cand.fullName}</b>
+                                </Link>
+                                <small>
+                                  <span>{cand.fileNo}</span> • <Phone size={10} style={{ display: "inline", verticalAlign: "middle" }} /> {cand.phone}
+                                </small>
+                              </div>
+                            </div>
+                          </td>
+                          <td style={{ minWidth: "160px" }}>
+                            <div style={{ fontWeight: 600, color: "#0f172a" }}>
+                              {cand.profession || "General Work"}
+                            </div>
+                            <small style={{ color: "#64748b" }}>
+                              {getCountryFlagEmoji(undefined, cand.country)} {cand.country}
+                            </small>
+                          </td>
+                          <td style={{ minWidth: "140px" }}>
+                            <span className="badge attention">
+                              ● {cand.currentStage}
+                            </span>
+                          </td>
+                          <td style={{ minWidth: "340px" }}>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                              {(cand.missingDocs || [
+                                { category: "GENERAL", name: "Required File Pending", reason: "Mandatory compliance scan required" },
+                              ]).map((doc, dIdx) => (
+                                <div
+                                  key={dIdx}
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "flex-start",
+                                    gap: "8px",
+                                    fontSize: "12px",
+                                    lineHeight: "1.4",
+                                    padding: "6px 10px",
+                                    borderRadius: "8px",
+                                    background: "#fef2f2",
+                                    color: "#991b1b",
+                                    border: "1px solid #fecaca",
+                                    wordBreak: "break-word",
+                                  }}
+                                >
+                                  <FileWarning size={14} color="#dc2626" style={{ flexShrink: 0, marginTop: "2px" }} />
+                                  <div>
+                                    <strong style={{ color: "#991b1b", fontWeight: 700 }}>{doc.name}</strong>
+                                    {doc.reason && (
+                                      <span style={{ color: "#7f1d1d", marginLeft: "4px", fontWeight: 400 }}>: {doc.reason}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                          <td style={{ minWidth: "240px" }}>
+                            <span style={{ fontSize: "12.5px", color: "#475569", lineHeight: "1.4", display: "inline-block" }}>
+                              Candidate needs to submit original document to agency office.
+                            </span>
+                          </td>
+                          <td style={{ minWidth: "140px", textAlign: "right" }}>
+                            <Link
+                              href={`/portal/agent/candidate/${cand.fileId}?agentId=${encodeURIComponent(agentId)}`}
+                              className="dashboard-profile-link primary"
+                            >
+                              <FileText size={12} style={{ marginRight: "4px" }} /> Dossier →
+                            </Link>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+                <div className="dashboard-table-summary">
+                  Showing {filteredMissingDocCandidates.length} of {candidatesWithMissingDocs.length} candidates with missing documents
                 </div>
               </div>
-            ))
-          )}
-        </div>
+            </div>
+          </section>
+        </>
+      ) : activeTab === "expiry" ? (
+        /* =========================================================================
+            VIEW 5: DOCUMENT EXPIRY TRACKER
+            ========================================================================= */
+        <>
+          {renderHero({
+            badge: "DEADLINE & VALIDITY MONITOR",
+            title: "Document Expiry & Validity Tracker",
+            subtitle: "Monitor passport, medical GAMCA, and visa expiration dates to prevent costly delays",
+            actions: (
+              <button type="button" className="dashboard-action" onClick={() => window.print()}>
+                <Printer size={14} /> Print Expiry Report
+              </button>
+            ),
+          })}
+
+          {/* 4 Expiry Urgency Health Cards */}
+          <section className="dashboard-kpi-grid" aria-label="Expiry urgency metrics">
+            <div
+              className="dashboard-kpi-card"
+              onClick={() => setExpiryStatusFilter("CRITICAL")}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="dashboard-metric-heading">
+                <span>Expired (&lt; 0 Days)</span>
+                <Clock size={16} color="#dc2626" />
+              </div>
+              <b style={{ color: "#dc2626" }}>{expiredCount}</b>
+              <p>Immediate renewal / re-issue required</p>
+            </div>
+
+            <div
+              className="dashboard-kpi-card"
+              onClick={() => setExpiryStatusFilter("CRITICAL")}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="dashboard-metric-heading">
+                <span>Critical (&lt; 15 Days)</span>
+                <Clock size={16} color="#d97706" />
+              </div>
+              <b style={{ color: "#d97706" }}>{criticalExpiryCount - expiredCount}</b>
+              <p>Expedite visa stamping immediately</p>
+            </div>
+
+            <div
+              className="dashboard-kpi-card"
+              onClick={() => setExpiryStatusFilter("WARNING")}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="dashboard-metric-heading">
+                <span>Warning (16 - 60 Days)</span>
+                <Clock size={16} color="#eab308" />
+              </div>
+              <b style={{ color: "#ca8a04" }}>{warningExpiryCount}</b>
+              <p>Approaching expiration threshold</p>
+            </div>
+
+            <div
+              className="dashboard-kpi-card"
+              onClick={() => setExpiryStatusFilter("SAFE")}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="dashboard-metric-heading">
+                <span>Safe &amp; Valid (&gt; 60 Days)</span>
+                <CheckCircle2 size={16} color="#16a34a" />
+              </div>
+              <b style={{ color: "#16a34a" }}>{safeExpiryCount}</b>
+              <p>Valid for embassy &amp; flight deployment</p>
+            </div>
+          </section>
+
+          {/* Expiry Table */}
+          <section className="dashboard-activity-section" aria-label="Monitored expiration table">
+            <div className="dashboard-activity-toolbar">
+              <div className="dashboard-active-view-header">
+                <div className="dashboard-view-title">
+                  <CalendarClock size={18} color="#d97706" />
+                  <span>Document Expiry Tracker</span>
+                  <span className="dashboard-count-badge warning">
+                    {filteredExpiryItems.length}
+                  </span>
+                </div>
+              </div>
+
+              <div className="dashboard-module-tools">
+                <label className="dashboard-search-field">
+                  <DashboardIcon name="Search" />
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search expiring docs, name..."
+                  />
+                </label>
+
+                <select
+                  aria-label="Filter by expiration urgency"
+                  value={expiryStatusFilter}
+                  onChange={(e) => setExpiryStatusFilter(e.target.value)}
+                  className="portal-select-filter"
+                >
+                  <option value="ALL">All Deadlines ({expiryItems.length})</option>
+                  <option value="CRITICAL">Urgent (&lt; 15d) ({criticalExpiryCount})</option>
+                  <option value="WARNING">Warning (16-60d) ({warningExpiryCount})</option>
+                  <option value="SAFE">Safe / Valid ({safeExpiryCount})</option>
+                </select>
+
+                <select
+                  aria-label="Filter by document type"
+                  value={expiryDocTypeFilter}
+                  onChange={(e) => setExpiryDocTypeFilter(e.target.value)}
+                  className="portal-select-filter"
+                >
+                  <option value="ALL">All Documents</option>
+                  <option value="Passport">Passport</option>
+                  <option value="GAMCA Medical">GAMCA Medical</option>
+                  <option value="Police Clearance (PCC)">Police PCC</option>
+                  <option value="Stamped Visa">Stamped Visa</option>
+                </select>
+              </div>
+            </div>
+
+            <div id="dashboard-activity-panel" role="tabpanel">
+              <div className="desktop-dashboard-table dashboard-leads-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style={{ width: "48px", minWidth: "48px", textAlign: "center" }}>SL</th>
+                      <th style={{ minWidth: "240px" }}>CANDIDATE &amp; CONTACT</th>
+                      <th style={{ minWidth: "180px" }}>DOCUMENT TYPE &amp; REF</th>
+                      <th style={{ minWidth: "150px" }}>EXPIRATION DATE</th>
+                      <th style={{ minWidth: "150px" }}>VALIDITY STATUS</th>
+                      <th style={{ minWidth: "220px" }}>ACTION REQUIRED</th>
+                      <th style={{ minWidth: "140px", width: "140px", textAlign: "right" }}>ACTIONS</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredExpiryItems.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} style={{ padding: "60px 20px", textAlign: "center", color: "#64748b" }}>
+                          <div style={{ display: "grid", placeItems: "center", gap: "8px" }}>
+                            <CheckCircle2 size={32} color="#16a34a" />
+                            <b style={{ fontSize: "14px", color: "#0f172a" }}>All document deadlines healthy!</b>
+                            <span style={{ fontSize: "12px" }}>No passports, GAMCA medical, or visas approaching expiration.</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredExpiryItems.map((item, idx) => (
+                        <tr key={item.id}>
+                          <td style={{ color: "#64748b", fontWeight: 700, textAlign: "center", width: "48px", minWidth: "48px" }}>{idx + 1}</td>
+                          <td style={{ minWidth: "240px" }}>
+                            <div className="dashboard-candidate-identity">
+                              <Link
+                                href={`/portal/agent/candidate/${item.candidate.fileId}?agentId=${encodeURIComponent(agentId)}`}
+                                className="dashboard-candidate-avatar"
+                              >
+                                {item.candidate.fullName.slice(0, 2).toUpperCase()}
+                              </Link>
+                              <div>
+                                <Link
+                                  href={`/portal/agent/candidate/${item.candidate.fileId}?agentId=${encodeURIComponent(agentId)}`}
+                                  style={{ textDecoration: "none", color: "inherit" }}
+                                >
+                                  <b>{item.candidate.fullName}</b>
+                                </Link>
+                                <small>
+                                  <span>{item.candidate.fileNo}</span> • <Phone size={10} style={{ display: "inline", verticalAlign: "middle" }} /> {item.candidate.phone}
+                                </small>
+                              </div>
+                            </div>
+                          </td>
+                          <td style={{ minWidth: "180px" }}>
+                            <div style={{ fontWeight: 600, color: "#0f172a" }}>{item.docType}</div>
+                            <span style={{ fontSize: "11px", fontFamily: "monospace", color: "#64748b" }}>{item.docRef}</span>
+                          </td>
+                          <td style={{ minWidth: "150px" }}>
+                            <b style={{ color: "#0f172a" }}>{formatDate(item.expiryDate.toISOString())}</b>
+                          </td>
+                          <td style={{ minWidth: "150px" }}>
+                            <span
+                              className={`badge ${
+                                item.urgency === "CRITICAL" || item.urgency === "EXPIRED"
+                                  ? "overdue"
+                                  : item.urgency === "WARNING"
+                                  ? "attention"
+                                  : "on-track"
+                              }`}
+                            >
+                              {item.daysLeft < 0
+                                ? `Expired ${Math.abs(item.daysLeft)}d ago`
+                                : `${item.daysLeft} days remaining`}
+                            </span>
+                          </td>
+                          <td style={{ minWidth: "220px" }}>
+                            <span style={{ fontSize: "12px", color: "#475569" }}>
+                              {item.actionRequired}
+                            </span>
+                          </td>
+                          <td style={{ minWidth: "140px", textAlign: "right" }}>
+                            <Link
+                              href={`/portal/agent/candidate/${item.candidate.fileId}?agentId=${encodeURIComponent(agentId)}`}
+                              className="dashboard-profile-link primary"
+                            >
+                              <FileText size={12} style={{ marginRight: "4px" }} /> Dossier →
+                            </Link>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+                <div className="dashboard-table-summary">
+                  Showing {filteredExpiryItems.length} of {expiryItems.length} monitored document expiration items
+                </div>
+              </div>
+            </div>
+          </section>
+        </>
+      ) : activeTab === "interviews" ? (
+        /* =========================================================================
+            VIEW 6: INTERVIEW CALLS & DRIVES
+            ========================================================================= */
+        <>
+          {renderHero({
+            badge: "DELEGATE INTERVIEWS & SELECTIONS",
+            title: "Interview Calls & Client Selection Drives",
+            subtitle: "Scheduled foreign delegate interviews, trade test evaluations, and candidate results",
+          })}
+
+          {/* 4 Interview Stats Cards */}
+          <section className="dashboard-kpi-grid" aria-label="Interview overview">
+            <div
+              className="dashboard-kpi-card"
+              onClick={() => setInterviewStatusFilter("ALL")}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="dashboard-metric-heading">
+                <span>Total Scheduled</span>
+                <CalendarClock size={16} color="#007aff" />
+              </div>
+              <b>{interviewStats.total}</b>
+              <p>Scheduled interview drives</p>
+            </div>
+
+            <div
+              className="dashboard-kpi-card"
+              onClick={() => setInterviewStatusFilter("Selected")}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="dashboard-metric-heading">
+                <span>Selected / Passed</span>
+                <CheckCircle2 size={16} color="#16a34a" />
+              </div>
+              <b style={{ color: "#16a34a" }}>{interviewStats.selected}</b>
+              <p>Passed trade &amp; client review</p>
+            </div>
+
+            <div
+              className="dashboard-kpi-card"
+              onClick={() => setInterviewStatusFilter("Scheduled")}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="dashboard-metric-heading">
+                <span>Upcoming Sessions</span>
+                <Clock size={16} color="#3b82f6" />
+              </div>
+              <b>{interviewStats.scheduled}</b>
+              <p>Upcoming delegate sessions</p>
+            </div>
+
+            <div
+              className="dashboard-kpi-card"
+              onClick={() => setInterviewStatusFilter("Pending")}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="dashboard-metric-heading">
+                <span>Under Review</span>
+                <FileWarning size={16} color="#d97706" />
+              </div>
+              <b>{interviewStats.review}</b>
+              <p>Awaiting final client decision</p>
+            </div>
+          </section>
+
+          {/* Interview Cards Workspace */}
+          <section className="dashboard-activity-section" aria-label="Interview calls workspace">
+            <div className="dashboard-activity-toolbar">
+              <div className="dashboard-active-view-header">
+                <div className="dashboard-view-title">
+                  <DashboardIcon name="CalendarDays" />
+                  <span>Interview Calls &amp; Drives</span>
+                  <span className="dashboard-count-badge">
+                    {filteredInterviews.length}
+                  </span>
+                </div>
+              </div>
+
+              <div className="dashboard-module-tools">
+                <label className="dashboard-search-field">
+                  <DashboardIcon name="Search" />
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search interview drives..."
+                  />
+                </label>
+
+                <select
+                  aria-label="Filter by interview result"
+                  value={interviewStatusFilter}
+                  onChange={(e) => setInterviewStatusFilter(e.target.value)}
+                  className="portal-select-filter"
+                >
+                  <option value="ALL">All Results ({agentData.interviews?.length || 0})</option>
+                  <option value="Selected">Selected / Passed</option>
+                  <option value="Scheduled">Scheduled / In-Progress</option>
+                  <option value="Rescheduled">Rescheduled / Pending</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
+              </div>
+            </div>
+
+            <div id="dashboard-activity-panel" role="tabpanel" style={{ padding: "20px" }}>
+              {filteredInterviews.length === 0 ? (
+                <div style={{ padding: "60px 20px", textAlign: "center", color: "#64748b" }}>
+                  <div style={{ display: "grid", placeItems: "center", gap: "8px" }}>
+                    <CalendarClock size={32} color="#94a3b8" />
+                    <b style={{ fontSize: "14px", color: "#0f172a" }}>No interview drives found</b>
+                    <span style={{ fontSize: "12px" }}>Interview appointments will be listed here when scheduled by central operations.</span>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "14px" }}>
+                  {filteredInterviews.map((iv) => (
+                    <div
+                      key={iv.id}
+                      style={{
+                        background: "#ffffff",
+                        border: "1px solid #e2e8f0",
+                        borderRadius: "14px",
+                        padding: "18px 20px",
+                        boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "12px",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
+                        <div>
+                          <b style={{ fontSize: "14.5px", color: "#0f172a", display: "block" }}>{iv.candidateName || "Candidate"}</b>
+                          <span style={{ fontSize: "12px", color: "#64748b" }}>{iv.profession || "General Work"}</span>
+                        </div>
+                        <span
+                          className={`badge ${
+                            /select|pass/i.test(iv.result || "")
+                              ? "on-track"
+                              : /wait|schedul/i.test(iv.result || "")
+                              ? "attention"
+                              : /reject|fail/i.test(iv.result || "")
+                              ? "overdue"
+                              : ""
+                          }`}
+                        >
+                          {iv.result || iv.status || "Scheduled"}
+                        </span>
+                      </div>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", fontSize: "12px" }}>
+                        <div>
+                          <span style={{ color: "#94a3b8", display: "block" }}>Company / Employer</span>
+                          <b style={{ color: "#334155" }}>{iv.company || "General Overseas Employer"}</b>
+                        </div>
+                        <div>
+                          <span style={{ color: "#94a3b8", display: "block" }}>Interview Date</span>
+                          <b style={{ color: "#334155" }}>{formatDate(iv.interviewDate)} {iv.interviewTime ? `· ${iv.interviewTime}` : ""}</b>
+                        </div>
+                        <div style={{ gridColumn: "1 / -1" }}>
+                          <span style={{ color: "#94a3b8", display: "block" }}>Venue / Platform</span>
+                          <span style={{ color: "#334155", fontWeight: 600 }}>{iv.venue || "Central Office / In-Person"}</span>
+                        </div>
+                      </div>
+
+                      {iv.fileId && (
+                        <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "10px", display: "flex", justifyContent: "flex-end" }}>
+                          <Link
+                            href={`/portal/agent/candidate/${iv.fileId}?agentId=${encodeURIComponent(agentId)}`}
+                            className="dashboard-profile-link primary"
+                          >
+                            <FileText size={12} style={{ marginRight: "4px" }} /> View Dossier →
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        </>
+      ) : (
+        /* =========================================================================
+            VIEW 7: AGENCY VERIFIED DOCUMENTS
+            ========================================================================= */
+        <>
+          {renderHero({
+            badge: "OFFICIAL REPOSITORY & COMPLIANCE",
+            title: "Agency Documents & Official Records",
+            subtitle: "Official partner agreements, trade license scans, authorization credentials, and demand permits",
+          })}
+
+          {/* Trust & Security Strip */}
+          <div className="portal-trust-strip">
+            <div className="portal-trust-badge">
+              <ShieldCheck size={16} color="#16a34a" />
+              <span>Verified Agency License (RL-1842)</span>
+            </div>
+            <div className="portal-trust-badge">
+              <Lock size={16} color="#007aff" />
+              <span>Active Partnership Agreement (AGT-001)</span>
+            </div>
+            <div className="portal-trust-badge">
+              <FileCheck size={16} color="#8b5cf6" />
+              <span>Encrypted Document Vault</span>
+            </div>
+          </div>
+
+          {/* Agency Documents Workspace */}
+          <section className="dashboard-activity-section" aria-label="Agency documents repository">
+            <div className="dashboard-activity-toolbar">
+              <div className="dashboard-active-view-header">
+                <div className="dashboard-view-title">
+                  <DashboardIcon name="FileCheck1" />
+                  <span>Agency Verified Documents</span>
+                  <span className="dashboard-count-badge">
+                    {filteredDocs.length}
+                  </span>
+                </div>
+              </div>
+
+              <div className="dashboard-module-tools">
+                <label className="dashboard-search-field">
+                  <DashboardIcon name="Search" />
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search agency files..."
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div id="dashboard-activity-panel" role="tabpanel" style={{ padding: "20px" }}>
+              {filteredDocs.length === 0 ? (
+                <div style={{ padding: "60px 20px", textAlign: "center", color: "#64748b" }}>
+                  <div style={{ display: "grid", placeItems: "center", gap: "8px" }}>
+                    <FileCheck size={32} color="#94a3b8" />
+                    <b style={{ fontSize: "14px", color: "#0f172a" }}>No agency documents recorded</b>
+                    <span style={{ fontSize: "12px" }}>Official partner agreements, trade license scans, and agency docs will appear here.</span>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "14px" }}>
+                  {filteredDocs.map((doc) => (
+                    <div
+                      key={doc.id}
+                      style={{
+                        background: "#ffffff",
+                        border: "1px solid #e2e8f0",
+                        borderRadius: "14px",
+                        padding: "18px 20px",
+                        boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "12px",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        <div
+                          style={{
+                            width: "40px",
+                            height: "40px",
+                            borderRadius: "10px",
+                            background: "#eff6ff",
+                            color: "#007aff",
+                            display: "grid",
+                            placeItems: "center",
+                          }}
+                        >
+                          <FileText size={20} />
+                        </div>
+                        <div>
+                          <b style={{ fontSize: "14px", color: "#0f172a", display: "block" }}>{doc.title || doc.name}</b>
+                          <span style={{ fontSize: "11.5px", color: "#64748b" }}>{doc.type} · {formatDate(doc.createdAt)}</span>
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #f1f5f9", paddingTop: "10px" }}>
+                        <span className="badge on-track">● Verified Document</span>
+                        <div style={{ display: "flex", gap: "6px" }}>
+                          <button
+                            type="button"
+                            className="dashboard-profile-link"
+                            onClick={() => setPreviewDoc({ name: doc.title || doc.name || "Agency Document", type: doc.type, fileData: doc.url })}
+                          >
+                            <Eye size={12} style={{ marginRight: "4px" }} /> Preview
+                          </button>
+                          {doc.url && (
+                            <a
+                              href={doc.url}
+                              download={doc.title || "Document"}
+                              className="dashboard-profile-link primary"
+                            >
+                              <Download size={12} style={{ marginRight: "4px" }} /> Download
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        </>
       )}
 
-      </div>
-
-      {/* 8. 📑 360° CANDIDATE COMPLETE PROFILE & ALL-TABLES MASTER DOSSIER (STRICT VIEW & DOWNLOAD ONLY) */}
-      {selectedCandidate && (
-        <Candidate360DossierModal
-          candidate={selectedCandidate}
-          onClose={() => setSelectedCandidate(null)}
-          onPreviewDoc={(doc) => setPreviewDoc(doc)}
-          onPrintReceipt={(p) => openPrintReceipt(p, selectedCandidate)}
-        />
-      )}
-
-      {/* 9. SAFE DOCUMENT PREVIEW & DOWNLOAD MODAL */}
+      {/* DOCUMENT PREVIEW MODAL */}
       {previewDoc && (
-        <div role="dialog" aria-modal="true" aria-label="Dialog" className="master-modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.75)", backdropFilter: "blur(6px)", display: "grid", placeItems: "center", zIndex: 99999, padding: "20px" }}>
-          <div className="master-modal-card master-modal-inline-card master-modal-panel" style={{ background: "#fff", borderRadius: "18px", maxWidth: "640px", width: "100%", padding: "24px", boxShadow: "0 25px 50px rgba(0,0,0,0.3)" }}>
-            <div className="master-modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Document Preview"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15, 23, 42, 0.65)",
+            backdropFilter: "blur(4px)",
+            display: "grid",
+            placeItems: "center",
+            zIndex: 9999,
+            padding: "20px",
+          }}
+        >
+          <div
+            style={{
+              background: "#ffffff",
+              borderRadius: "18px",
+              maxWidth: "600px",
+              width: "100%",
+              padding: "24px",
+              boxShadow: "0 20px 40px rgba(0, 0, 0, 0.2)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <div className="master-modal-accent master-modal-icon" style={{ width: "36px", height: "36px", borderRadius: "8px", background: "#eaf2ff", color: "#007aff", display: "grid", placeItems: "center" }}>
+                <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#eff6ff", color: "#007aff", display: "grid", placeItems: "center" }}>
                   <FileText size={18} />
                 </div>
                 <div>
-                  <h3 style={{ fontSize: "15px", fontWeight: 600, margin: 0, color: "var(--ink)" }}>{previewDoc.name}</h3>
-                  <span style={{ fontSize: "11px", color: "var(--muted)" }}>{previewDoc.type || "Document"}</span>
+                  <h3 style={{ fontSize: "15px", fontWeight: 700, margin: 0, color: "#0f172a" }}>{previewDoc.name}</h3>
+                  <span style={{ fontSize: "11px", color: "#64748b" }}>{previewDoc.type || "Document"}</span>
                 </div>
               </div>
-              <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog" className="master-modal-close" type="button" onClick={() => setPreviewDoc(null)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--muted)" }}>
+              <button
+                type="button"
+                aria-label="Close dialog"
+                onClick={() => setPreviewDoc(null)}
+                style={{ background: "transparent", border: "none", cursor: "pointer", color: "#64748b" }}
+              >
                 <X size={20} />
               </button>
             </div>
 
-            <div className="master-modal-panel" style={{ background: "#f8fafc", borderRadius: "12px", border: "1px dashed var(--line)", padding: "36px 20px", textAlign: "center", display: "grid", placeItems: "center", gap: "12px" }}>
+            <div
+              style={{
+                background: "#f8fafc",
+                borderRadius: "12px",
+                border: "1px dashed #cbd5e1",
+                padding: "36px 20px",
+                textAlign: "center",
+                display: "grid",
+                placeItems: "center",
+                gap: "12px",
+              }}
+            >
               {previewDoc.fileData && previewDoc.fileData.startsWith("data:image/") ? (
                 <Image
                   src={previewDoc.fileData}
                   alt={previewDoc.name}
-                  width={600}
-                  height={400}
+                  width={560}
+                  height={380}
                   unoptimized
                   style={{ maxHeight: "300px", maxWidth: "100%", height: "auto", borderRadius: "8px", objectFit: "contain" }}
                 />
               ) : (
                 <>
-                  <FileCheck size={48} color="#059669" />
+                  <FileCheck size={44} color="#16a34a" />
                   <div>
-                    <b style={{ fontSize: "14px", color: "var(--ink)", display: "block" }}>Document Verified &amp; Archived</b>
-                    <span style={{ fontSize: "12px", color: "var(--muted)" }}>Type: {previewDoc.type} • Secured by Orbit Central Database</span>
+                    <b style={{ fontSize: "14px", color: "#0f172a", display: "block" }}>Document Verified &amp; Archived</b>
+                    <span style={{ fontSize: "12px", color: "#64748b" }}>Secured by Orbit Central Database</span>
                   </div>
                 </>
               )}
             </div>
 
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", marginTop: "18px" }}>
-              <span style={{ fontSize: "11px", color: "var(--muted)", display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                <Lock size={12} color="#10b981" /> Read-Only File Inspection
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "18px" }}>
+              <span style={{ fontSize: "11px", color: "#64748b", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                <Lock size={12} color="#16a34a" /> Read-Only File Inspection
               </span>
               <div style={{ display: "flex", gap: "8px" }}>
                 {previewDoc.fileData && (
-                  <a data-action-ui="neutral" data-action-size="normal"
+                  <a
                     href={previewDoc.fileData}
                     download={previewDoc.name}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      padding: "8px 16px",
-                      borderRadius: "8px",
-                      background: "#007aff",
-                      color: "#fff",
-                      textDecoration: "none",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                    }}
+                    className="portal-toolbar-btn"
+                    style={{ background: "#007aff", color: "#ffffff", borderColor: "#007aff" }}
                   >
-                    <Download size={14} /> Download File
+                    <Download size={13} /> Download
                   </a>
                 )}
-                <button data-action-ui="neutral" data-action-size="normal"
+                <button
                   type="button"
                   onClick={() => setPreviewDoc(null)}
-                  style={{ padding: "8px 16px", borderRadius: "8px", background: "#f1f5f9", border: "none", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}
+                  className="portal-toolbar-btn"
                 >
                   Close
                 </button>
@@ -2172,901 +2572,18 @@ export function AgentPortalView({ agentId }: { agentId: string }) {
         </div>
       )}
 
-      {/* 10. MONEY RECEIPT MODAL */}
+      {/* MONEY RECEIPT VOUCHER MODAL */}
       {activeReceipt && (
-        <MoneyReceiptModal receipt={activeReceipt} onClose={() => setActiveReceipt(null)} />
+        <MoneyReceiptModal
+          receipt={activeReceipt}
+          receipts={activeReceiptsList}
+          initialIndex={activeReceiptIndex}
+          onClose={() => {
+            setActiveReceipt(null);
+            setActiveReceiptsList([]);
+          }}
+        />
       )}
-    </div>
-  );
-}
-
-// ==========================================
-// 📑 360° CANDIDATE COMPLETE PROFILE & ALL-TABLES MASTER DOSSIER (STRICT VIEW & DOWNLOAD ONLY)
-// ==========================================
-function Candidate360DossierModal({
-  candidate,
-  onClose,
-  onPreviewDoc,
-  onPrintReceipt,
-}: {
-  candidate: CandidateItem;
-  onClose: () => void;
-  onPreviewDoc: (doc: { name: string; type: string; fileData?: string | null }) => void;
-  onPrintReceipt: (p: PaymentItem) => void;
-}) {
-  const [activeSection, setActiveSection] = useState<string>("all");
-
-  const { data: fileData, isLoading } = useQuery({
-    queryKey: ["candidate-360-file", candidate.fileId],
-    queryFn: async () => {
-      const res = await fetch(`/api/files/${candidate.fileId}`);
-      if (!res.ok) throw new Error("Failed to load candidate file data");
-      const json = await res.json();
-      return json.data;
-    },
-  });
-
-  const formatTk = (val?: number | null) => `৳ ${(val || 0).toLocaleString()}`;
-  const formatDate = (val?: string | null) => (val ? new Date(val).toLocaleDateString("en-GB") : "—");
-
-  const cand = fileData?.candidate || {};
-  const passport = fileData?.passport || {};
-  const medical = (fileData?.medical || [])[0] || {};
-  const police = (fileData?.police || [])[0] || {};
-  const takamul = (fileData?.takamul || [])[0] || {};
-  const biometrics = (fileData?.biometrics || [])[0] || {};
-  const mofa = (fileData?.mofa || [])[0] || {};
-  const visa = (fileData?.visas || [])[0] || {};
-  const manpower = (fileData?.manpower || [])[0] || {};
-  const flight = (fileData?.flights || [])[0]?.flight || {};
-  const payments = fileData?.payments || candidate.paymentHistory || [];
-  const educations = cand?.educations || [];
-  const experiences = cand?.experiences || [];
-  const documents = fileData?.documents || [];
-
-  const resolvedPassportNo =
-    passport?.passportNumber ||
-    passport?.passportNo ||
-    cand?.passportNo ||
-    cand?.passportNumber ||
-    candidate?.passportNumber ||
-    candidate?.passportNo ||
-    "";
-
-  const shouldShow = (secId: string) => activeSection === "all" || activeSection === secId;
-
-  return (
-    <div role="dialog" aria-modal="true" aria-label="👤 1. Candidate Bio-Data & Personal Profile" className="master-modal-overlay"
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(15, 23, 42, 0.75)",
-        backdropFilter: "blur(6px)",
-        display: "grid",
-        placeItems: "center",
-        zIndex: 9999,
-        padding: "20px",
-      }}
-    >
-      <div className="master-modal-card master-modal-inline-card master-modal-panel"
-        style={{
-          background: "var(--surface)",
-          borderRadius: "20px",
-          maxWidth: "1150px",
-          width: "100%",
-          maxHeight: "90vh",
-          display: "flex",
-          flexDirection: "column",
-          boxShadow: "0 25px 60px -15px rgba(0, 0, 0, 0.4)",
-          overflow: "hidden",
-          border: "1px solid rgba(255,255,255,0.1)",
-        }}
-      >
-        {/* HEADER */}
-        <div className="master-modal-header"
-          style={{
-            background: "linear-gradient(135deg, #1d1d1f 0%, #312e81 50%, #4338ca 100%)",
-            padding: "20px 26px",
-            color: "#ffffff",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: "14px",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-            <div className="master-modal-icon"
-              style={{
-                width: "48px",
-                height: "48px",
-                borderRadius: "12px",
-                background: "rgba(255, 255, 255, 0.2)",
-                display: "grid",
-                placeItems: "center",
-                fontSize: "18px",
-                fontWeight: 700,
-                border: "1px solid rgba(255,255,255,0.3)",
-              }}
-            >
-              {candidate.fullName.slice(0, 2).toUpperCase()}
-            </div>
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                <h2 style={{ fontSize: "18px", fontWeight: 700, margin: 0 }}>
-                  {candidate.fullName}
-                </h2>
-                <span
-                  style={{
-                    background: "rgba(255, 255, 255, 0.2)",
-                    color: "#ffffff",
-                    padding: "1px 8px",
-                    borderRadius: "4px",
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    fontFamily: "monospace",
-                  }}
-                >
-                  {candidate.candidateNo}
-                </span>
-                <span
-                  style={{
-                    background: "#10b981",
-                    color: "#ffffff",
-                    padding: "2px 8px",
-                    borderRadius: "9999px",
-                    fontSize: "11px",
-                    fontWeight: 600,
-                  }}
-                >
-                  {candidate.currentStage}
-                </span>
-              </div>
-              <p style={{ margin: "3px 0 0", fontSize: "12.5px", opacity: 0.85, display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-                <span>📁 File: <b>{candidate.fileNo}</b></span>
-                <span>📘 Passport: <b>{resolvedPassportNo || "N/A"}</b></span>
-                <span>🌍 Destination: <b>{candidate.country}</b></span>
-                <span>💼 Trade: <b>{candidate.profession}</b></span>
-              </p>
-            </div>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <div className="master-modal-panel"
-              style={{
-                background: "rgba(255,255,255,0.12)",
-                border: "1px solid rgba(255,255,255,0.2)",
-                borderRadius: "8px",
-                padding: "6px 12px",
-                fontSize: "11.5px",
-                fontWeight: 700,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "5px",
-              }}
-            >
-              <Lock size={13} color="#34d399" />
-              <span>Read-Only Verification Mode</span>
-            </div>
-
-            <button data-action-ui="neutral" data-action-size="normal" className="master-modal-secondary"
-              type="button"
-              onClick={() => window.print()}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "8px 14px",
-                borderRadius: "8px",
-                background: "#ffffff",
-                color: "#1d1d1f",
-                border: "none",
-                fontSize: "12px",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              <Printer size={14} /> Print Dossier
-            </button>
-
-            <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog" className="master-modal-close"
-              type="button"
-              onClick={onClose}
-              style={{
-                width: "36px",
-                height: "36px",
-                borderRadius: "8px",
-                background: "rgba(255,255,255,0.15)",
-                border: "none",
-                color: "#ffffff",
-                cursor: "pointer",
-                display: "grid",
-                placeItems: "center",
-              }}
-            >
-              <X size={18} />
-            </button>
-          </div>
-        </div>
-
-        {/* FINANCIAL QUICK STRIP */}
-        <div
-          style={{
-            background: "#f8fafc",
-            borderBottom: "1px solid var(--line)",
-            padding: "10px 24px",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: "12px",
-            fontSize: "12px",
-          }}
-        >
-          <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
-            <span><b>Agreed Package:</b> <span style={{ color: "#4c1d95", fontWeight: 600 }}>{formatTk(fileData?.packageCost || candidate.packageCost)}</span></span>
-            <span><b>Paid by Candidate:</b> <span style={{ color: "#047857", fontWeight: 600 }}>{formatTk(fileData?.totalPaid || candidate.totalPaid)}</span></span>
-            <span><b>Remaining Due:</b> <span style={{ color: (candidate.dueAmount > 0) ? "#6e6e73" : "#047857", fontWeight: 600 }}>{formatTk(fileData?.dueAmount || candidate.dueAmount)}</span></span>
-          </div>
-          <span style={{ color: "var(--muted)", fontSize: "11px" }}>
-            🔒 All files, visas &amp; vouchers are verified and view/download only.
-          </span>
-        </div>
-
-        {/* SECTION FILTER PILLS */}
-        <div
-          style={{
-            background: "#ffffff",
-            borderBottom: "1px solid var(--line)",
-            padding: "8px 24px",
-            display: "flex",
-            gap: "6px",
-            overflowX: "auto",
-          }}
-        >
-          {[
-            { id: "all", label: "🌟 Show All Tables" },
-            { id: "bio", label: "👤 1. Bio-Data" },
-            { id: "passport", label: "📘 2. Passport" },
-            { id: "medical", label: "🏥 3. Medical & GAMCA" },
-            { id: "police", label: "🛡️ 4. Police Clearance (PCC)" },
-            { id: "payment", label: "💵 5. Payment Deposits" },
-            { id: "takamul", label: "🏅 6. Takamul / MOHRE" },
-            { id: "biofinger", label: "🖐️ 7. Bio-Finger" },
-            { id: "mofa", label: "🌐 8. MOFA & Kafeel" },
-            { id: "visa", label: "🛂 9. Visa Stamping" },
-            { id: "manpower", label: "📜 10. BMET Manpower" },
-            { id: "flight", label: "✈️ 11. Flight Departure" },
-            { id: "education", label: "🎓 12. Education & Exp" },
-            { id: "documents", label: "📁 13. Scanned Docs" },
-          ].map((pill) => (
-            <button aria-pressed={activeSection === pill.id}
-              key={pill.id}
-              type="button"
-              onClick={() => setActiveSection(pill.id)}
-              style={{
-                padding: "6px 12px",
-                borderRadius: "8px",
-                border: "none",
-                fontSize: "11.5px",
-                fontWeight: activeSection === pill.id ? 800 : 600,
-                background: activeSection === pill.id ? "#007aff" : "#f1f5f9",
-                color: activeSection === pill.id ? "#ffffff" : "var(--muted)",
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-                transition: "all 0.15s ease",
-              }}
-            >
-              {pill.label}
-            </button>
-          ))}
-        </div>
-
-        {/* MODAL MAIN CONTENT SCROLL BODY */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px", background: "#f8fafc" }}>
-          
-          {isLoading ? (
-            <div style={{ padding: "60px 20px", textAlign: "center" }}>
-              <RefreshCw className="animate-spin" size={28} color="#007aff" style={{ margin: "0 auto 12px" }} />
-              <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0 }}>Loading complete 360° candidate dossier...</p>
-            </div>
-          ) : (
-            <>
-              {/* 1. CANDIDATE BIO-DATA TABLE */}
-              {shouldShow("bio") && (
-                <div className="master-modal-panel" style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid var(--line)", paddingBottom: "8px" }}>
-                    <h3 style={{ fontSize: "14px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
-                      👤 1. Candidate Bio-Data &amp; Personal Profile
-                    </h3>
-                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#10b981", background: "#ecfdf5", padding: "2px 8px", borderRadius: "4px" }}>
-                      Registered &amp; Verified
-                    </span>
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px", fontSize: "12px" }}>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Full Legal Name</span>
-                      <b style={{ color: "var(--ink)", fontSize: "13px" }}>{candidate.fullName}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Father&apos;s Name</span>
-                      <b style={{ color: "var(--ink)" }}>{cand.fatherName || "—"}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Mother&apos;s Name</span>
-                      <b style={{ color: "var(--ink)" }}>{cand.motherName || "—"}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Date of Birth / Age</span>
-                      <b style={{ color: "var(--ink)" }}>{formatDate(cand.dob)} {cand.age ? `(${cand.age} yrs)` : ""}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Gender / Religion</span>
-                      <b style={{ color: "var(--ink)" }}>{cand.gender || "Male"} • {cand.religion || "Muslim"}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Marital Status</span>
-                      <b style={{ color: "var(--ink)" }}>{cand.maritalStatus || "Married"}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>District / Division</span>
-                      <b style={{ color: "var(--ink)" }}>{cand.district || "Brahmanbaria"}, {cand.division || "Chattogram"}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Candidate Phone</span>
-                      <b style={{ color: "#0284c7" }}>{candidate.phone}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Emergency Contact</span>
-                      <b style={{ color: "var(--ink)" }}>{cand.emergencyContact || cand.emergencyPhone || "—"}</b>
-                    </div>
-                    <div style={{ gridColumn: "1 / -1" }}>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Permanent Village / Address</span>
-                      <span style={{ color: "var(--ink)", fontWeight: 600 }}>{cand.address || cand.village || "Court Road, Brahmanbaria Sadar, Bangladesh"}</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* 2. PASSPORT LIST & ENTRY TABLE */}
-              {shouldShow("passport") && (
-                <div className="master-modal-panel" style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid var(--line)", paddingBottom: "8px" }}>
-                    <h3 style={{ fontSize: "14px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
-                      📘 2. Passport Record &amp; Entry
-                    </h3>
-                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#2563eb", background: "#eff6ff", padding: "2px 8px", borderRadius: "4px" }}>
-                      {passport.passportStatus || "Original in Vault"}
-                    </span>
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px", fontSize: "12px" }}>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Passport Number</span>
-                      <b style={{ color: "var(--ink)", fontFamily: "monospace", fontSize: "14px" }}>{resolvedPassportNo || "—"}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Issue Date</span>
-                      <b style={{ color: "var(--ink)" }}>{formatDate(passport.issueDate)}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Expiry Date</span>
-                      <b style={{ color: "var(--ink)" }}>{formatDate(passport.expiryDate)}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Place of Issue</span>
-                      <b style={{ color: "var(--ink)" }}>{passport.placeOfIssue || "Dhaka"}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Physical Vault Location</span>
-                      <b style={{ color: "#059669" }}>Vault Box A-4</b>
-                    </div>
-                  </div>
-
-                  {passport.documentUrl && (
-                    <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "flex-end", gap: "8px" }}>
-                      <button data-action-ui="secondary" data-action-size="normal" className="master-modal-accent"
-                        type="button"
-                        onClick={() => onPreviewDoc({ name: `Passport_${resolvedPassportNo || "Scan"}.pdf`, type: "Passport Scan", fileData: passport.documentUrl })}
-                        style={{ padding: "6px 12px", borderRadius: "6px", background: "#eaf2ff", color: "#007aff", border: "none", fontSize: "11px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}
-                      >
-                        <Eye size={12} /> View Passport Scan
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* 3. MEDICAL & GCC GAMCA TABLE */}
-              {shouldShow("medical") && (
-                <div className="master-modal-panel" style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid var(--line)", paddingBottom: "8px" }}>
-                    <h3 style={{ fontSize: "14px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
-                      🏥 3. Medical Examination &amp; GCC GAMCA Fitness
-                    </h3>
-                    <span style={{ fontSize: "11px", fontWeight: 600, color: "#059669", background: "#ecfdf5", padding: "2px 8px", borderRadius: "4px", border: "1px solid #a7f3d0" }}>
-                      {medical.result || "FIT (Passed)"}
-                    </span>
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px", fontSize: "12px" }}>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Medical Center</span>
-                      <b style={{ color: "var(--ink)" }}>{medical.center || "Al-Nahda Medical Diagnostics Center"}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>GCC Slip No / Token</span>
-                      <b style={{ color: "var(--ink)", fontFamily: "monospace" }}>{medical.slipNo || "GCC-2026-88192"}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Test Exam Date</span>
-                      <b style={{ color: "var(--ink)" }}>{formatDate(medical.testDate)}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>GAMCA Validity Expiry</span>
-                      <b style={{ color: "#059669" }}>{formatDate(medical.expiryDate)}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Result Outcome</span>
-                      <b style={{ color: "#059669" }}>FIT for Deployment</b>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* 4. POLICE CLEARANCE (PCC) TABLE */}
-              {shouldShow("police") && (
-                <div className="master-modal-panel" style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid var(--line)", paddingBottom: "8px" }}>
-                    <h3 style={{ fontSize: "14px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
-                      🛡️ 4. Police Clearance Certificate (PCC)
-                    </h3>
-                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#059669", background: "#ecfdf5", padding: "2px 8px", borderRadius: "4px" }}>
-                      {police.status || "CLEARED"}
-                    </span>
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px", fontSize: "12px" }}>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>PCC App / Token No</span>
-                      <b style={{ color: "var(--ink)", fontFamily: "monospace" }}>{police.tokenNo || "PCC-BD-2026-9041"}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Issue Date</span>
-                      <b style={{ color: "var(--ink)" }}>{formatDate(police.issueDate)}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Expiry Date</span>
-                      <b style={{ color: "var(--ink)" }}>{formatDate(police.expiryDate)}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Special Branch Clearance</span>
-                      <b style={{ color: "#059669" }}>No Adverse Record Found</b>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* 5. PAYMENT DEPOSITS & INVOICES TABLE */}
-              {shouldShow("payment") && (
-                <div className="master-modal-panel" style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid var(--line)", paddingBottom: "8px" }}>
-                    <h3 style={{ fontSize: "14px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
-                      💵 5. Candidate Payment Deposits &amp; Money Receipts
-                    </h3>
-                    <span style={{ fontSize: "12px", fontWeight: 600, color: "#059669" }}>
-                      Total Collected: {formatTk(candidate.totalPaid)}
-                    </span>
-                  </div>
-
-                  <div style={{ overflowX: "auto" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
-                      <thead>
-                        <tr style={{ background: "#f8fafc", borderBottom: "1px solid var(--line)", textAlign: "left" }}>
-                          <th style={{ padding: "8px 10px", fontWeight: 700, color: "var(--muted)" }}>Date</th>
-                          <th style={{ padding: "8px 10px", fontWeight: 700, color: "var(--muted)" }}>Voucher / Receipt No</th>
-                          <th style={{ padding: "8px 10px", fontWeight: 700, color: "var(--muted)" }}>Type</th>
-                          <th style={{ padding: "8px 10px", fontWeight: 700, color: "var(--muted)" }}>Method</th>
-                          <th style={{ padding: "8px 10px", fontWeight: 700, color: "var(--muted)" }}>Amount (BDT)</th>
-                          <th style={{ padding: "8px 10px", fontWeight: 700, color: "var(--muted)", textAlign: "right" }}>Receipt</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {payments.length === 0 ? (
-                          <tr>
-                            <td colSpan={6} style={{ padding: "20px", textAlign: "center", color: "var(--muted)" }}>
-                              No payment transactions recorded yet.
-                            </td>
-                          </tr>
-                        ) : (
-                          payments.map((p: any, idx: number) => (
-                            <tr key={p.id || idx} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                              <td style={{ padding: "8px 10px" }}>{formatDate(p.collectedAt || p.createdAt)}</td>
-                              <td style={{ padding: "8px 10px", fontFamily: "monospace", fontWeight: 700 }}>
-                                {p.reference || p.paymentNo || `REC-${idx + 1}`}
-                              </td>
-                              <td style={{ padding: "8px 10px" }}>{p.type || "Candidate Deposit"}</td>
-                              <td style={{ padding: "8px 10px" }}>{p.method || "Cash at Office"}</td>
-                              <td style={{ padding: "8px 10px", fontWeight: 600, color: "#059669" }}>
-                                {formatTk(p.amount)}
-                              </td>
-                              <td style={{ padding: "8px 10px", textAlign: "right" }}>
-                                <button data-action-ui="neutral" data-action-size="compact" className="master-modal-secondary"
-                                  type="button"
-                                  onClick={() => onPrintReceipt(p)}
-                                  style={{
-                                    padding: "4px 8px",
-                                    borderRadius: "6px",
-                                    background: "#ecfdf5",
-                                    color: "#059669",
-                                    border: "1px solid #a7f3d0",
-                                    fontSize: "11px",
-                                    fontWeight: 700,
-                                    cursor: "pointer",
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: "3px",
-                                  }}
-                                >
-                                  <Printer size={11} /> Print Voucher
-                                </button>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* 6. TAKAMUL / MOHRE LABOR APPROVAL TABLE */}
-              {shouldShow("takamul") && (
-                <div className="master-modal-panel" style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid var(--line)", paddingBottom: "8px" }}>
-                    <h3 style={{ fontSize: "14px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
-                      🏅 6. Skill Verification (Saudi Takamul / MOHRE Approval)
-                    </h3>
-                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#059669", background: "#ecfdf5", padding: "2px 8px", borderRadius: "4px" }}>
-                      {takamul.result || "SVP Verified &amp; Passed"}
-                    </span>
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px", fontSize: "12px" }}>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Assessment Center</span>
-                      <b style={{ color: "var(--ink)" }}>{takamul.center || "Bangladesh-Korea TTC Skill Center"}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Certificate No</span>
-                      <b style={{ color: "var(--ink)", fontFamily: "monospace" }}>{takamul.certNo || "SVP-2026-9921"}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Trade Exam Date</span>
-                      <b style={{ color: "var(--ink)" }}>{formatDate(takamul.testDate)}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Skill Status</span>
-                      <b style={{ color: "#059669" }}>Level-2 Certified Professional</b>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* 7. BIO-FINGER TABLE */}
-              {shouldShow("biofinger") && (
-                <div className="master-modal-panel" style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid var(--line)", paddingBottom: "8px" }}>
-                    <h3 style={{ fontSize: "14px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
-                      🖐️ 7. Saudi Bio-Finger Biometrics
-                    </h3>
-                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#059669", background: "#ecfdf5", padding: "2px 8px", borderRadius: "4px" }}>
-                      {biometrics.status || "Enrolled"}
-                    </span>
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px", fontSize: "12px" }}>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>VFS Tasheel Center</span>
-                      <b style={{ color: "var(--ink)" }}>{biometrics.center || "VFS Tasheel Jamuna Future Park, Dhaka"}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Biometric Date</span>
-                      <b style={{ color: "var(--ink)" }}>{formatDate(biometrics.testDate)}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Fingerprint Status</span>
-                      <b style={{ color: "#059669" }}>10-Fingerprint Enrolled &amp; Matched</b>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* 8. MOFA & KAFEEL TABLE */}
-              {shouldShow("mofa") && (
-                <div className="master-modal-panel" style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid var(--line)", paddingBottom: "8px" }}>
-                    <h3 style={{ fontSize: "14px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
-                      🌐 8. Saudi MOFA &amp; Kafeel (Sponsor) Info
-                    </h3>
-                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#059669", background: "#ecfdf5", padding: "2px 8px", borderRadius: "4px" }}>
-                      {mofa.status || "Approved"}
-                    </span>
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px", fontSize: "12px" }}>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>MOFA Number</span>
-                      <b style={{ color: "var(--ink)", fontFamily: "monospace" }}>{mofa.mofaNo || "MOFA-7819203"}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Application Date</span>
-                      <b style={{ color: "var(--ink)" }}>{formatDate(mofa.applicationDate)}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Sponsor / Kafeel Name</span>
-                      <b style={{ color: "var(--ink)" }}>{mofa.sponsorName || "Al-Rajhi Contracting &amp; Manpower Co."}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Sponsor ID</span>
-                      <b style={{ color: "var(--ink)", fontFamily: "monospace" }}>{mofa.sponsorId || "7001892839"}</b>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* 9. VISA STAMPING & EMBASSY VISA TABLE */}
-              {shouldShow("visa") && (
-                <div className="master-modal-panel" style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid var(--line)", paddingBottom: "8px" }}>
-                    <h3 style={{ fontSize: "14px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
-                      🛂 9. Visa Stamping &amp; Embassy Visa
-                    </h3>
-                    <span style={{ fontSize: "11px", fontWeight: 600, color: "#2563eb", background: "#eff6ff", padding: "2px 8px", borderRadius: "4px", border: "1px solid #bfdbfe" }}>
-                      {visa.status || "Visa Stamped (Original)"}
-                    </span>
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px", fontSize: "12px" }}>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>E-Visa Number</span>
-                      <b style={{ color: "var(--ink)", fontFamily: "monospace", fontSize: "14px" }}>{candidate.visaNumber || visa.visaNo || "E-98129038"}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Stamping Date</span>
-                      <b style={{ color: "var(--ink)" }}>{formatDate(visa.issueDate)}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Visa Expiry Date</span>
-                      <b style={{ color: "var(--ink)" }}>{formatDate(visa.expiryDate)}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Stamping Embassy</span>
-                      <b style={{ color: "var(--ink)" }}>Royal Embassy of Saudi Arabia, Dhaka</b>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* 10. BMET MANPOWER CLEARANCE TABLE */}
-              {shouldShow("manpower") && (
-                <div className="master-modal-panel" style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid var(--line)", paddingBottom: "8px" }}>
-                    <h3 style={{ fontSize: "14px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
-                      📜 10. BMET Manpower Clearance &amp; Smart Card
-                    </h3>
-                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#059669", background: "#ecfdf5", padding: "2px 8px", borderRadius: "4px" }}>
-                      {manpower.status || "Smart Card Issued"}
-                    </span>
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px", fontSize: "12px" }}>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>BMET Smart Card No</span>
-                      <b style={{ color: "var(--ink)", fontFamily: "monospace" }}>{manpower.smartCardNo || "BMET-SC-88129"}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>BMET Reg / Clear No</span>
-                      <b style={{ color: "var(--ink)", fontFamily: "monospace" }}>{manpower.regNo || "REG-2026-77182"}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Clearance Date</span>
-                      <b style={{ color: "var(--ink)" }}>{formatDate(manpower.clearanceDate)}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Pre-Departure Briefing</span>
-                      <b style={{ color: "#059669" }}>Completed (3-Day Orientation)</b>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* 11. FLIGHT BOOKING & DEPARTURE TABLE */}
-              {shouldShow("flight") && (
-                <div className="master-modal-panel" style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid var(--line)", paddingBottom: "8px" }}>
-                    <h3 style={{ fontSize: "14px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
-                      ✈️ 11. Flight Booking, Ticket &amp; Departure
-                    </h3>
-                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#059669", background: "#ecfdf5", padding: "2px 8px", borderRadius: "4px" }}>
-                      {flight.flightNo ? "Ticket Confirmed" : "Scheduled"}
-                    </span>
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px", fontSize: "12px" }}>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Airline Carrier</span>
-                      <b style={{ color: "var(--ink)" }}>{flight.airline || "Saudia Airlines (SV)"}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Flight Number</span>
-                      <b style={{ color: "var(--ink)", fontFamily: "monospace" }}>{flight.flightNo || "SV-803"}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Departure Date &amp; Time</span>
-                      <b style={{ color: "var(--ink)" }}>{formatDate(flight.departureDate || candidate.flightDate)} (21:30)</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Route (From ➔ To)</span>
-                      <b style={{ color: "var(--ink)" }}>{flight.fromAirport || "DAC (Dhaka)"} ➔ {flight.toAirport || "RUH (Riyadh)"}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--muted)", fontSize: "11px", fontWeight: 700, display: "block" }}>Airline PNR Ref</span>
-                      <b className="master-modal-accent" style={{ color: "#007aff", fontFamily: "monospace" }}>{flight.pnr || "SV9X8K"}</b>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* 12. EDUCATION & EXPERIENCE */}
-              {shouldShow("education") && (
-                <div className="master-modal-panel" style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid var(--line)", paddingBottom: "8px" }}>
-                    <h3 style={{ fontSize: "14px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
-                      🎓 12. Education Qualifications &amp; Prior Experience
-                    </h3>
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", fontSize: "12px" }}>
-                    <div>
-                      <b style={{ fontSize: "12px", color: "var(--ink)", display: "block", marginBottom: "6px" }}>Educational Degrees</b>
-                      {educations.length === 0 ? (
-                        <span style={{ color: "var(--muted)" }}>Secondary School Certificate (SSC Passed - 2018)</span>
-                      ) : (
-                        educations.map((edu: any, i: number) => (
-                          <div className="master-modal-panel" key={i} style={{ padding: "6px 10px", background: "#f8fafc", borderRadius: "6px", marginBottom: "4px" }}>
-                            <b>{edu.degree || edu.level}</b> - {edu.institute} ({edu.year})
-                          </div>
-                        ))
-                      )}
-                    </div>
-
-                    <div>
-                      <b style={{ fontSize: "12px", color: "var(--ink)", display: "block", marginBottom: "6px" }}>Foreign / Local Work Experience</b>
-                      {experiences.length === 0 ? (
-                        <span style={{ color: "var(--muted)" }}>4 Years Gulf Trade Experience in Masonry &amp; Construction</span>
-                      ) : (
-                        experiences.map((exp: any, i: number) => (
-                          <div className="master-modal-panel" key={i} style={{ padding: "6px 10px", background: "#f8fafc", borderRadius: "6px", marginBottom: "4px" }}>
-                            <b>{exp.company}</b> - {exp.role} ({exp.years} yrs)
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* 13. COMPLETE SCANNED DOCUMENTS REPOSITORY */}
-              {shouldShow("documents") && (
-                <div className="master-modal-panel" style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--line)", padding: "18px 20px", boxShadow: "var(--shadow)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid var(--line)", paddingBottom: "8px" }}>
-                    <h3 style={{ fontSize: "14px", fontWeight: 600, margin: 0, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
-                      📁 13. Scanned Documents Archive (View &amp; Download Only)
-                    </h3>
-                    <span style={{ fontSize: "11px", color: "var(--muted)", display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                      <Lock size={12} color="#10b981" /> No uploads or deletes permitted
-                    </span>
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "12px" }}>
-                    {[
-                      { name: `Passport_${resolvedPassportNo || "Scan"}.pdf`, type: "Passport Copy Scan", size: "1.2 MB" },
-                      { name: `Medical_GAMCA_Certificate.pdf`, type: "GCC Medical Fit Certificate", size: "840 KB" },
-                      { name: `Police_Clearance_Certificate.pdf`, type: "PCC Clearance Scan", size: "910 KB" },
-                      { name: `Visa_Copy_${candidate.visaNumber || "Stamped"}.pdf`, type: "Electronic Visa Stamped Copy", size: "1.5 MB" },
-                      { name: `BMET_Smart_Card.pdf`, type: "BMET Manpower Smart Card", size: "620 KB" },
-                      { name: `Air_Ticket_E_Ticket.pdf`, type: "Confirmed Flight Ticket", size: "1.1 MB" },
-                      ...documents,
-                    ].map((doc: any, i: number) => (
-                      <div className="master-modal-panel"
-                        key={i}
-                        style={{
-                          background: "#f8fafc",
-                          borderRadius: "10px",
-                          border: "1px solid var(--line)",
-                          padding: "12px 14px",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          gap: "10px",
-                        }}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px", overflow: "hidden" }}>
-                          <FileText size={18} color="#007aff" style={{ flexShrink: 0 }} />
-                          <div style={{ overflow: "hidden" }}>
-                            <b style={{ fontSize: "12px", color: "var(--ink)", display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                              {doc.name}
-                            </b>
-                            <span style={{ fontSize: "10.5px", color: "var(--muted)" }}>{doc.type} • {doc.size || "1.0 MB"}</span>
-                          </div>
-                        </div>
-
-                        <div style={{ display: "flex", gap: "4px", flexShrink: 0 }}>
-                          <button data-action-ui="secondary" data-action-size="normal" className="master-modal-accent"
-                            type="button"
-                            onClick={() => onPreviewDoc(doc)}
-                            title="View Document"
-                            style={{
-                              padding: "5px 8px",
-                              borderRadius: "6px",
-                              background: "#eaf2ff",
-                              color: "#007aff",
-                              border: "none",
-                              fontSize: "11px",
-                              fontWeight: 700,
-                              cursor: "pointer",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "3px",
-                            }}
-                          >
-                            <Eye size={12} /> View
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* MODAL FOOTER */}
-        <div
-          style={{
-            background: "#ffffff",
-            borderTop: "1px solid var(--line)",
-            padding: "12px 24px",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <span style={{ fontSize: "11.5px", color: "var(--muted)", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-            <ShieldCheck size={14} color="#10b981" />
-            Candidate record verified in Central Agency Database. Read &amp; download only.
-          </span>
-          <button data-action-ui="neutral" data-action-size="normal" className="master-modal-primary"
-            type="button"
-            onClick={onClose}
-            style={{
-              padding: "8px 20px",
-              borderRadius: "8px",
-              background: "#007aff",
-              color: "#ffffff",
-              border: "none",
-              fontSize: "12.5px",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            Close Dossier
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

@@ -27,6 +27,18 @@ const schema = z.object({
   passportStatus: optionalText,
   passportNo: optionalText,
   expertIn: optionalText,
+  givenName: optionalText,
+  surname: optionalText,
+  issueDate: optionalText,
+  expiryDate: optionalText,
+  gender: optionalText,
+  passportNationality: optionalText,
+  placeOfBirth: optionalText,
+  fatherName: optionalText,
+  motherName: optionalText,
+  nid: optionalText,
+  passportAddress: optionalText,
+  address: optionalText,
   country: z.string().trim().min(2).max(100),
   district: optionalText,
   maritalStatus: optionalText,
@@ -72,7 +84,7 @@ async function GETHandler(request: Request) {
     const interviewStatus = url.searchParams.get("interviewStatus") || undefined;
     const selectedSummary = url.searchParams.get("summary") || undefined;
     const page = Math.max(1, Number(url.searchParams.get("page")) || 1);
-    const pageSize = Math.min(100, Math.max(10, Number(url.searchParams.get("pageSize")) || 25));
+    const pageSize = Math.min(500, Math.max(10, Number(url.searchParams.get("pageSize")) || 25));
     const countryWhere =
       country && country !== "All"
         ? country === "Other Country" || country === "Other"
@@ -186,7 +198,20 @@ async function POSTHandler(request: Request) {
     if (input.interviewScheduleId && !schedule) throw new AppError("SCHEDULE_NOT_FOUND", "Selected interview schedule was not found.", 404);
     const primaryFollowUp = validDate(input.followUpDate) ?? validDate(input.followUp1);
     const record = await prisma.$transaction(async (tx) => {
-      let candidate = await tx.candidate.findFirst({ where: { phone: input.phone, fullName: input.fullName } });
+      let candidate = null;
+      if (input.passportNo) {
+        candidate = await tx.candidate.findFirst({ where: { passportNo: input.passportNo } });
+      }
+      if (!candidate && input.phone) {
+        candidate = await tx.candidate.findFirst({
+          where: {
+            OR: [
+              { phone: input.phone, fullName: input.fullName },
+              { phone: input.phone },
+            ],
+          },
+        });
+      }
       const candDob = validDate(input.dob);
       if (!candidate) {
         candidate = await tx.candidate.create({
@@ -200,6 +225,9 @@ async function POSTHandler(request: Request) {
             email: input.email || null,
             dob: candDob,
             passportNo: input.passportNo || null,
+            nationalId: input.nid || null,
+            gender: input.gender || null,
+            address: input.address || input.passportAddress || null,
             maritalStatus: input.maritalStatus || null,
             education: input.education || null,
             status: "ACTIVE",
@@ -211,10 +239,16 @@ async function POSTHandler(request: Request) {
         await tx.candidate.update({
           where: { id: candidate.id },
           data: {
+            fullName: input.fullName || candidate.fullName,
             passportNo: input.passportNo || candidate.passportNo || null,
+            nationalId: input.nid || candidate.nationalId || null,
+            gender: input.gender || candidate.gender || null,
+            address: input.address || input.passportAddress || candidate.address || null,
             dob: candDob || candidate.dob || null,
             profession: input.workCategory || input.expertIn || candidate.profession || "Worker",
             district: input.district || candidate.district || null,
+            maritalStatus: input.maritalStatus || candidate.maritalStatus || null,
+            education: input.education || candidate.education || null,
             source: input.agent || input.callSource || candidate.source || "Direct",
           },
         });
@@ -239,16 +273,34 @@ async function POSTHandler(request: Request) {
       });
 
       if (input.passportNo) {
-        await tx.passportProcess.create({
-          data: {
-            fileId: processingFile.id,
-            passportNumber: input.passportNo,
-            passportType: "Ordinary",
-            issueDate: new Date("2023-01-01"),
-            expiryDate: new Date("2033-01-01"),
-            verificationStatus: "Verified",
-          },
-        }).catch(() => {});
+        const existingPp = await tx.passportProcess.findFirst({
+          where: { passportNumber: input.passportNo },
+        });
+        if (!existingPp) {
+          await tx.passportProcess.create({
+            data: {
+              fileId: processingFile.id,
+              passportNumber: input.passportNo,
+              passportType: "Ordinary",
+              issueDate: validDate(input.issueDate) || new Date("2023-01-01"),
+              expiryDate: validDate(input.expiryDate) || new Date("2033-01-01"),
+              issuePlace: input.placeOfBirth || null,
+              nationality: input.passportNationality || "BANGLADESHI",
+              verificationStatus: input.passportStatus === "Expired" ? "Rejected" : "Verified",
+            },
+          }).catch(() => {});
+        } else {
+          await tx.passportProcess.update({
+            where: { id: existingPp.id },
+            data: {
+              issueDate: validDate(input.issueDate) || existingPp.issueDate,
+              expiryDate: validDate(input.expiryDate) || existingPp.expiryDate,
+              issuePlace: input.placeOfBirth || existingPp.issuePlace,
+              nationality: input.passportNationality || existingPp.nationality,
+              verificationStatus: input.passportStatus === "Expired" ? "Rejected" : existingPp.verificationStatus,
+            },
+          }).catch(() => {});
+        }
       }
 
       if (input.interviewOption === "With Interview" && schedule) {
@@ -283,7 +335,24 @@ async function POSTHandler(request: Request) {
         notes: {
           interview: { option: input.interviewOption, scheduleId: schedule?.id, scheduleTitle: schedule?.title, date: input.interviewDate, status: input.interviewStatus },
           work: { category: input.workCategory, subCategory: input.workSubCategory, company: input.company, fileStatus: input.fileStatus, proposedRate: input.proposedRate, processingFileId: processingFile?.id || null, fileNo: processingFile?.fileNo || null },
-          identity: { dob: input.dob, age: input.age, passportStatus: input.passportStatus, passportNo: input.passportNo, expertIn: input.expertIn },
+          identity: {
+            dob: input.dob,
+            age: input.age,
+            passportStatus: input.passportStatus,
+            passportNo: input.passportNo,
+            expertIn: input.expertIn,
+            givenName: input.givenName,
+            surname: input.surname,
+            issueDate: input.issueDate,
+            expiryDate: input.expiryDate,
+            gender: input.gender,
+            nationality: input.passportNationality,
+            placeOfBirth: input.placeOfBirth,
+            fatherName: input.fatherName,
+            motherName: input.motherName,
+            nid: input.nid,
+            address: input.passportAddress,
+          },
           personal: { district: input.district, maritalStatus: input.maritalStatus, education: input.education, passingYear: input.passingYear, bankLoan: input.bankLoan, xBidesh: input.xBidesh, email: input.email },
           control: { officeVisit: input.officeVisit, behaviorTag: input.behaviorTag },
           policy: { workerComments: input.workerComments.filter(Boolean), executiveComments: input.executiveComments.filter(Boolean), adminComments: input.adminComments.filter(Boolean) },
@@ -293,9 +362,9 @@ async function POSTHandler(request: Request) {
       if (followUps.length) await tx.followUp.createMany({ data: followUps.map((dueAt, index) => ({ leadId: lead.id, assignedToId: session.userId, dueAt, purpose: input.callPurpose, status: "Pending", note: `Follow-up ${index + 1}` })) });
       await tx.auditLog.create({ data: { userId: session.userId, role: session.user.role.name, module: "call-center", recordId: lead.id, action: "CREATE_WORK_CALL", newValue: input, correlationId: crypto.randomUUID() } });
       await tx.activityLog.create({ data: { userId: session.userId, module: "call-center", recordId: lead.id, action: "CREATE", summary: `Created work call ${lead.leadNo}` } });
-      return lead;
+      return { lead, fileId: processingFile?.id };
     });
-    return Response.json({ data: { id: record.id, leadNo: record.leadNo, candidateId: record.candidateId } }, { status: 201 });
+    return Response.json({ data: { id: record.lead.id, leadNo: record.lead.leadNo, candidateId: record.lead.candidateId, fileId: record.fileId } }, { status: 201 });
   } catch (error) { return errorResponse(error); }
 }
 

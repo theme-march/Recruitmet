@@ -11,11 +11,12 @@
 .directory-design-search { width: 300px; color: #8e8e93; }
 .directory-select-arrow { position: absolute; right: 10px; top: 50%; transform: translateY(-60%); font-size: 16px; color: #8e8e93; pointer-events: none; }
 .directory-design-filter-button { height: 32px; padding: 0 14px; border: 0; border-radius: 10px; background: #ebebed; color: #1d1d1f; font-size: 12px; font-weight: 500; cursor: pointer; }
-.directory-design-table table { min-width: 1620px; }
+.directory-design-table table { min-width: 1920px; }
 .directory-design-table td { padding-top: 12px; padding-bottom: 12px; }
 .directory-design-table .country-design-cell { overflow-wrap: anywhere; }
 .directory-design-table .country-design-cell > b { color: #6b6b73; }
 .directory-design-table .country-design-cell.client > b { color: #1d1d1f; }
+.directory-design-table .country-design-cell.financial > b { color: #1d1d1f; }
 .directory-design-row-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .directory-design-row-actions .country-design-dossier { display: inline-flex; align-items: center; gap: 4px; border: 0; cursor: pointer; }
 .directory-design-file { display: inline-block; text-decoration: none; overflow-wrap: anywhere; }

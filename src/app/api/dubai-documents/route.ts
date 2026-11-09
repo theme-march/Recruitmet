@@ -30,6 +30,8 @@ async function GETHandler(request: Request) {
     const q = (url.searchParams.get("q") ?? "").toLowerCase();
     const wanted = url.searchParams.get("status") ?? "";
     const country = url.searchParams.get("country") ?? "";
+    const agent = url.searchParams.get("agent") ?? "";
+    const stage = url.searchParams.get("stage") ?? "";
     const selectedCategory = url.searchParams.get("category") ?? "";
     const page = Math.max(1, Number(url.searchParams.get("page")) || 1);
     const pageSize = Math.min(100, Math.max(10, Number(url.searchParams.get("pageSize")) || 20));
@@ -177,20 +179,53 @@ async function GETHandler(request: Request) {
       );
       const normalizedCountry = matchedDb ? matchedDb.name : rawCountry || "Other";
 
-      const companyName = file.company || file.companyRecord?.name || file.manpower?.[0]?.company || "Almarai";
-      const professionName = file.profession || file.visas?.[0]?.profession || file.candidate?.profession || file.manpower?.[0]?.profession || "General Worker";
+      const companyName = file.company || file.companyRecord?.name || file.manpower?.[0]?.company || "";
+      const professionName = file.profession || file.visas?.[0]?.profession || file.candidate?.profession || file.manpower?.[0]?.profession || "";
+
+      const passportExpiry = file.passport?.expiryDate ? file.passport.expiryDate.toISOString() : null;
+      const medicalExpiry = file.medical?.[0]?.expiryDate ? file.medical[0].expiryDate.toISOString() : null;
+      const policeDate = file.police?.[0]?.issueDate ? file.police[0].issueDate.toISOString() : null;
+      const visaNumber = file.visas?.[0]?.visaNumber || null;
+      const visaExpiry = file.visas?.[0]?.expiryDate ? file.visas[0].expiryDate.toISOString() : null;
+      const manpowerRef = file.manpower?.[0]?.reference || null;
+
+      const docMeta: Record<string, { number?: string; expiry?: string; date?: string; detail?: string }> = {
+        Passport: {
+          number: file.passport?.passportNumber || file.candidate?.passportNo || undefined,
+          expiry: passportExpiry || undefined,
+        },
+        Medical: {
+          detail: file.medical?.[0]?.result || undefined,
+          expiry: medicalExpiry || undefined,
+        },
+        "Police Clearance": {
+          detail: file.police?.[0]?.status || undefined,
+          date: policeDate || undefined,
+        },
+        "Visa Copy": {
+          number: visaNumber || undefined,
+          expiry: visaExpiry || undefined,
+        },
+        "BMET Smart Card": {
+          number: manpowerRef || undefined,
+          detail: file.manpower?.[0]?.status || undefined,
+        },
+      };
 
       return {
         id: file.id,
         fileNo: file.fileNo,
         candidateId: file.candidateId,
         candidateNo: file.candidate.candidateNo,
+        registrationNo: file.candidate.registrationNo ?? null,
+        nationalId: file.candidate.nationalId ?? null,
         name: file.candidate.fullName,
         phone: file.candidate.phone,
         passport: file.passport?.passportNumber ?? file.candidate.passportNo ?? "Not entered",
         country: normalizedCountry,
         rawCountry,
-        officer: file.assignedTo?.name ?? "Office Operations Officer",
+        agent: file.agent && file.agent !== "N/A" ? file.agent : "Direct Walk-in",
+        officer: file.assignedTo?.name ?? "Office Operations",
         office: file.office?.name ?? "Dhaka Head Office",
         company: companyName,
         profession: professionName,
@@ -201,15 +236,25 @@ async function GETHandler(request: Request) {
         manpowerStatus: file.manpower?.[0]?.status || null,
         statuses,
         docAttachments,
+        docMeta,
       };
     });
 
     const filtered = rows.filter((row) => {
       const matchesQ =
         !q ||
-        [row.name, row.phone, row.passport, row.fileNo, row.country, row.rawCountry, row.company, row.profession].some((v) =>
-          v.toLowerCase().includes(q)
-        );
+        [
+          row.name,
+          row.phone,
+          row.passport,
+          row.fileNo,
+          row.candidateNo,
+          row.agent,
+          row.country,
+          row.rawCountry,
+          row.company,
+          row.profession,
+        ].some((v) => v.toLowerCase().includes(q));
       const matchesStatus = !wanted || Object.values(row.statuses).includes(wanted as never);
       const matchesCategory =
         !selectedCategory ||
@@ -225,8 +270,14 @@ async function GETHandler(request: Request) {
         (targetCountry.includes("saudi") && row.country.toLowerCase().includes("saudi")) ||
         (targetCountry.includes("dubai") && (row.country.toLowerCase().includes("dubai") || row.rawCountry.toLowerCase().includes("dubai"))) ||
         (targetCountry.includes("other") && !/saudi|dubai|uae|emirates/i.test(row.country));
+      const matchesAgent =
+        !agent ||
+        (agent === "DIRECT"
+          ? /direct/i.test(row.agent)
+          : row.agent.toLowerCase() === agent.toLowerCase());
+      const matchesStage = !stage || row.currentStage.toLowerCase() === stage.toLowerCase();
 
-      return matchesQ && matchesStatus && matchesCategory && matchesCountry;
+      return matchesQ && matchesStatus && matchesCategory && matchesCountry && matchesAgent && matchesStage;
     });
 
     const summary = Object.fromEntries(
@@ -247,6 +298,8 @@ async function GETHandler(request: Request) {
       categories,
       filters: {
         countries: activeCountryNames,
+        agents: [...new Set(rows.map((r) => r.agent).filter(Boolean))].sort(),
+        stages: [...new Set(rows.map((r) => r.currentStage).filter(Boolean))].sort(),
       },
       meta: {
         page,

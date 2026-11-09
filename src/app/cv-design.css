@@ -1,0 +1,957 @@
+/* ==========================================================================
+   CV GENERATOR & PRINT SETTINGS DESIGN SYSTEM
+   100% Native Integration with ORBIT Overseas Recruitment Theme
+   ========================================================================== */
+
+/* Page Container - Matches country-design-page & directory-design-page */
+.country-design-page.cv-theme-page {
+  gap: 20px;
+  padding-bottom: 40px;
+}
+
+/* Candidate Quick Summary Metrics - Matches Orbit's 4-card metric strip */
+.cv-candidate-metrics-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .cv-candidate-metrics-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 500px) {
+  .cv-candidate-metrics-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cv-metric-value-text {
+  font-size: 17px !important;
+  line-height: 22px !important;
+  font-weight: 700 !important;
+  color: #1d1d1f !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+/* Two-column Layout: Left CV Document, Right Print Settings */
+.cv-workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .cv-workspace-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==========================================================================
+   CV DOCUMENT SHEET (A4 Aspect Ratio Preview Card)
+   ========================================================================== */
+
+.cv-document-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.cv-document-sheet {
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid #e5e5ea;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  padding: 40px 36px;
+  min-height: 980px;
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  gap: 36px;
+  position: relative;
+  box-sizing: border-box;
+}
+
+@media (max-width: 720px) {
+  .cv-document-sheet {
+    grid-template-columns: 1fr;
+    padding: 24px;
+    gap: 24px;
+  }
+}
+
+/* CV Left Sub-Column */
+.cv-sheet-left {
+  display: flex;
+  flex-direction: column;
+}
+
+.cv-profile-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.cv-avatar-container {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: #eaf2ff;
+  border: 3px solid #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.12), inset 0 0 0 1px #d0e1fd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  margin-bottom: 14px;
+  flex-shrink: 0;
+}
+
+.cv-avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cv-avatar-placeholder {
+  color: #007aff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.cv-name-heading {
+  font-size: 19px;
+  font-weight: 800;
+  color: #1d1d1f;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  margin: 0 0 5px 0;
+  line-height: 1.25;
+}
+
+.cv-trade-subheading {
+  font-size: 14px;
+  font-weight: 600;
+  color: #007aff;
+  margin: 0;
+}
+
+/* CV Left Sidebar Sections */
+.cv-sidebar-section {
+  margin-bottom: 22px;
+}
+
+.cv-sidebar-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #007aff;
+  margin: 0 0 10px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cv-contact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.cv-contact-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 13px;
+  color: #1d1d1f;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.cv-contact-icon {
+  color: #007aff;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.cv-language-badge-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cv-language-pill {
+  font-size: 13px;
+  color: #1d1d1f;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* CV Right Sub-Column */
+.cv-sheet-right {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.cv-main-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.cv-main-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #007aff;
+  margin: 0 0 10px 0;
+  letter-spacing: -0.01em;
+}
+
+.cv-summary-paragraph {
+  font-size: 13px;
+  line-height: 1.65;
+  color: #333336;
+  margin: 0;
+  text-align: justify;
+}
+
+/* Personal Information 2-Column Grid */
+.cv-personal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 20px;
+}
+
+@media (max-width: 540px) {
+  .cv-personal-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cv-field-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cv-field-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #1d1d1f;
+}
+
+.cv-field-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: #6b6b73;
+}
+
+/* Work Experience Card */
+.cv-exp-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cv-exp-headline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cv-exp-role-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1d1d1f;
+}
+
+.cv-exp-period-badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8e8e93;
+}
+
+.cv-exp-desc-text {
+  font-size: 12.5px;
+  color: #6b6b73;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Official Sheet Footer */
+.cv-sheet-footer {
+  grid-column: 1 / -1;
+  margin-top: 32px;
+  padding-top: 18px;
+  border-top: 1px solid #e5e5ea;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: #8e8e93;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+/* ==========================================================================
+   PRINT SETTINGS SIDE PANEL (Image 2 + Orbit Theme Match)
+   ========================================================================== */
+
+.cv-settings-panel {
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid #e5e5ea;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  padding: 22px;
+  position: sticky;
+  top: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.cv-settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e5ea;
+}
+
+.cv-settings-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1d1d1f;
+  margin: 0;
+}
+
+.cv-settings-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cv-btn-select-all {
+  background: #007aff;
+  color: #ffffff;
+  border: none;
+  border-radius: 14px;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.cv-btn-select-all:hover {
+  opacity: 0.9;
+}
+
+.cv-btn-clear-all {
+  background: #ff3b30;
+  color: #ffffff;
+  border: none;
+  border-radius: 14px;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.cv-btn-clear-all:hover {
+  opacity: 0.9;
+}
+
+/* Checkbox Grid - 2 Columns */
+.cv-checkboxes-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 11px 14px;
+  margin-bottom: 22px;
+}
+
+.cv-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #1d1d1f;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  transition: color 0.15s ease;
+}
+
+.cv-checkbox-item:hover {
+  color: #007aff;
+}
+
+/* Custom Checkbox Design */
+.cv-checkbox-input {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 17px;
+  height: 17px;
+  border: 1.5px solid #c7c7cc;
+  border-radius: 5px;
+  outline: none;
+  cursor: pointer;
+  background-color: #ffffff;
+  position: relative;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.cv-checkbox-input:checked {
+  background-color: #007aff;
+  border-color: #007aff;
+}
+
+.cv-checkbox-input:checked::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 4px;
+  height: 8px;
+  border: solid #ffffff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.cv-checkbox-input:focus-visible {
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.35);
+}
+
+/* Download PDF Button (Main Action in Settings) */
+.cv-download-pdf-btn {
+  background: #007aff;
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  padding: 11px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  width: 100%;
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.25);
+  transition: all 0.15s ease;
+}
+
+.cv-download-pdf-btn:hover {
+  background: #0066d6;
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.35);
+}
+
+.cv-download-pdf-btn:active {
+  transform: translateY(1px);
+}
+
+.cv-download-pdf-btn:disabled {
+  background: #d1d1d6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.cv-secondary-btn-group {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.cv-secondary-btn {
+  flex: 1;
+  background: #ebebed;
+  color: #1d1d1f;
+  border: 0;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.cv-secondary-btn:hover {
+  background: #e0e0e3;
+}
+
+/* ==========================================================================
+   EDIT DRAWER / FORM COLLAPSIBLE
+   ========================================================================== */
+
+.cv-editor-panel {
+  background: #ffffff;
+  border: 1px solid #e5e5ea;
+  border-radius: 18px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.cv-editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e5e5ea;
+}
+
+.cv-editor-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1d1d1f;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cv-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.cv-editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cv-editor-field label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #6b6b73;
+}
+
+.cv-editor-field input,
+.cv-editor-field textarea,
+.cv-editor-field select {
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #e5e5ea;
+  color: #1d1d1f;
+  background: #ffffff;
+  outline: none;
+  transition: border-color 0.15s ease;
+  font-family: inherit;
+}
+
+.cv-editor-field input:focus,
+.cv-editor-field textarea:focus,
+.cv-editor-field select:focus {
+  border-color: #007aff;
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.15);
+}
+
+/* ==========================================================================
+   PHOTO UPLOAD / CHANGE SECTION IN CV EDITOR
+   ========================================================================== */
+
+.cv-editor-photo-section {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 16px;
+  background: #f8f9fa;
+  border: 1px solid #e5e5ea;
+  border-radius: 14px;
+  margin-bottom: 20px;
+}
+
+.cv-editor-photo-preview {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #eaf2ff;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 122, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.cv-editor-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cv-editor-thumb-empty {
+  color: #007aff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cv-editor-photo-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cv-editor-photo-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #1d1d1f;
+}
+
+.cv-editor-photo-hint {
+  font-size: 11.5px;
+  color: #8e8e93;
+  margin: 0;
+}
+
+.cv-editor-photo-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.cv-photo-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cv-photo-btn.primary {
+  background: #007aff;
+  color: #ffffff;
+}
+
+.cv-photo-btn.primary:hover {
+  background: #0066d6;
+}
+
+.cv-photo-btn.danger {
+  background: #fff0f0;
+  color: #ff3b30;
+  border: 1px solid #ffd1cf;
+}
+
+.cv-photo-btn.danger:hover {
+  background: #ffe5e5;
+}
+
+/* ==========================================================================
+   SECTION HEADINGS & REPEATERS IN CV EDITOR
+   ========================================================================== */
+
+.cv-editor-section-heading {
+  margin: 20px 0 12px 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #f0f0f2;
+}
+
+.cv-editor-section-heading span {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1d1d1f;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Repeater Headers */
+.cv-editor-repeater-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin: 24px 0 12px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5e5ea;
+}
+
+.cv-editor-repeater-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1d1d1f;
+}
+
+.cv-editor-repeater-subtitle {
+  font-size: 12px;
+  color: #8e8e93;
+  margin: 3px 0 0 0;
+}
+
+.cv-btn-add-repeater {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f0f7ff;
+  color: #007aff;
+  border: 1px solid #d0e4ff;
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.cv-btn-add-repeater:hover {
+  background: #007aff;
+  color: #ffffff;
+}
+
+/* Repeater List & Cards */
+.cv-repeater-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.cv-repeater-empty {
+  padding: 16px;
+  background: #fbfbfd;
+  border: 1px dashed #d1d1d6;
+  border-radius: 12px;
+  text-align: center;
+  font-size: 12.5px;
+  color: #8e8e93;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.cv-link-btn {
+  background: none;
+  border: none;
+  color: #007aff;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.cv-link-btn:hover {
+  text-decoration: underline;
+}
+
+.cv-repeater-card {
+  background: #fbfbfd;
+  border: 1px solid #e5e5ea;
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cv-repeater-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed #e5e5ea;
+}
+
+.cv-repeater-card-num {
+  font-size: 12px;
+  font-weight: 700;
+  color: #007aff;
+}
+
+.cv-repeater-card-remove {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  color: #ff3b30;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 6px;
+  transition: background-color 0.15s ease;
+}
+
+.cv-repeater-card-remove:hover {
+  background: #fff0f0;
+}
+
+/* Quick preset tags for Custom fields */
+.cv-presets-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.cv-presets-label {
+  font-size: 11.5px;
+  color: #8e8e93;
+  font-weight: 500;
+}
+
+.cv-preset-chip {
+  background: #f2f2f7;
+  color: #1d1d1f;
+  border: 1px solid #e5e5ea;
+  border-radius: 14px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cv-preset-chip:hover {
+  background: #eaf2ff;
+  color: #007aff;
+  border-color: #bad6ff;
+}
+
+/* Custom Field Row */
+.cv-custom-field-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  background: #fbfbfd;
+  border: 1px solid #e5e5ea;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+@media (max-width: 600px) {
+  .cv-custom-field-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.cv-custom-input-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.cv-custom-input-wrap label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b6b73;
+}
+
+.cv-custom-input-wrap input {
+  font-size: 12.5px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  border: 1px solid #e5e5ea;
+  background: #ffffff;
+}
+
+.cv-custom-field-remove {
+  background: transparent;
+  border: none;
+  color: #ff3b30;
+  padding: 8px;
+  border-radius: 7px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease;
+}
+
+.cv-custom-field-remove:hover {
+  background: #fff0f0;
+}
+
+/* ==========================================================================
+   PRINT MEDIA STYLING (window.print() exact A4 render)
+   ========================================================================== */
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide everything not part of the CV document */
+  .no-print,
+  .country-design-breadcrumb,
+  .country-design-heading,
+  .cv-candidate-metrics-strip,
+  .cv-settings-panel,
+  .cv-editor-panel,
+  header,
+  nav,
+  aside,
+  [data-app-shell="sidebar"],
+  [data-app-shell="header"] {
+    display: none !important;
+  }
+
+  .country-design-page.cv-theme-page {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .cv-workspace-grid {
+    display: block !important;
+  }
+
+  .cv-document-sheet {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 10mm 8mm !important;
+    min-height: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}

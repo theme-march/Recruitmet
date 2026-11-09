@@ -4,6 +4,7 @@ import { meQueryOptions } from "@/lib/queries/me";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ChevronDown,
   Edit3,
   ExternalLink,
   Eye,
@@ -15,8 +16,9 @@ import {
   X,
 } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { ALL_WORLD_COUNTRIES, resolveCountryFlagEmoji } from "@/lib/country-data";
 
 type Office = { id: string; code: string; name: string; country: string | null };
 type Company = { id: string; code: string; name: string; country: string; officeId: string | null };
@@ -419,6 +421,7 @@ export function WorksDemandsPage() {
       {editRow && (
         <EditDemandDialog
           row={editRow}
+          countries={result.data?.filters.countries ?? []}
           onClose={() => setEditRow(null)}
           onSaved={async () => {
             setEditRow(null);
@@ -521,11 +524,253 @@ function FilePill({ label, onPreview }: { label: string; onPreview: () => void }
   );
 }
 
+const defaultCountries = [
+  "Saudi Arabia",
+  "Dubai",
+  "Other Country",
+  "Qatar",
+  "Kuwait",
+  "Oman",
+  "Malaysia",
+  "Romania",
+  "Italy",
+  "Poland",
+];
+
+function SearchableCountryField({
+  value,
+  onChange,
+  name,
+  required = true,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  name?: string;
+  listId?: string;
+  required?: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Sync search input with external value
+  useEffect(() => {
+    if (!isOpen) {
+      setSearch(value || "");
+    }
+  }, [value, isOpen]);
+
+  // Click outside listener
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const flag = resolveCountryFlagEmoji(undefined, value) || "🌐";
+
+  const filteredCountries = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q || q === (value || "").toLowerCase()) {
+      return ALL_WORLD_COUNTRIES;
+    }
+    return ALL_WORLD_COUNTRIES.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.code.toLowerCase().includes(q)
+    );
+  }, [search, value]);
+
+  const selectCountry = (countryName: string) => {
+    onChange(countryName);
+    setSearch(countryName);
+    setIsOpen(false);
+  };
+
+  return (
+    <div ref={containerRef} style={{ position: "relative", width: "100%" }}>
+      {name && <input type="hidden" name={name} value={value} />}
+
+      <div style={{ display: "flex", gap: "8px", alignItems: "center", width: "100%" }}>
+        {/* Flag Icon Box */}
+        <div
+          onClick={() => {
+            setIsOpen((prev) => !prev);
+            if (!isOpen) setSearch(value || "");
+          }}
+          style={{
+            width: "42px",
+            height: "40px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: "8px",
+            border: "1px solid #cbd5e1",
+            background: "#f8fafc",
+            fontSize: "19px",
+            flexShrink: 0,
+            cursor: "pointer",
+            userSelect: "none",
+          }}
+          title={`Flag: ${flag} (Click to open country list)`}
+        >
+          {flag}
+        </div>
+
+        {/* Search Input with dropdown arrow */}
+        <div style={{ position: "relative", flex: 1, display: "flex", alignItems: "center" }}>
+          <input
+            type="text"
+            required={required && !value}
+            value={isOpen ? search : value}
+            onFocus={(e) => {
+              setIsOpen(true);
+              setSearch(value || "");
+              e.target.select();
+            }}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              if (!isOpen) setIsOpen(true);
+            }}
+            placeholder="e.g. Russia, Kuwait, Japan, Croatia"
+            style={{
+              ...inputStyle,
+              paddingRight: "36px",
+              fontWeight: 600,
+            }}
+            autoComplete="off"
+          />
+          <button
+            type="button"
+            tabIndex={-1}
+            onClick={() => {
+              setIsOpen((prev) => !prev);
+              if (!isOpen) setSearch(value || "");
+            }}
+            style={{
+              position: "absolute",
+              right: "8px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              background: "transparent",
+              border: "none",
+              padding: "4px",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#64748b",
+            }}
+          >
+            <ChevronDown
+              size={16}
+              style={{
+                transform: isOpen ? "rotate(180deg)" : "none",
+                transition: "transform 0.15s ease",
+              }}
+            />
+          </button>
+        </div>
+      </div>
+
+      {/* Floating Dropdown List of all Countries */}
+      {isOpen && (
+        <div
+          className="master-modal-panel"
+          style={{
+            position: "absolute",
+            top: "calc(100% + 4px)",
+            left: 0,
+            right: 0,
+            maxHeight: "250px",
+            overflowY: "auto",
+            background: "#ffffff",
+            border: "1px solid #cbd5e1",
+            borderRadius: "10px",
+            boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+            zIndex: 1100,
+            padding: "4px",
+          }}
+        >
+          {filteredCountries.length > 0 ? (
+            filteredCountries.map((c) => {
+              const isSelected = c.name.toLowerCase() === (value || "").toLowerCase();
+              return (
+                <div
+                  key={c.code + "-" + c.name}
+                  onClick={() => selectCountry(c.name)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    background: isSelected ? "#f3f0ff" : "transparent",
+                    transition: "background 0.12s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isSelected) e.currentTarget.style.background = "#f8fafc";
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isSelected) e.currentTarget.style.background = "transparent";
+                  }}
+                >
+                  <span style={{ fontSize: "18px", userSelect: "none" }}>{c.flag}</span>
+                  <span
+                    style={{
+                      flex: 1,
+                      fontSize: "13px",
+                      fontWeight: isSelected ? 700 : 500,
+                      color: isSelected ? "#7258e8" : "#1e293b",
+                    }}
+                  >
+                    {c.name}
+                  </span>
+                  <span style={{ fontSize: "11px", color: "#64748b", fontWeight: 700 }}>
+                    ({c.code})
+                  </span>
+                </div>
+              );
+            })
+          ) : (
+            <div style={{ padding: "12px", textAlign: "center", fontSize: "12px", color: "#64748b" }}>
+              <p style={{ margin: "0 0 6px" }}>No matching country found.</p>
+              {search.trim() && (
+                <button
+                  type="button"
+                  onClick={() => selectCountry(search.trim())}
+                  style={{
+                    background: "#7258e8",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "6px",
+                    padding: "6px 12px",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  Use &quot;{search.trim()}&quot;
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CreateDemandDialog({
   offices,
-  companies,
-  countries: propCountries,
-  isSuperAdmin,
+  companies: _companies,
+  countries: _propCountries,
+  isSuperAdmin: _isSuperAdmin,
   onClose,
   onSaved,
 }: {
@@ -536,98 +781,25 @@ function CreateDemandDialog({
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
-  const [officeId, setOfficeId] = useState(offices[0]?.id || "");
-  const [isCustomOffice, setIsCustomOffice] = useState(false);
-  const [customOfficeName, setCustomOfficeName] = useState("");
-
   const [country, setCountry] = useState("Saudi Arabia");
-  const [isCustomCountry, setIsCustomCountry] = useState(false);
-  const [customCountryName, setCustomCountryName] = useState("");
-
-  const [companyId, setCompanyId] = useState("");
-  const [isCustomCompany, setIsCustomCompany] = useState(false);
-  const [customCompanyName, setCustomCompanyName] = useState("");
-
-  const [fileOne, setFileOne] = useState<File | null>(null);
-  const [fileTwo, setFileTwo] = useState<File | null>(null);
+  const [companyName, setCompanyName] = useState("");
+  const [status, setStatus] = useState("Active");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-
-  const matchingCompanies = useMemo(() => {
-    if (isCustomOffice || !officeId || officeId === "new") {
-      const list = companies.filter((c) => !country || country === "new" || c.country === country);
-      return list.length > 0 ? list : companies;
-    }
-    const filtered = companies.filter(
-      (c) => (c.officeId === officeId || !c.officeId) && (!country || country === "new" || c.country === country)
-    );
-    return filtered.length > 0 ? filtered : companies;
-  }, [companies, officeId, country, isCustomOffice]);
-
-  const defaultCountries = [
-    "Saudi Arabia",
-    "Dubai",
-    "Other Country",
-    "Qatar",
-    "Kuwait",
-    "Oman",
-    "Malaysia",
-    "Romania",
-    "Italy",
-    "Poland",
-  ];
-  const allCountries = useMemo(
-    () =>
-      Array.from(
-        new Set([
-          ...defaultCountries,
-          ...(propCountries || []),
-          ...offices.map((office) => office.country),
-          ...companies.map((company) => company.country),
-        ].filter(Boolean) as string[])
-      ),
-    [offices, companies, propCountries]
-  );
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
 
-    // Validate Office
-    if (isCustomOffice) {
-      if (!customOfficeName.trim()) {
-        setError("Please enter the new Office Name.");
-        return;
-      }
-    } else if (!officeId) {
-      setError("Please select an Office or add a new one.");
+    // Validate Company
+    if (!companyName.trim()) {
+      setError("Please enter the Foreign Company Name.");
       return;
     }
 
     // Validate Country
-    if (isCustomCountry) {
-      if (!customCountryName.trim()) {
-        setError("Please enter the new Country Name.");
-        return;
-      }
-    } else if (!country) {
-      setError("Please select a Country.");
-      return;
-    }
-
-    // Validate Company
-    if (isCustomCompany) {
-      if (!customCompanyName.trim()) {
-        setError("Please enter the new Foreign Company Name.");
-        return;
-      }
-    } else if (!companyId) {
-      if (matchingCompanies.length === 0 && isSuperAdmin) {
-        setIsCustomCompany(true);
-        setError("No companies found for this selection. Please type the foreign company name.");
-        return;
-      }
-      setError("Please select a Company or click '+ Add New Company'.");
+    if (!country.trim()) {
+      setError("Please select or type a Country.");
       return;
     }
 
@@ -635,29 +807,11 @@ function CreateDemandDialog({
     try {
       const body = new FormData(event.currentTarget);
 
-      if (isCustomOffice) {
-        body.set("officeId", "new");
-        body.set("customOfficeName", customOfficeName.trim());
-      } else {
-        body.set("officeId", officeId);
-      }
-
-      if (isCustomCountry) {
-        body.set("country", "new");
-        body.set("customCountry", customCountryName.trim());
-      } else {
-        body.set("country", country);
-      }
-
-      if (isCustomCompany) {
-        body.set("companyId", "new");
-        body.set("customCompanyName", customCompanyName.trim());
-      } else {
-        body.set("companyId", companyId);
-      }
-
-      if (fileOne) body.set("fileOne", fileOne);
-      if (fileTwo) body.set("fileTwo", fileTwo);
+      const resolvedOfficeId = offices[0]?.id || "default";
+      body.set("officeId", resolvedOfficeId);
+      body.set("companyName", companyName.trim());
+      body.set("country", country.trim());
+      body.set("status", status);
 
       const response = await fetch("/api/demands", { method: "POST", body });
       const result = await response.json();
@@ -724,165 +878,46 @@ function CreateDemandDialog({
         )}
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px" }}>
-          {/* Office Field */}
-          <div>
-            <OrbitField
-              label="Office"
+          {/* Row 1: Company Field (Direct Input) */}
+          <OrbitField label="Company" required>
+            <input
+              name="companyName"
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              placeholder="e.g. Almarai, Nesma & Partners, Aramco"
               required
-              actionText={isSuperAdmin ? (isCustomOffice ? "← Existing Office" : "+ Add New Office") : undefined}
-              onAction={
-                isSuperAdmin
-                  ? () => {
-                      setIsCustomOffice(!isCustomOffice);
-                      if (!isCustomOffice) setOfficeId("new");
-                    }
-                  : undefined
-              }
-            >
-              {!isCustomOffice ? (
-                <select
-                  name="officeId"
-                  value={officeId}
-                  onChange={(event) => {
-                    if (event.target.value === "__new__" && isSuperAdmin) {
-                      setIsCustomOffice(true);
-                      setOfficeId("new");
-                    } else {
-                      setOfficeId(event.target.value);
-                    }
-                  }}
-                  style={selectStyle}
-                >
-                  <option value="">Select Office</option>
-                  {offices.map((office) => (
-                    <option key={office.id} value={office.id}>
-                      {office.name}
-                    </option>
-                  ))}
-                  {isSuperAdmin && (
-                    <option className="master-modal-accent" value="__new__" style={{ fontWeight: "bold", color: "#7258e8" }}>
-                      + Add New Custom Office...
-                    </option>
-                  )}
-                </select>
-              ) : (
-                <input
-                  name="customOfficeName"
-                  value={customOfficeName}
-                  onChange={(e) => setCustomOfficeName(e.target.value)}
-                  placeholder="Type new office name..."
-                  style={{ ...inputStyle, border: "2px solid #7258e8", background: "#faf8ff" }}
-                />
-              )}
+              style={inputStyle}
+            />
+          </OrbitField>
+
+          {/* Row 1: Country Field */}
+          <div>
+            <OrbitField label="Country" required>
+              <SearchableCountryField
+                value={country}
+                onChange={setCountry}
+                name="country"
+              />
             </OrbitField>
           </div>
 
-          {/* Country Field */}
+          {/* Row 1: Status Field */}
           <div>
-            <OrbitField
-              label="Country"
-              required
-              actionText={isSuperAdmin ? (isCustomCountry ? "← Select Country" : "+ Add New Country") : undefined}
-              onAction={
-                isSuperAdmin
-                  ? () => {
-                      setIsCustomCountry(!isCustomCountry);
-                      if (!isCustomCountry) setCountry("new");
-                    }
-                  : undefined
-              }
-            >
-              {!isCustomCountry ? (
-                <select
-                  name="country"
-                  value={country}
-                  onChange={(event) => {
-                    if (event.target.value === "__new__" && isSuperAdmin) {
-                      setIsCustomCountry(true);
-                      setCountry("new");
-                    } else {
-                      setCountry(event.target.value);
-                    }
-                  }}
-                  style={selectStyle}
-                >
-                  <option value="">Select country</option>
-                  {allCountries.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                  {isSuperAdmin && (
-                    <option className="master-modal-accent" value="__new__" style={{ fontWeight: "bold", color: "#7258e8" }}>
-                      + Add New Custom Country...
-                    </option>
-                  )}
-                </select>
-              ) : (
-                <input
-                  name="customCountry"
-                  value={customCountryName}
-                  onChange={(e) => setCustomCountryName(e.target.value)}
-                  placeholder="Type new country name..."
-                  style={{ ...inputStyle, border: "2px solid #7258e8", background: "#faf8ff" }}
-                />
-              )}
+            <OrbitField label="Status">
+              <select
+                name="status"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                style={selectStyle}
+              >
+                <option value="Active">Active</option>
+                <option value="Completed">Completed</option>
+                <option value="On Hold">On Hold</option>
+              </select>
             </OrbitField>
           </div>
 
-          {/* Company Field */}
-          <div>
-            <OrbitField
-              label="Company"
-              required
-              actionText={isSuperAdmin ? (isCustomCompany ? "← Existing Company" : "+ Add New Company") : undefined}
-              onAction={
-                isSuperAdmin
-                  ? () => {
-                      setIsCustomCompany(!isCustomCompany);
-                      if (!isCustomCompany) setCompanyId("new");
-                    }
-                  : undefined
-              }
-            >
-              {!isCustomCompany ? (
-                <select
-                  name="companyId"
-                  value={companyId}
-                  onChange={(event) => {
-                    if (event.target.value === "__new__" && isSuperAdmin) {
-                      setIsCustomCompany(true);
-                      setCompanyId("new");
-                    } else {
-                      setCompanyId(event.target.value);
-                    }
-                  }}
-                  style={selectStyle}
-                >
-                  <option value="">Select company</option>
-                  {matchingCompanies.map((company) => (
-                    <option key={company.id} value={company.id}>
-                      {company.name}
-                    </option>
-                  ))}
-                  {isSuperAdmin && (
-                    <option className="master-modal-accent" value="__new__" style={{ fontWeight: "bold", color: "#7258e8" }}>
-                      + Add New Custom Company...
-                    </option>
-                  )}
-                </select>
-              ) : (
-                <input
-                  name="customCompanyName"
-                  value={customCompanyName}
-                  onChange={(e) => setCustomCompanyName(e.target.value)}
-                  placeholder="Type new foreign company name..."
-                  style={{ ...inputStyle, border: "2px solid #7258e8", background: "#faf8ff" }}
-                />
-              )}
-            </OrbitField>
-          </div>
-
+          {/* Row 2: Work Position, Work Hours, Salary */}
           <OrbitField label="Work Position" required>
             <input name="profession" defaultValue="Electrician" placeholder="e.g. Electrician, Driver, Plumber" style={inputStyle} />
           </OrbitField>
@@ -895,6 +930,7 @@ function CreateDemandDialog({
             <input name="salary" type="number" min="0" step="0.01" defaultValue="1800" placeholder="e.g. 1800" style={inputStyle} />
           </OrbitField>
 
+          {/* Row 3: Work Location, Visa Quantity, Sale Visa Quantity */}
           <OrbitField label="Work Location">
             <input name="workLocation" placeholder="e.g. Riyadh, Dubai, Dammam" style={inputStyle} />
           </OrbitField>
@@ -907,6 +943,7 @@ function CreateDemandDialog({
             <input name="saleVisaQuantity" type="number" min="0" defaultValue="0" placeholder="Initial sold visas" style={inputStyle} />
           </OrbitField>
 
+          {/* Row 4: Visa Rate, Deadline, Commission Per File */}
           <OrbitField label="Visa Rate (Cost)">
             <input name="visaRate" type="number" min="0" step="0.01" placeholder="e.g. 450000" style={inputStyle} />
           </OrbitField>
@@ -919,75 +956,10 @@ function CreateDemandDialog({
             <input name="commissionPerFile" type="number" min="0" step="0.01" placeholder="e.g. 20000" style={inputStyle} />
           </OrbitField>
 
+          {/* Row 5: Requirements / Note */}
           <div style={{ gridColumn: "1 / -1" }}>
             <OrbitField label="Requirements / Note">
-              <textarea name="note" rows={2} placeholder="Additional job details or quota notes..." style={textareaStyle} />
-            </OrbitField>
-          </div>
-
-          <div style={{ gridColumn: "span 1.5" }}>
-            <OrbitField label="File 1 (Document/Flyer)">
-              <div className="master-modal-panel" style={{ display: "flex", alignItems: "center", gap: "8px", background: "#f8fafc", padding: "6px 10px", borderRadius: "8px", border: "1px solid #cbd5e1" }}>
-                <input
-                  type="file"
-                  id="fileOneInput"
-                  style={{ display: "none" }}
-                  onChange={(e) => setFileOne(e.target.files?.[0] || null)}
-                />
-                <label
-                  htmlFor="fileOneInput"
-                  style={{
-                    padding: "6px 12px",
-                    borderRadius: "6px",
-                    background: "#7258e8",
-                    color: "#fff",
-                    fontSize: "11px",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "4px",
-                  }}
-                >
-                  <Upload size={12} /> Choose File
-                </label>
-                <span style={{ fontSize: "11px", color: fileOne ? "#1e293b" : "var(--muted)", fontWeight: fileOne ? 700 : 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {fileOne ? fileOne.name : "No file chosen"}
-                </span>
-              </div>
-            </OrbitField>
-          </div>
-
-          <div style={{ gridColumn: "span 1.5" }}>
-            <OrbitField label="File 2 (Quota Paper)">
-              <div className="master-modal-panel" style={{ display: "flex", alignItems: "center", gap: "8px", background: "#f8fafc", padding: "6px 10px", borderRadius: "8px", border: "1px solid #cbd5e1" }}>
-                <input
-                  type="file"
-                  id="fileTwoInput"
-                  style={{ display: "none" }}
-                  onChange={(e) => setFileTwo(e.target.files?.[0] || null)}
-                />
-                <label
-                  htmlFor="fileTwoInput"
-                  style={{
-                    padding: "6px 12px",
-                    borderRadius: "6px",
-                    background: "#7258e8",
-                    color: "#fff",
-                    fontSize: "11px",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "4px",
-                  }}
-                >
-                  <Upload size={12} /> Choose File
-                </label>
-                <span style={{ fontSize: "11px", color: fileTwo ? "#1e293b" : "var(--muted)", fontWeight: fileTwo ? 700 : 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {fileTwo ? fileTwo.name : "No file chosen"}
-                </span>
-              </div>
+              <textarea name="note" rows={3} placeholder="Additional job details or quota notes..." style={textareaStyle} />
             </OrbitField>
           </div>
         </div>
@@ -1034,13 +1006,17 @@ function CreateDemandDialog({
 
 function EditDemandDialog({
   row,
+  countries: _propCountries,
   onClose,
   onSaved,
 }: {
   row: Row;
+  countries?: string[];
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
+  const [country, setCountry] = useState(row.country || "Saudi Arabia");
+  const [companyName, setCompanyName] = useState(row.company?.name || "");
   const [profession, setProfession] = useState(row.profession);
   const [salary, setSalary] = useState(String(row.salary));
   const [workHour, setWorkHour] = useState(row.requirements?.workHour || "");
@@ -1057,6 +1033,14 @@ function EditDemandDialog({
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!companyName.trim()) {
+      setError("Please enter the Foreign Company Name.");
+      return;
+    }
+    if (!country.trim()) {
+      setError("Please select or type a Country.");
+      return;
+    }
     setSaving(true);
     setError("");
     try {
@@ -1064,6 +1048,8 @@ function EditDemandDialog({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          companyName: companyName.trim(),
+          country: country.trim(),
           profession,
           salary: Number(salary),
           workHour,
@@ -1121,7 +1107,7 @@ function EditDemandDialog({
               Edit Work &amp; Demand: <span className="master-modal-accent" style={{ color: "#7258e8" }}>{row.demandNo}</span>
             </h2>
             <p style={{ fontSize: "12px", color: "var(--muted)", margin: 0 }}>
-              {row.company?.name} — {row.country}
+              {companyName || "Corporate Employer"} — <b>{country}</b>
             </p>
           </div>
           <button data-action-ui="neutral" data-action-size="icon" aria-label="Close dialog" className="master-modal-close"
@@ -1140,8 +1126,24 @@ function EditDemandDialog({
         )}
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px" }}>
-          <OrbitField label="Work Position" required>
-            <input value={profession} onChange={(e) => setProfession(e.target.value)} required style={inputStyle} />
+          {/* Row 1: Company, Country, Status */}
+          <OrbitField label="Company" required>
+            <input
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              placeholder="e.g. Almarai, Nesma & Partners, Aramco"
+              required
+              style={inputStyle}
+            />
+          </OrbitField>
+
+          <OrbitField label="Country" required>
+            <SearchableCountryField
+              value={country}
+              onChange={setCountry}
+              name="country"
+              listId="edit-demand-country-presets"
+            />
           </OrbitField>
 
           <OrbitField label="Status">
@@ -1152,16 +1154,22 @@ function EditDemandDialog({
             </select>
           </OrbitField>
 
+          {/* Row 2: Work Position, Work Hours, Salary */}
+          <OrbitField label="Work Position" required>
+            <input value={profession} onChange={(e) => setProfession(e.target.value)} required style={inputStyle} />
+          </OrbitField>
+
           <OrbitField label="Work Hours">
-            <input value={workHour} onChange={(e) => setWorkHour(e.target.value)} placeholder="e.g. 8 Hours" style={inputStyle} />
+            <input value={workHour} onChange={(e) => setWorkHour(e.target.value)} placeholder="e.g. 8 Hours / 10 Hours" style={inputStyle} />
           </OrbitField>
 
           <OrbitField label="Salary (Monthly)" required>
             <input type="number" min="0" step="0.01" value={salary} onChange={(e) => setSalary(e.target.value)} required style={inputStyle} />
           </OrbitField>
 
+          {/* Row 3: Work Location, Visa Quantity, Sale Visa Quantity */}
           <OrbitField label="Work Location">
-            <input value={workLocation} onChange={(e) => setWorkLocation(e.target.value)} placeholder="e.g. Riyadh, Dubai" style={inputStyle} />
+            <input value={workLocation} onChange={(e) => setWorkLocation(e.target.value)} placeholder="e.g. Riyadh, Dubai, Dammam" style={inputStyle} />
           </OrbitField>
 
           <OrbitField label="Visa Quantity" required>
@@ -1172,8 +1180,9 @@ function EditDemandDialog({
             <input type="number" min="0" value={saleVisaQuantity} onChange={(e) => setSaleVisaQuantity(e.target.value)} style={inputStyle} />
           </OrbitField>
 
+          {/* Row 4: Visa Rate (Cost), Deadline, Commission Per File */}
           <OrbitField label="Visa Rate (Cost)">
-            <input type="number" min="0" step="0.01" value={visaRate} onChange={(e) => setVisaRate(e.target.value)} style={inputStyle} />
+            <input type="number" min="0" step="0.01" value={visaRate} onChange={(e) => setVisaRate(e.target.value)} placeholder="e.g. 450000" style={inputStyle} />
           </OrbitField>
 
           <OrbitField label="Deadline">
@@ -1181,12 +1190,13 @@ function EditDemandDialog({
           </OrbitField>
 
           <OrbitField label="Commission Per File">
-            <input type="number" min="0" step="0.01" value={commissionPerFile} onChange={(e) => setCommissionPerFile(e.target.value)} style={inputStyle} />
+            <input type="number" min="0" step="0.01" value={commissionPerFile} onChange={(e) => setCommissionPerFile(e.target.value)} placeholder="e.g. 20000" style={inputStyle} />
           </OrbitField>
 
+          {/* Row 5: Requirements / Note */}
           <div style={{ gridColumn: "1 / -1" }}>
             <OrbitField label="Requirements / Note">
-              <textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} style={textareaStyle} />
+              <textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Additional job details or quota notes..." style={textareaStyle} />
             </OrbitField>
           </div>
         </div>

@@ -81,6 +81,18 @@ async function GETHandler(_: Request, { params }: { params: Promise<{ id: string
     }
 
     if (!agent) {
+      const decoded = decodeURIComponent(id).trim();
+      agent = await prisma.agent.findFirst({
+        where: {
+          OR: [
+            { name: { equals: decoded, mode: "insensitive" } },
+            { code: { equals: decoded, mode: "insensitive" } },
+          ],
+        },
+      });
+    }
+
+    if (!agent) {
       throw new AppError("NOT_FOUND", "Agent partner not found.", 404);
     }
 
@@ -200,6 +212,17 @@ async function GETHandler(_: Request, { params }: { params: Promise<{ id: string
     });
 
     // 4. Calculate Country-wise breakdown & candidate ledger
+    const countryPackages = await prisma.countryPackage.findMany({
+      include: { country: true },
+    }).catch(() => []);
+    const countryPriceMap: Record<string, number> = {};
+    for (const cp of countryPackages) {
+      const cName = cp.country?.name?.toLowerCase();
+      if (cName && !countryPriceMap[cName] && cp.price) {
+        countryPriceMap[cName] = Number(cp.price);
+      }
+    }
+
     const countryMap: Record<
       string,
       { country: string; candidateCount: number; totalPackage: number; totalCollected: number; totalDue: number; totalAdvance: number; inProcess: number; completed: number }
@@ -211,7 +234,13 @@ async function GETHandler(_: Request, { params }: { params: Promise<{ id: string
     let grandTotalAdvance = 0;
 
     const normalizeCountry = (c: string) => /saudi/i.test(c) ? "Saudi Arabia" : /dubai|uae|emirates/i.test(c) ? "Dubai" : c || "Other Country";
-    const getPackageCostForCountry = (c: string) => /dubai/i.test(c) ? 300000 : 350000;
+    const getPackageCostForCountry = (c: string) => {
+      const lower = (c || "").toLowerCase();
+      if (countryPriceMap[lower]) return countryPriceMap[lower];
+      if (/dubai|uae|emirates/i.test(lower)) return 300000;
+      if (/malta|europe/i.test(lower)) return 380000;
+      return 350000;
+    };
 
     const candidateLedger = files.map((f) => {
       const isHold = f.status === "HOLD";
@@ -222,7 +251,12 @@ async function GETHandler(_: Request, { params }: { params: Promise<{ id: string
         f.flights.length > 0);
 
       const normCountry = normalizeCountry(f.country || f.candidate.preferredCountry || "Other");
-      const candidatePackage = 350000; // Simplified default
+      const defaultCountryPrice = getPackageCostForCountry(normCountry);
+      const grossPackage = f.contractPackage !== null && f.contractPackage !== undefined
+        ? Number(f.contractPackage)
+        : defaultCountryPrice;
+      const discount = Number(f.discount || 0);
+      const candidatePackage = Math.max(0, grossPackage - discount);
       const candidatePaid = f.payments.reduce((sum, p) => sum + Number(p.amount), 0);
       const dueAmount = Math.max(0, candidatePackage - candidatePaid);
       const advanceAmount = Math.max(0, candidatePaid - candidatePackage);
@@ -332,11 +366,12 @@ async function GETHandler(_: Request, { params }: { params: Promise<{ id: string
         });
       }
 
-      // 3. Police Clearance (PCC)
+      // 3. Police Clearance (PCC) (Not required for Dubai / UAE employment)
+      const isDubaiCountry = /dubai|uae|emirates/i.test(normCountry);
       const pcc = f.police[0];
       const hasPolice = Boolean(pcc?.applicationNumber || pcc?.status === "Clear" || pcc?.status === "Verified");
       const pccNeededStages = ["Police Clearance", "PCC", "Mofa", "Visa Stamping", "Manpower", "Flight"];
-      if (!hasPolice && pccNeededStages.includes(f.currentStage)) {
+      if (!isDubaiCountry && !hasPolice && pccNeededStages.includes(f.currentStage)) {
         missingDocs.push({
           id: "police",
           name: "Police Clearance Certificate (PCC)",
@@ -480,7 +515,11 @@ async function GETHandler(_: Request, { params }: { params: Promise<{ id: string
         visaStatus: f.visas[0]?.status || "Pending",
         visaExpiryDate: f.visas[0]?.expiryDate ? f.visas[0].expiryDate.toISOString() : null,
         flightDate: f.flights[0]?.flight?.departureAt?.toISOString() || null,
+        packageCost: candidatePackage,
         totalPackage: candidatePackage,
+        grossPackage,
+        contractPackage: grossPackage,
+        discount,
         totalPaid: candidatePaid,
         dueAmount,
         advanceAmount,
@@ -507,13 +546,22 @@ async function GETHandler(_: Request, { params }: { params: Promise<{ id: string
           reference: p.reference || "N/A",
           createdAt: p.createdAt.toISOString(),
         })),
+        paymentHistory: f.payments.map((p) => ({
+          id: p.id,
+          paymentNo: p.paymentNo,
+          amount: Number(p.amount),
+          type: p.type,
+          method: p.method || "Cash",
+          reference: p.reference || "N/A",
+          createdAt: p.createdAt.toISOString(),
+        })),
         createdAt: f.createdAt.toISOString(),
       };
     });
 
     const extraLedger = extraCandidates.map((c) => {
       const normCountry = normalizeCountry(c.preferredCountry || "Other");
-      const candidatePackage = 350000;
+      const candidatePackage = getPackageCostForCountry(normCountry);
 
       if (!countryMap[normCountry]) {
         countryMap[normCountry] = {
@@ -576,12 +624,16 @@ async function GETHandler(_: Request, { params }: { params: Promise<{ id: string
         visaStatus: "Pending",
         visaExpiryDate: null,
         flightDate: null,
+        packageCost: candidatePackage,
         totalPackage: candidatePackage,
+        contractPackage: candidatePackage,
+        discount: 0,
         totalPaid: 0,
         dueAmount: candidatePackage,
         advanceAmount: 0,
         notes: [],
         payments: [],
+        paymentHistory: [],
         createdAt: c.createdAt.toISOString(),
       };
     });

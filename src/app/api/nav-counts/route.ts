@@ -130,6 +130,7 @@ async function GETHandler() {
           "call-center": {
             "Candidate List": totalCandidatesCount,
             "Registration & interviews": interviews,
+            "Works & Demands": demands,
           },
           "ksa": computeKsa(),
           "dubai": computeDubai(),

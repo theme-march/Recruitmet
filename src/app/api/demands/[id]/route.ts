@@ -7,6 +7,7 @@ import { AppError, errorResponse } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { toAppRole } from "@/lib/roles";
+import { syncDemandToCountryPackage, removeDemandCountryPackage } from "@/lib/country-package-sync";
 
 async function GETHandler(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -47,18 +48,39 @@ async function PATCHHandler(request: Request, { params }: { params: Promise<{ id
     const updatedSaleQty = body.saleVisaQuantity !== undefined ? Number(body.saleVisaQuantity) : Number(prevReq.saleVisaQuantity ?? 0);
     const updatedVisaQty = body.visaQuantity !== undefined ? Number(body.visaQuantity) : (existing.visaQuantity ?? existing.quantity);
 
-    let updatedStatus = "Approved";
+    let calculatedStatus = "Approved";
     if (body.deadline && new Date(body.deadline) < new Date()) {
-      updatedStatus = "Expired";
+      calculatedStatus = "Expired";
     } else if (updatedSaleQty >= updatedVisaQty && updatedVisaQty > 0) {
-      updatedStatus = "Completed";
+      calculatedStatus = "Completed";
     } else if (updatedSaleQty > 0) {
-      updatedStatus = "Active";
+      calculatedStatus = "Active";
+    }
+    const finalStatus = body.status ? String(body.status) : calculatedStatus;
+
+    let companyIdToUpdate: string | undefined = undefined;
+    if (body.companyName && typeof body.companyName === "string" && body.companyName.trim()) {
+      const cName = body.companyName.trim();
+      let matchedComp = await prisma.company.findFirst({
+        where: { name: cName },
+      });
+      if (!matchedComp) {
+        matchedComp = await prisma.company.create({
+          data: {
+            code: `CMP-${Date.now().toString().slice(-4)}`,
+            name: cName,
+            country: body.country ? String(body.country).trim() : existing.country,
+          },
+        });
+      }
+      companyIdToUpdate = matchedComp.id;
     }
 
     const updated = await prisma.demand.update({
       where: { id },
       data: {
+        companyId: companyIdToUpdate,
+        country: body.country !== undefined ? String(body.country).trim() : undefined,
         profession: body.profession !== undefined ? body.profession : undefined,
         visaQuantity: body.visaQuantity !== undefined ? Number(body.visaQuantity) : undefined,
         assignedQuantity: updatedSaleQty,
@@ -66,7 +88,7 @@ async function PATCHHandler(request: Request, { params }: { params: Promise<{ id
         visaRate: body.visaRate !== undefined ? Number(body.visaRate) : undefined,
         commissionPerFile: body.commissionPerFile !== undefined ? Number(body.commissionPerFile) : undefined,
         deadline: body.deadline !== undefined ? (body.deadline ? new Date(body.deadline) : null) : undefined,
-        status: updatedStatus,
+        status: finalStatus,
         requirements: {
           ...prevReq,
           workHour: body.workHour !== undefined ? body.workHour : prevReq.workHour,
@@ -76,6 +98,9 @@ async function PATCHHandler(request: Request, { params }: { params: Promise<{ id
         },
       },
     });
+
+    // Auto-sync updated demand to its specific country's packages & pricing
+    await syncDemandToCountryPackage(id);
 
     return Response.json({ ok: true, data: updated, message: "Demand updated successfully!" });
   } catch (error) {
@@ -92,6 +117,10 @@ async function DELETEHandler(request: Request, { params }: { params: Promise<{ i
     }
 
     const { id } = await params;
+    const existing = await prisma.demand.findUnique({ where: { id } });
+    if (existing) {
+      await removeDemandCountryPackage(existing.demandNo);
+    }
     await prisma.demand.delete({ where: { id } });
 
     return Response.json({ ok: true, message: "Demand deleted successfully!" });

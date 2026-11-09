@@ -6,13 +6,11 @@ const root = new URL("../", import.meta.url);
 const read = (path: string) => readFileSync(new URL(path, root), "utf8");
 
 test("Direct Candidate options come from the permission-safe catalog API", () => {
-  const form = read("src/components/modules/create-work-call-page.tsx");
-  assert.match(form, /fetch\(`\/api\/candidate-options\?country=/);
-  assert.doesNotMatch(form, /fetch\("\/api\/admin\/master-data"/);
-  assert.match(form, /categories\.map\(\(category\) => category\.name\)/);
-  assert.match(form, /selectedCategoryOption\?\.professions/);
-  assert.match(form, /fileStatuses\.map/);
-  assert.doesNotMatch(form, /const categoryOptions\s*=\s*categories\.length/);
+  const profile = read("src/components/modules/all-candidates-list-page.tsx");
+  assert.match(profile, /fetch\(`\/api\/candidate-options\?country=/);
+  assert.doesNotMatch(profile, /fetch\("\/api\/admin\/master-data"/);
+  assert.match(profile, /profileCategories/);
+  assert.match(profile, /profileFileStatuses/);
 });
 
 test("candidate catalog exposes only active, country-scoped options", () => {
@@ -25,29 +23,18 @@ test("candidate catalog exposes only active, country-scoped options", () => {
   assert.match(route, /withApiAccess\("candidate-options"/);
 });
 
-test("Super Admin can create, edit and deactivate every candidate option with audit", () => {
-  const api = read("src/app/api/admin/candidate-options/route.ts");
-  const page = read("src/app/(workspace)/candidate-options/page.tsx");
-  const ui = read("src/components/modules/candidate-options-admin.tsx");
+test("Candidate Form Options admin page is removed from sidebar and workspace", () => {
   const workspaceShell = read("src/components/layout/app-shell.tsx");
-  assert.match(api, /z\.enum\(\["category", "profession", "company", "status"\]\)/);
-  assert.match(api, /export const POST/);
-  assert.match(api, /export const PATCH/);
-  assert.match(api, /auditLog\.create/);
-  assert.doesNotMatch(api, /\.delete\(/);
-  assert.match(page, /role !== "SUPER_ADMIN"/);
-  assert.match(ui, /Deactivate/);
-  assert.match(ui, /Add \{labels\[tab\]\.singular\}/);
-  assert.match(workspaceShell, /href="\/candidate-options"/);
+  const nextConfig = read("next.config.ts");
+  assert.doesNotMatch(workspaceShell, /href="\/candidate-options"/);
+  assert.doesNotMatch(workspaceShell, /Candidate Form Options/);
+  assert.match(nextConfig, /source:\s*"\/candidate-options"/);
+  assert.match(nextConfig, /destination:\s*"\/dashboard"/);
 });
 
-test("Candidate interview and drive options are optional and editable from the profile", () => {
+test("Candidate interview and drive options are managed from the interview schedule and editable from the profile", () => {
   const form = read("src/components/modules/create-work-call-page.tsx");
-  assert.doesNotMatch(form, /Without Interview/);
-  assert.doesNotMatch(form, /type="radio"/);
-  assert.match(form, /Interview &amp; Drive Options.*\(Optional\)/);
-  assert.match(form, /Skip this section now/);
-  assert.match(form, /useState\(""\)/);
+  assert.doesNotMatch(form, /Interview &amp; Drive Options/);
   const route = read("src/app/api/work-calls/route.ts");
   assert.match(route, /interviewOption:.*default\(""\)/);
 

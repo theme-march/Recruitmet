@@ -1,9 +1,19 @@
 import { mutationOptions, queryOptions, type QueryClient } from "@tanstack/react-query";
 
+export type CountryPackageRecord = {
+  id: string;
+  name: string;
+  price: number;
+  description?: string | null;
+  isDefault: boolean;
+  active: boolean;
+};
+
 export type CountryRecord = {
   id: string; name: string; code: string; flag?: string | null; currency: string; timezone: string;
   phoneCode: string | null; workflowType: string; active: boolean; candidateCount: number;
   workflow?: Array<{ id: string; code: string; name: string; sortOrder: number; active: boolean; terminal?: boolean }>;
+  packages?: CountryPackageRecord[];
   createdAt: string; updatedAt: string;
 };
 export const countriesKey = ["countries"] as const;

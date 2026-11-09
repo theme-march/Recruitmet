@@ -221,7 +221,23 @@ export function CountryCandidatesListPage({
                     <td><div className="country-design-cell client"><Link prefetch={true} href={`/file/${row.id}`}>{row.name}</Link><span className="country-design-candidate-id">{row.candidateNo}</span><small>{row.phone}</small></div></td>
                     <td><div className="country-design-cell"><b>{row.passportNumber}</b><small>{row.district}</small></div></td>
                     <td><div className="country-design-cell"><b>{row.profession}</b><small>{row.company}</small></div></td>
-                    <td><div className="country-design-agent"><CountryDesignIcon name={(["AgentOrange","AgentPurple","AgentGreen"] as const)[idx % 3]} /><span>{row.agent && !/direct/i.test(row.agent) ? row.agent : "Direct Office"}</span></div></td>
+                    <td>
+                      <div className="country-design-agent">
+                        <CountryDesignIcon name={(["AgentOrange","AgentPurple","AgentGreen"] as const)[idx % 3]} />
+                        {row.agent && !/direct/i.test(row.agent) ? (
+                          <Link
+                            href={row.agentId ? `/agent/${row.agentId}` : `/agent/${encodeURIComponent(row.agent)}`}
+                            style={{ color: "#007aff", textDecoration: "none" }}
+                            className="hover:underline font-semibold"
+                            title={`View Agent Profile: ${row.agent}`}
+                          >
+                            {row.agent}
+                          </Link>
+                        ) : (
+                          <span>Direct Office</span>
+                        )}
+                      </div>
+                    </td>
                     <td><span className="country-design-stage" style={{background:stageBadge.bg,color:stageBadge.color}}>{stageBadge.icon} {row.currentStage}</span></td>
                     <td><div className="country-design-cell financial"><b>৳ {row.totalPaid.toLocaleString()} BDT</b>{row.balanceDue > 0 && <span className="country-design-due">Due: ৳ {row.balanceDue.toLocaleString()}</span>}</div></td>
                     <td><div className="country-design-cell officer"><b>{row.officerName}</b><small>{row.officeName}</small></div></td>
@@ -322,16 +338,33 @@ export function CountryCandidatesListPage({
 
                       {/* Footer: Source/Agent & Open Dossier Action Button */}
                       <div className="country-cand-footer">
-                        <span
-                          className="country-cand-source"
-                          style={{
-                            background: row.agent && !/direct/i.test(row.agent) ? "#fffbeb" : "#f1f5f9",
-                            color: row.agent && !/direct/i.test(row.agent) ? "#d97706" : "var(--muted)",
-                            border: `1px solid ${row.agent && !/direct/i.test(row.agent) ? "#fde68a" : "var(--line)"}`,
-                          }}
-                        >
-                          {row.agent && !/direct/i.test(row.agent) ? `🤝 ${row.agent}` : "🏢 Direct Office"}
-                        </span>
+                        {row.agent && !/direct/i.test(row.agent) ? (
+                          <Link
+                            href={row.agentId ? `/agent/${row.agentId}` : `/agent/${encodeURIComponent(row.agent)}`}
+                            className="country-cand-source hover:underline"
+                            style={{
+                              background: "#fffbeb",
+                              color: "#d97706",
+                              border: "1px solid #fde68a",
+                              textDecoration: "none",
+                              cursor: "pointer",
+                            }}
+                            title={`Open Agent Profile: ${row.agent}`}
+                          >
+                            🤝 {row.agent}
+                          </Link>
+                        ) : (
+                          <span
+                            className="country-cand-source"
+                            style={{
+                              background: "#f1f5f9",
+                              color: "var(--muted)",
+                              border: "1px solid var(--line)",
+                            }}
+                          >
+                            🏢 Direct Office
+                          </span>
+                        )}
 
                         <Link data-action-ui="secondary" data-action-size="normal"
                           prefetch={true}

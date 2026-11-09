@@ -10,11 +10,15 @@ import { getDefaultStagesForCountry, getCountryFlagEmoji } from "@/lib/country-p
 
 async function GETHandler() {
   try {
-    // 1. Fetch all countries with their workflow stages
+    // 1. Fetch all countries with their workflow stages and custom packages
     const countries = await prisma.country.findMany({
       include: {
         workflow: {
           orderBy: { sortOrder: "asc" },
+        },
+        packages: {
+          where: { active: true },
+          orderBy: [{ isDefault: "desc" }, { price: "asc" }],
         },
       },
       orderBy: { name: "asc" },
@@ -124,6 +128,14 @@ function matchesCountryName(countryName: string, countryCode: string, targetName
         active: country.active,
         candidateCount: matchedCount,
         workflow: workflowStages,
+        packages: country.packages?.map((p) => ({
+          id: p.id,
+          name: p.name,
+          price: Number(p.price),
+          description: p.description,
+          isDefault: p.isDefault,
+          active: p.active,
+        })) || [],
         createdAt: country.createdAt,
         updatedAt: country.updatedAt,
       };

@@ -35,7 +35,7 @@
   --mobile-shadow-float: 0 12px 32px rgba(0, 0, 0, 0.12);
 }
 
-@media (max-width: 768px) {
+@media screen and (max-width: 768px) {
   html {
     background: var(--mobile-canvas);
     overflow-x: clip;
@@ -2142,7 +2142,6 @@
    * full-height white card around every stream.
    */
   :is(
-      .admin-panel.candidate-options-panel,
       .agents-results-panel,
       .demands-results-panel,
       .country-candidates-results-panel,
@@ -2184,10 +2183,6 @@
     gap: 10px !important;
   }
 
-  .candidate-options-panel :is(.control-tabs, .option-mobile-card) {
-    min-width: 0 !important;
-    max-width: 100% !important;
-  }
 
   :is(.country-candidates-results-panel, .country-agents-results-panel) .country-table-header-toolbar {
     padding: 12px 14px !important;
@@ -2886,7 +2881,7 @@
   }
 }
 
-@media (max-width: 565px) {
+@media screen and (max-width: 565px) {
   .document-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
@@ -2896,7 +2891,7 @@
   }
 }
 
-@media (max-width: 430px) {
+@media screen and (max-width: 430px) {
   .main main,
   .admin-main > main {
     padding-inline: 14px !important;
@@ -2934,7 +2929,7 @@
   }
 }
 
-@media (max-width: 360px) {
+@media screen and (max-width: 360px) {
   .main main,
   .admin-main > main {
     padding-inline: 12px !important;
@@ -2993,7 +2988,7 @@
   }
 }
 
-@media (max-width: 320px) {
+@media screen and (max-width: 320px) {
   .main main,
   .admin-main > main {
     padding-inline: 10px !important;

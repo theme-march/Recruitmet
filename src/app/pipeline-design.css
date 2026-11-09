@@ -72,13 +72,73 @@
 .pipeline-info-symbol { display: grid; place-items: center; flex-shrink: 0; width: 20px; height: 20px; border-radius: 10px; background: #007aff; color: white; font-size: 11px; font-weight: 700; box-shadow: 0 1px 2px #007aff33; }
 .pipeline-design-page .stage-card > form { padding: 20px; }
 .pipeline-design-page .pipeline-flight-card > form { padding-bottom: 17px; }
-.pipeline-design-page .form-grid { gap: 16px; }
+.pipeline-design-page :is(.form-grid, .passport-form-grid) { gap: 16px; }
 .pipeline-design-page .pipeline-flight-fields { grid-template-columns: repeat(3,minmax(0,1fr)); }
-.pipeline-design-page .form-grid label { min-width: 0; color: #1d1d1f; font-size: 11px; line-height: 13px; font-weight: 600; gap: 6px; }
-.pipeline-design-page .form-grid label em { color: #ff3b30; font-style: normal; }
-.pipeline-design-page .form-grid :is(input:not([type=checkbox]):not([type=file]),select,textarea) { min-width: 0; height: 40px; padding: 0 12px; border: 1px solid #e5e5ea; border-radius: 10px; background: white; color: #1d1d1f; font-size: 13px; font-weight: 400; box-shadow: 0 1px 1px #00000008; }
+.pipeline-design-page :is(.form-grid, .passport-form-grid) label { min-width: 0; color: #1d1d1f; font-size: 11px; line-height: 13px; font-weight: 600; gap: 6px; }
+.pipeline-design-page :is(.form-grid, .passport-form-grid) label em { color: #ff3b30; font-style: normal; }
+.pipeline-design-page :is(.form-grid, .passport-form-grid) :is(input:not([type=checkbox]):not([type=file]),select,textarea) { min-width: 0; height: 40px; padding: 0 12px; border: 1px solid #e5e5ea; border-radius: 10px; background-color: white; color: #1d1d1f; font-size: 13px; font-weight: 400; box-shadow: 0 1px 1px #00000008; }
 .pipeline-design-page .pipeline-flight-fields > label:nth-child(4) { grid-column: 1 / -1; }
 .pipeline-design-page .pipeline-flight-fields > label:nth-child(4) input { width: 280px; max-width: 100%; }
+.pipeline-design-page :is(.form-grid, .passport-form-grid) :is(.full, .checkbox-row, .medical-checklist-wrapper) { grid-column: 1 / -1 !important; width: 100% !important; }
+.pipeline-design-page .medical-checklist-wrapper { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 6px; }
+.pipeline-design-page .medical-checklist-title { color: #1d1d1f; font-size: 11px; line-height: 13px; font-weight: 600; letter-spacing: -0.01em; }
+.pipeline-design-page .medical-checklist-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; width: 100%; }
+.pipeline-design-page :is(.form-grid, .passport-form-grid) label.medical-checkbox-card,
+.pipeline-design-page :is(.form-grid, .passport-form-grid) label.checkbox-card,
+.pipeline-design-page .medical-checkbox-card,
+.pipeline-design-page .checkbox-card {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 10px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  padding: 0 14px !important;
+  background: white !important;
+  border: 1px solid #e5e5ea !important;
+  border-radius: 10px !important;
+  cursor: pointer !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  color: #1d1d1f !important;
+  box-shadow: 0 1px 1px #00000008 !important;
+  transition: all 0.15s ease !important;
+  user-select: none;
+}
+.pipeline-design-page .medical-checkbox-card:hover,
+.pipeline-design-page .checkbox-card:hover {
+  background: #fbfbfd !important;
+  border-color: #007aff55 !important;
+}
+.pipeline-design-page .medical-checkbox-card:has(input[type="checkbox"]:checked),
+.pipeline-design-page .checkbox-card:has(input[type="checkbox"]:checked) {
+  background: #f4f8ff !important;
+  border-color: #007aff !important;
+  color: #007aff !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 3px rgba(0, 122, 255, 0.12) !important;
+}
+.pipeline-design-page .medical-checkbox-card input[type="checkbox"],
+.pipeline-design-page .checkbox-card input[type="checkbox"] {
+  width: 17px !important;
+  height: 17px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  accent-color: #007aff !important;
+  cursor: pointer !important;
+  flex-shrink: 0 !important;
+  border-radius: 4px !important;
+}
+.pipeline-design-page .medical-checkbox-text {
+  font-size: 12px !important;
+  font-weight: inherit !important;
+  color: inherit !important;
+  line-height: 14px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
 .pipeline-design-page .file-upload-field { grid-column: 1 / -1; margin: 0; gap: 8px; }
 .pipeline-design-page .file-upload-header { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 .pipeline-design-page .file-upload-label { color: #1d1d1f; font-size: 11px; line-height: 13px; font-weight: 600; }
@@ -378,12 +438,13 @@
   .main main .pipeline-design-page .stage-guidance-banner { padding: 12px 16px; align-items: flex-start; font-size: 12px; line-height: 18px; }
   .main main .pipeline-design-page .stage-guidance-banner > svg { flex-shrink: 0; margin-top: 2px; }
   .main main .pipeline-design-page .stage-card > form { padding: 16px !important; }
-  .main main .pipeline-design-page .form-grid { grid-template-columns: minmax(0,1fr) !important; gap: 18px !important; }
-  .main main .pipeline-design-page .form-grid > * { min-width: 0; grid-column: 1 / -1 !important; }
-  .main main .pipeline-design-page .form-grid label { font-size: 12px; line-height: 18px; gap: 8px; }
+  .main main .pipeline-design-page :is(.form-grid, .passport-form-grid) { grid-template-columns: minmax(0,1fr) !important; gap: 18px !important; }
+  .main main .pipeline-design-page :is(.form-grid, .passport-form-grid) > * { min-width: 0; grid-column: 1 / -1 !important; }
+  .main main .pipeline-design-page :is(.form-grid, .passport-form-grid) label { font-size: 12px; line-height: 18px; gap: 8px; }
   .main main .pipeline-design-page .pipeline-flight-fields { grid-template-columns: 1fr !important; }
   .main main .pipeline-design-page .pipeline-flight-fields > label:nth-child(4) input { width: 100%; }
-  .main main .pipeline-design-page .form-grid :is(input:not([type=checkbox]):not([type=file]),select,textarea) { height: 40px !important; min-height: 0 !important; padding: 0 12px !important; border-radius: 10px !important; background: white !important; box-shadow: 0 1px 1px #00000008 !important; font-size: 13px !important; }
+  .main main .pipeline-design-page .medical-checklist-grid { grid-template-columns: 1fr !important; gap: 8px !important; }
+  .main main .pipeline-design-page :is(.form-grid, .passport-form-grid) :is(input:not([type=checkbox]):not([type=file]),select,textarea) { height: 40px !important; min-height: 0 !important; padding: 0 12px !important; border-radius: 10px !important; background-color: white !important; box-shadow: 0 1px 1px #00000008 !important; font-size: 13px !important; }
   .main main .pipeline-design-page .file-upload-label { font-size: 12px; line-height: 18px; }
   .main main .pipeline-design-page .file-upload-hint { font-size: 11px; line-height: 16px; }
   .main main .pipeline-design-page .file-dropzone-empty { height: auto !important; min-height: 170px !important; padding: 18px 12px !important; border-style: dashed; background: #fafbff; }

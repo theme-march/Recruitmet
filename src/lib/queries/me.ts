@@ -7,6 +7,7 @@ const profileSchema = z.object({
   roleKey: z.enum(["SUPER_ADMIN", "CALL_CENTER", "CUSTOM", "AGENT"]),
   home: z.string(),
   office: z.string().nullable(),
+  agentId: z.string().nullable().optional(),
   unreadNotifications: z.number(),
   allowedModules: z.array(z.string()),
   granularPermissions: z.record(z.string(), z.array(z.string())),

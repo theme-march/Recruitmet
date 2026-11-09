@@ -399,6 +399,9 @@ model ProcessingFile {
   visas          VisaProcess[]
   manpower       ManpowerProcess[]
   reprocess      ReprocessRequest[]
+  contractPackage Decimal?            @db.Decimal(14, 2)
+  discount        Decimal?            @default(0) @db.Decimal(14, 2)
+  packageTitle    String?
   companyId      String?
   companyRecord  Company?            @relation(fields: [companyId], references: [id])
   demandId       String?
@@ -421,7 +424,7 @@ model PassportProcess {
   expiryDate         DateTime
   nationality        String?
   verificationStatus String         @default("Pending")
-  remarks            String?
+  remarks            String?        @db.Text
   documentId         String?
   enteredBy          String?
   verifiedBy         String?
@@ -472,8 +475,24 @@ model Country {
   workflowType String
   active       Boolean                @default(true)
   workflow     CountryWorkflowStage[]
+  packages     CountryPackage[]
   createdAt    DateTime               @default(now())
   updatedAt    DateTime               @updatedAt
+}
+
+model CountryPackage {
+  id          String   @id @default(cuid())
+  countryId   String
+  country     Country  @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  name        String
+  price       Decimal  @db.Decimal(14, 2)
+  description String?
+  isDefault   Boolean  @default(false)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([countryId, active])
 }
 
 model CountryWorkflowStage {

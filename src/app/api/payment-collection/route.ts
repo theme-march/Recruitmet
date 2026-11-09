@@ -18,6 +18,8 @@ async function GETHandler(request: Request) {
     const q = (url.searchParams.get("q") ?? "").toLowerCase();
     const status = url.searchParams.get("status") ?? "";
     const country = url.searchParams.get("country") ?? "";
+    const agent = url.searchParams.get("agent") ?? "";
+    const stage = url.searchParams.get("stage") ?? "";
     const page = Math.max(1, Number(url.searchParams.get("page")) || 1);
     const pageSize = Math.min(100, Math.max(10, Number(url.searchParams.get("pageSize")) || 20));
 
@@ -68,7 +70,11 @@ async function GETHandler(request: Request) {
       );
       const normalizedCountry = matchedDb ? matchedDb.name : rawCountry || "Other";
 
-      const packageCost = /dubai/i.test(rawCountry) ? 300000 : 350000;
+      const rawGross = (file as any).contractPackage !== null && (file as any).contractPackage !== undefined
+        ? Number((file as any).contractPackage)
+        : (/dubai/i.test(rawCountry) ? 300000 : 350000);
+      const rawDisc = Number((file as any).discount || 0);
+      const packageCost = Math.max(0, rawGross - rawDisc);
       const dueAmount = Math.max(0, packageCost - paid);
       const advanceAmount = Math.max(0, paid - packageCost);
 
@@ -89,14 +95,16 @@ async function GETHandler(request: Request) {
         fileNo: file.fileNo,
         candidateId: file.candidateId,
         candidateNo: file.candidate.candidateNo,
+        registrationNo: file.candidate.registrationNo ?? null,
+        nationalId: file.candidate.nationalId ?? null,
         name: file.candidate.fullName,
         phone: file.candidate.phone,
         passport: file.passport?.passportNumber ?? file.candidate.passportNo ?? "Not entered",
         country: normalizedCountry,
         rawCountry,
         officer: file.assignedTo?.name ?? "Unassigned",
-        agent: file.agent ?? "N/A",
-        office: file.office?.name ?? "SELF",
+        agent: file.agent && file.agent !== "N/A" ? file.agent : "Direct Walk-in",
+        office: file.office?.name ?? "Head Office",
         company: companyName,
         profession: professionName,
         currentStage: file.currentStage,
@@ -105,6 +113,9 @@ async function GETHandler(request: Request) {
         refunded,
         netPaid: paid - refunded,
         totalPackage: packageCost,
+        grossPackage: rawGross,
+        discount: rawDisc,
+        packageTitle: file.packageTitle || null,
         dueAmount,
         advanceAmount,
         dueDate: latest?.dueDate?.toISOString() ?? null,
@@ -115,8 +126,11 @@ async function GETHandler(request: Request) {
           paymentNo: p.paymentNo,
           amount: Number(p.amount),
           type: p.type,
-          method: p.method || "Cash",
+          method: p.method || "Cash at Office",
           reference: p.reference || "N/A",
+          status: p.status || "PAID",
+          dueDate: p.dueDate?.toISOString() ?? null,
+          collectedAt: p.collectedAt?.toISOString() ?? p.createdAt.toISOString(),
           createdAt: p.createdAt.toISOString(),
         })),
       };
@@ -125,9 +139,20 @@ async function GETHandler(request: Request) {
     const filtered = rows.filter((row) => {
       const matchesQ =
         !q ||
-        [row.name, row.phone, row.passport, row.fileNo, row.candidateNo, row.country, row.rawCountry].some((v) =>
-          v.toLowerCase().includes(q)
-        );
+        [
+          row.name,
+          row.phone,
+          row.passport,
+          row.fileNo,
+          row.candidateNo,
+          row.registrationNo ?? "",
+          row.nationalId ?? "",
+          row.country,
+          row.rawCountry,
+          row.agent,
+          row.company,
+          row.profession,
+        ].some((v) => v.toLowerCase().includes(q));
       const matchesStatus = !status || row.paymentStatus === status;
       const targetCountry = country.trim().toLowerCase();
       const matchesCountry =
@@ -139,8 +164,14 @@ async function GETHandler(request: Request) {
         (targetCountry.includes("saudi") && row.country.toLowerCase().includes("saudi")) ||
         (targetCountry.includes("dubai") && (row.country.toLowerCase().includes("dubai") || row.rawCountry.toLowerCase().includes("dubai"))) ||
         (targetCountry.includes("other") && !/saudi|dubai|uae|emirates/i.test(row.country));
+      const matchesAgent =
+        !agent ||
+        (agent === "DIRECT"
+          ? /direct/i.test(row.agent)
+          : row.agent.toLowerCase() === agent.toLowerCase());
+      const matchesStage = !stage || row.currentStage.toLowerCase() === stage.toLowerCase();
 
-      return matchesQ && matchesStatus && matchesCountry;
+      return matchesQ && matchesStatus && matchesCountry && matchesAgent && matchesStage;
     });
 
     const totalCollected = filtered.reduce((sum, r) => sum + r.paid, 0);
@@ -148,6 +179,8 @@ async function GETHandler(request: Request) {
     const totalNet = totalCollected - totalRefunded;
     const totalDue = filtered.reduce((sum, r) => sum + (r.dueAmount || 0), 0);
     const totalAdvance = filtered.reduce((sum, r) => sum + (r.advanceAmount || 0), 0);
+    const totalPackageValue = filtered.reduce((sum, r) => sum + r.totalPackage, 0);
+    const totalDiscount = filtered.reduce((sum, r) => sum + r.discount, 0);
     const paidCount = filtered.filter((r) => r.paid > 0).length;
     const pendingCount = filtered.filter((r) => r.paid === 0).length;
 
@@ -161,12 +194,16 @@ async function GETHandler(request: Request) {
         totalNet,
         totalDue,
         totalAdvance,
+        totalPackageValue,
+        totalDiscount,
         paidCount,
         pendingCount,
       },
       filters: {
         statuses: [...new Set(rows.map((r) => r.paymentStatus))].sort(),
         countries: activeCountryNames,
+        agents: [...new Set(rows.map((r) => r.agent).filter(Boolean))].sort(),
+        stages: [...new Set(rows.map((r) => r.currentStage).filter(Boolean))].sort(),
       },
       meta: {
         page,

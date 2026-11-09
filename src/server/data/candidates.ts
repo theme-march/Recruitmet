@@ -30,7 +30,7 @@ export async function getCandidatesData(session: SessionData, options: Candidate
   const page = Math.max(1, Number(options.page) || 1);
   const pageSize = Math.min(100, Math.max(5, Number(options.pageSize) || 20));
 
-  const [dbCountries, allCandidates] = await Promise.all([
+  const [dbCountries, allCandidates, registeredAgents] = await Promise.all([
     prisma.country.findMany({
       where: { active: true },
       orderBy: { name: "asc" },
@@ -47,10 +47,15 @@ export async function getCandidatesData(session: SessionData, options: Candidate
             assignedTo: { select: { id: true, name: true } },
             companyRecord: { select: { id: true, name: true } },
             payments: { select: { amount: true, status: true, type: true } },
-            passport: { select: { passportNumber: true, verificationStatus: true } },
-            medical: { select: { result: true }, take: 1 },
-            visas: { select: { visaNumber: true, status: true }, take: 1 },
-            manpower: { select: { reference: true, status: true }, take: 1 },
+            passport: { select: { passportNumber: true, verificationStatus: true, issueDate: true, expiryDate: true, issuingAuthority: true } },
+            medical: { select: { result: true, center: true, testDate: true, expiryDate: true }, take: 1 },
+            mofa: { select: { mofaNumber: true, status: true, submitDate: true, doneDate: true }, take: 1 },
+            takamul: { select: { registrationNumber: true, certificateNumber: true, status: true, reportStatus: true }, take: 1 },
+            biometrics: { select: { status: true, appointmentDate: true }, take: 1 },
+            police: { select: { applicationNumber: true, result: true, status: true, issueDate: true, expiryDate: true }, take: 1 },
+            visas: { select: { visaNumber: true, status: true, issueDate: true, expiryDate: true }, take: 1 },
+            manpower: { select: { reference: true, status: true, company: true, profession: true, approvedAt: true }, take: 1 },
+            flights: { select: { ticketNo: true, flown: true, baggage: true }, take: 1 },
           },
         },
         calls: {
@@ -69,7 +74,17 @@ export async function getCandidatesData(session: SessionData, options: Candidate
         },
       },
     }),
+    prisma.agent.findMany({
+      select: { id: true, code: true, name: true },
+    }),
   ]);
+
+  const agentLookup = new Map<string, string>();
+  for (const ag of registeredAgents) {
+    if (ag.id) agentLookup.set(ag.id.toLowerCase().trim(), ag.id);
+    if (ag.code) agentLookup.set(ag.code.toLowerCase().trim(), ag.id);
+    if (ag.name) agentLookup.set(ag.name.toLowerCase().trim(), ag.id);
+  }
 
   const activeCountryNames = [
     ...dbCountries.map((c) => c.name),
@@ -100,12 +115,26 @@ export async function getCandidatesData(session: SessionData, options: Candidate
     );
     const displayCountry = matchedDb ? matchedDb.name : rawCountry || "Other";
 
-    const packageCost = /dubai/i.test(rawCountry) ? 300000 : 350000;
+    const rawGross = (activeFile as any)?.contractPackage !== null && (activeFile as any)?.contractPackage !== undefined
+      ? Number((activeFile as any).contractPackage)
+      : (/dubai/i.test(rawCountry) ? 300000 : 350000);
+    const discount = Number((activeFile as any)?.discount || 0);
+    const packageCost = Math.max(0, rawGross - discount);
     const dueAmount = Math.max(0, packageCost - totalPaid);
+    const packageTitle = (activeFile as any)?.packageTitle || null;
     const additionalPhones = c.phones.filter((p) => !p.isPrimary).map((p) => p.phone);
     const medicalResult = activeFile?.medical?.[0]?.result || null;
     const visaResult = activeFile?.visas?.[0]?.status || null;
     const manpowerResult = activeFile?.manpower?.[0]?.status || null;
+
+    const agent = (activeFile?.agent && !/^(direct|direct walk-in)$/i.test(activeFile.agent))
+      ? activeFile.agent
+      : (c.source && !["Direct", "Walk-in", "Website"].includes(c.source))
+        ? c.source
+        : (activeFile?.agent || c.source || "Direct Office");
+
+    const isDirect = /^(direct|direct walk-in|website|walk-in)$/i.test(agent.trim());
+    const matchedAgentId = !isDirect ? (agentLookup.get(agent.trim().toLowerCase()) || null) : null;
 
     return {
       id: c.id,
@@ -130,10 +159,14 @@ export async function getCandidatesData(session: SessionData, options: Candidate
       passportNo: c.passportNo || "—",
       nationalId: c.nationalId || "—",
       source: c.source || (latestCall?.source ? latestCall.source : "Direct"),
+      agent,
+      agentId: matchedAgentId,
       status: c.status,
       createdAt: c.createdAt.toISOString(),
       totalPaid,
       packageCost,
+      discount,
+      packageTitle,
       dueAmount,
       activeFile: activeFile
         ? {
@@ -143,9 +176,83 @@ export async function getCandidatesData(session: SessionData, options: Candidate
             status: activeFile.status,
             company: activeFile.company || activeFile.companyRecord?.name || "Almarai",
             officer: activeFile.assignedTo?.name || "Unassigned",
+            agent: activeFile.agent || null,
             medicalResult,
             visaResult,
             manpowerResult,
+            stageDetails: {
+              "Passport Entry": {
+                status: activeFile.passport?.verificationStatus || (activeFile.passport ? "Verified" : "Pending"),
+                number: activeFile.passport?.passportNumber || c.passportNo || "—",
+                issueDate: activeFile.passport?.issueDate ? activeFile.passport.issueDate.toISOString().split("T")[0] : "—",
+                expiryDate: activeFile.passport?.expiryDate ? activeFile.passport.expiryDate.toISOString().split("T")[0] : "—",
+                authority: activeFile.passport?.issuingAuthority || "DIP/DHAKA",
+              },
+              "Medical": {
+                status: activeFile.medical?.[0]?.result ? "Completed" : "Pending",
+                result: activeFile.medical?.[0]?.result || "Pending / In Progress",
+                center: activeFile.medical?.[0]?.center || "Ibn Sina GCC Medical Center, Dhaka",
+                testDate: activeFile.medical?.[0]?.testDate ? activeFile.medical[0].testDate.toISOString().split("T")[0] : "—",
+                expiryDate: activeFile.medical?.[0]?.expiryDate ? activeFile.medical[0].expiryDate.toISOString().split("T")[0] : "—",
+              },
+              "MOFA": {
+                status: activeFile.mofa?.[0]?.status || "Pending",
+                mofaNumber: activeFile.mofa?.[0]?.mofaNumber || "—",
+                submitDate: activeFile.mofa?.[0]?.submitDate ? activeFile.mofa[0].submitDate.toISOString().split("T")[0] : "—",
+                doneDate: activeFile.mofa?.[0]?.doneDate ? activeFile.mofa[0].doneDate.toISOString().split("T")[0] : "—",
+              },
+              "Takamul": {
+                status: activeFile.takamul?.[0]?.status || "Pending",
+                reportStatus: activeFile.takamul?.[0]?.reportStatus || "Pending",
+                certNo: activeFile.takamul?.[0]?.certificateNumber || "—",
+                regNo: activeFile.takamul?.[0]?.registrationNumber || "—",
+                profession: activeFile.profession || c.profession || "Electrician",
+              },
+              "Bio Finger": {
+                status: activeFile.biometrics?.[0]?.status || "Pending",
+                date: activeFile.biometrics?.[0]?.appointmentDate ? activeFile.biometrics[0].appointmentDate.toISOString().split("T")[0] : "Scheduled",
+                center: "VFS Global / GCC Bio Center",
+              },
+              "Police Clearance": {
+                status: activeFile.police?.[0]?.status || "Pending",
+                result: activeFile.police?.[0]?.result || "Clear / Verified",
+                appNo: activeFile.police?.[0]?.applicationNumber || "—",
+                issueDate: activeFile.police?.[0]?.issueDate ? activeFile.police[0].issueDate.toISOString().split("T")[0] : "—",
+                expiryDate: activeFile.police?.[0]?.expiryDate ? activeFile.police[0].expiryDate.toISOString().split("T")[0] : "—",
+              },
+              "First Payment": {
+                status: totalPaid > 0 ? "Deposited" : "Pending",
+                totalPaid: `৳ ${totalPaid.toLocaleString("en-IN")}`,
+                dueAmount: `৳ ${dueAmount.toLocaleString("en-IN")}`,
+                packageTitle: packageTitle || "General Work Visa",
+              },
+              "Visa Stamping": {
+                status: activeFile.visas?.[0]?.status || "Visa Done",
+                visaNumber: activeFile.visas?.[0]?.visaNumber || "—",
+                issueDate: activeFile.visas?.[0]?.issueDate ? activeFile.visas[0].issueDate.toISOString().split("T")[0] : "—",
+                expiryDate: activeFile.visas?.[0]?.expiryDate ? activeFile.visas[0].expiryDate.toISOString().split("T")[0] : "—",
+              },
+              "Second Payment": {
+                status: dueAmount === 0 ? "Fully Paid" : "Pending / Due",
+                totalPaid: `৳ ${totalPaid.toLocaleString("en-IN")}`,
+                dueAmount: `৳ ${dueAmount.toLocaleString("en-IN")}`,
+              },
+              "Manpower": {
+                status: activeFile.manpower?.[0]?.status || "Approved",
+                smartCardNo: activeFile.manpower?.[0]?.reference || "—",
+                company: activeFile.manpower?.[0]?.company || activeFile.company || "Almarai",
+                approvedAt: activeFile.manpower?.[0]?.approvedAt ? activeFile.manpower[0].approvedAt.toISOString().split("T")[0] : "—",
+              },
+              "Ready For Flight": {
+                status: activeFile.flights?.[0]?.ticketNo ? "Flight Ready" : "Pending",
+                ticketNo: activeFile.flights?.[0]?.ticketNo || "—",
+                baggage: activeFile.flights?.[0]?.baggage || "30 kg Check-in + 7 kg Cabin",
+              },
+              "Flight": {
+                status: activeFile.flights?.[0]?.flown ? "Flown / Departed" : (activeFile.flights?.[0]?.ticketNo ? "Confirmed" : "Pending"),
+                ticketNo: activeFile.flights?.[0]?.ticketNo || "—",
+              },
+            },
           }
         : null,
       latestCall: latestCall
@@ -164,7 +271,8 @@ export async function getCandidatesData(session: SessionData, options: Candidate
             scheduledAt: latestInterview.scheduledAt.toISOString(),
             title: latestInterview.schedule?.title || latestInterview.title || "Walk-in Interview",
             company: latestInterview.schedule?.company || latestInterview.company || "—",
-        }
+            scheduleId: latestInterview.schedule?.id || latestInterview.scheduleId || null,
+          }
         : null,
       interviewOptions: {
         interviewScheduleId: String(
@@ -203,6 +311,8 @@ export async function getCandidatesData(session: SessionData, options: Candidate
         row.district,
         row.profession,
         row.preferredCountry,
+        row.agent,
+        row.source,
         row.activeFile?.fileNo || "",
         row.latestCall?.leadNo || "",
         ...row.additionalPhones,
