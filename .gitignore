@@ -4,6 +4,7 @@ node_modules
 *.log
 prisma/dev.db
 storage/private/
+storage/backups/
 .reference-images/
 .pnpm-store/
 tmp/

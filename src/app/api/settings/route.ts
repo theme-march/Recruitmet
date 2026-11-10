@@ -16,6 +16,11 @@ const settingsSchema = z.object({
   logoUrl: z.string().max(2_000_000).optional().default(""), // Supports base64 data URLs & URLs
   primaryColor: z.string().trim().max(30).optional().default(DEFAULT_SETTINGS.primaryColor),
   softwareVersion: z.string().trim().max(30).optional().default(DEFAULT_SETTINGS.softwareVersion),
+  autoBackupEnabled: z.boolean().optional().default(DEFAULT_SETTINGS.autoBackupEnabled),
+  backupFrequency: z.enum(["12hours", "daily", "weekly"]).optional().default(DEFAULT_SETTINGS.backupFrequency),
+  backupTime: z.string().trim().max(10).optional().default(DEFAULT_SETTINGS.backupTime),
+  backupRetention: z.number().int().min(1).max(365).optional().default(DEFAULT_SETTINGS.backupRetention),
+  lastBackupAt: z.string().nullable().optional().default(null),
 });
 
 async function loadSettingsFromDb(): Promise<GeneralSettings> {
@@ -32,6 +37,12 @@ async function loadSettingsFromDb(): Promise<GeneralSettings> {
     }
   }
 
+  const autoBackupVal = map.get("AUTO_BACKUP_ENABLED");
+  const autoBackupEnabled =
+    autoBackupVal !== undefined
+      ? autoBackupVal === "true" || autoBackupVal === "1"
+      : DEFAULT_SETTINGS.autoBackupEnabled;
+
   return {
     softwareName: map.get("SOFTWARE_NAME") || DEFAULT_SETTINGS.softwareName,
     softwareSubtitle: map.get("SOFTWARE_SUBTITLE") || DEFAULT_SETTINGS.softwareSubtitle,
@@ -42,6 +53,11 @@ async function loadSettingsFromDb(): Promise<GeneralSettings> {
     logoUrl: map.get("LOGO_URL") || DEFAULT_SETTINGS.logoUrl,
     primaryColor: map.get("PRIMARY_COLOR") || DEFAULT_SETTINGS.primaryColor,
     softwareVersion: map.get("SOFTWARE_VERSION") || DEFAULT_SETTINGS.softwareVersion,
+    autoBackupEnabled,
+    backupFrequency: (map.get("BACKUP_FREQUENCY") as any) || DEFAULT_SETTINGS.backupFrequency,
+    backupTime: map.get("BACKUP_TIME") || DEFAULT_SETTINGS.backupTime,
+    backupRetention: map.get("BACKUP_RETENTION") ? parseInt(map.get("BACKUP_RETENTION")!, 10) || DEFAULT_SETTINGS.backupRetention : DEFAULT_SETTINGS.backupRetention,
+    lastBackupAt: map.get("LAST_BACKUP_AT") || null,
   };
 }
 
@@ -86,6 +102,10 @@ async function POSTHandler(request: Request) {
               "LOGO_URL",
               "PRIMARY_COLOR",
               "SOFTWARE_VERSION",
+              "AUTO_BACKUP_ENABLED",
+              "BACKUP_FREQUENCY",
+              "BACKUP_TIME",
+              "BACKUP_RETENTION",
             ],
           },
         },
@@ -109,6 +129,10 @@ async function POSTHandler(request: Request) {
       ["LOGO_URL", fields.logoUrl],
       ["PRIMARY_COLOR", fields.primaryColor],
       ["SOFTWARE_VERSION", fields.softwareVersion],
+      ["AUTO_BACKUP_ENABLED", String(fields.autoBackupEnabled)],
+      ["BACKUP_FREQUENCY", fields.backupFrequency],
+      ["BACKUP_TIME", fields.backupTime],
+      ["BACKUP_RETENTION", String(fields.backupRetention)],
     ];
 
     await prisma.$transaction(

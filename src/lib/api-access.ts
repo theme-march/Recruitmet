@@ -45,7 +45,7 @@ export async function authorizeApi(route: string, request: Request) {
   const reading = method === "GET" || method === "HEAD";
   // Personal notifications have recipient checks in the handler/service.
   if ((route === "notifications" && reading) || route === "notifications/[id]/read") return;
-  if ((route === "countries" || route === "settings" || route === "country-packages") && reading) return; // Lookup metadata; counts filtered in handler.
+  if ((route === "countries" || route.startsWith("settings") || route === "country-packages") && reading) return; // Lookup metadata; counts filtered in handler.
   let body: Record<string, unknown> = {};
   if (!reading && request.headers.get("content-type")?.includes("application/json")) {
     try { body = await request.clone().json(); } catch { throw new AppError("INVALID_JSON", "Invalid request body.", 422); }
@@ -71,6 +71,7 @@ export async function authorizeApi(route: string, request: Request) {
     "all-candidates": "call-center", candidates: "call-center", "candidate-options": "call-center", "work-calls": "call-center", leads: "call-center", search: "call-center", "officer-dashboard": "call-center",
     interviews: "registration", "interview-schedules": "registration",
     "payment-collection": "payment-collection", payments: "payment-collection",
+    "passport-handover": "call-center",
     "dubai-documents": "document", documents: "document", tutorials: "tutorials",
     flights: "flights", notifications: "notifications", "master-data": "master-data", reports: "reports",
   };

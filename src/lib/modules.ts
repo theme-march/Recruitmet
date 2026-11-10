@@ -1,6 +1,7 @@
 import {
   AlertOctagon,
   BellRing,
+  BookMarked,
   Building2,
   Database,
   FolderGit2,
@@ -29,14 +30,15 @@ export const modules: AppModule[] = [
   { id: "ksa", label: "Saudi Arabia", icon: Globe, flag: "🇸🇦", isCountry: true, items: list("Candidates List") },
   { id: "dubai", label: "Dubai", icon: Building2, flag: "🇦🇪", isCountry: true, items: list("Candidates List") },
   { id: "other-country", label: "Other Country", icon: Plane, flag: "🌐", isCountry: true, items: list("Candidates List") },
-  { id: "office-vendor", label: "Works & Demands", icon: Handshake, items: list("Works & Demands"), hidden: true },
   { id: "agents", label: "Agents", icon: Users, items: list("Agent List") },
   { id: "payment-collection", label: "Payment Collection", icon: Receipt, items: list("Payment Collect") },
   { id: "document", label: "Document", icon: FolderGit2, items: list("Dubai Document") },
+  { id: "passport-handover", label: "Passport Handover", icon: BookMarked, items: list("Passport Handover") },
   { id: "country-setup", label: "Country Setup", icon: Globe, items: list("Destination Countries") },
   { id: "tutorials", label: "Tutorials", icon: GraduationCap, items: list("Tutorial Categories|Tutorials") },
 
   // Secondary aliases for backwards-compatibility
+  { id: "office-vendor", label: "Works & Demands", icon: Handshake, items: list("Works & Demands"), hidden: true },
   { id: "registration", label: "Registration & Interview", icon: UserRoundCheck, items: list("Registration|Registered People|Interview|Interview Schedule|Upcoming Interview|Interview History|People|Profession Category"), hidden: true },
   { id: "accounts", label: "Accounts & Finance", icon: Receipt, items: list("First Payment|Second Payment|Refund & Reversal|Expense & Balance|Payment Invoices"), hidden: true },
   { id: "documents", label: "Document Management", icon: FolderGit2, items: list("Pending Documents|Completed Documents|Document Verification|Document History|Collect Documents"), hidden: true },

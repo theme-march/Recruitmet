@@ -897,7 +897,7 @@ export function CountryPipelineDetail({ countryId }: { countryId?: string } = {}
                   <div>
                     <b style={{ fontSize: "13px", color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
                       <CheckSquare size={16} style={{ color: "#007aff" }} />
-                      Custom Processing Form Fields (ইনপুট ফিল্ড যোগ করুন)
+                      Custom Processing Form Fields (Add Input Field)
                     </b>
                     <small style={{ fontSize: "11.5px", color: "var(--muted)" }}>
                       Define input text, number, textarea, date or file upload fields for this stage

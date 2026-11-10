@@ -6842,8 +6842,9 @@ td {
     overflow: visible !important;
   }
 
-  /* When printing money receipt, completely hide background app tree so it creates NO extra pages */
-  body.printing-money-receipt > *:not(.receipt-modal-overlay) {
+  /* When printing money receipt or passport slip, completely hide background app tree so it creates NO extra pages */
+  body.printing-money-receipt > *:not(.receipt-modal-overlay),
+  body.printing-passport-slip > *:not(.passport-handover-modal-overlay) {
     display: none !important;
   }
 
@@ -6852,6 +6853,11 @@ td {
   body.printing-money-receipt nav,
   body.printing-money-receipt footer,
   body.printing-money-receipt .no-print,
+  body.printing-passport-slip header,
+  body.printing-passport-slip aside,
+  body.printing-passport-slip nav,
+  body.printing-passport-slip footer,
+  body.printing-passport-slip .no-print,
   .no-print {
     display: none !important;
   }

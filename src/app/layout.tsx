@@ -24,6 +24,8 @@ import "./agent-detail-design.css";
 import "./action-buttons.css";
 import "./agent-portal-design.css";
 import "./cv-design.css";
+import "./passport-handover-design.css";
+import "./mofa-design.css";
 import { Toaster } from "sonner";
 import { Providers } from "@/components/layout/providers";
 

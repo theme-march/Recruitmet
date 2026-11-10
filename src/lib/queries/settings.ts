@@ -8,6 +8,12 @@ export type GeneralSettings = {
   logoUrl: string;
   primaryColor: string;
   softwareVersion: string;
+  // Database Backup Settings
+  autoBackupEnabled: boolean;
+  backupFrequency: "12hours" | "daily" | "weekly";
+  backupTime: string;
+  backupRetention: number;
+  lastBackupAt: string | null;
 };
 
 export const DEFAULT_SETTINGS: GeneralSettings = {
@@ -20,7 +26,32 @@ export const DEFAULT_SETTINGS: GeneralSettings = {
   logoUrl: "",
   primaryColor: "#007aff",
   softwareVersion: "2.4.0",
+  autoBackupEnabled: true,
+  backupFrequency: "daily",
+  backupTime: "02:00",
+  backupRetention: 14,
+  lastBackupAt: null,
 };
+
+export interface BackupItem {
+  filename: string;
+  sizeBytes: number;
+  sizeFormatted: string;
+  createdAt: string;
+  type: "manual" | "auto";
+  format: "sql" | "json";
+}
+
+export interface DatabaseStats {
+  totalTables: number;
+  totalRows: number;
+  databaseName: string;
+  engine: string;
+  backupsCount: number;
+  totalBackupSizeBytes: number;
+  totalBackupSizeFormatted: string;
+  lastBackupAt: string | null;
+}
 
 export const settingsQueryKey = ["general-settings"] as const;
 

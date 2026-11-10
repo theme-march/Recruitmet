@@ -75,11 +75,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const dashboardNavIcons: Record<string, DashboardIconName> = {
     dashboard: "LayoutDashboard", "call-center": "Users", "office-vendor": "Handshake",
     agents: "Contact", "payment-collection": "Wallet", document: "Files",
-    "country-setup": "Globe", tutorials: "GraduationCap",
+    "country-setup": "Globe", tutorials: "GraduationCap", "passport-handover": "Files",
   };
   const isPortalRoute = path.startsWith("/portal");
   const routeParts = path.split("/").filter(Boolean);
-  const selectedModule = routeParts[0] === "module" ? routeParts[1] : (path === "/candidates" || path.startsWith("/candidate") || path === "/demands" || path === "/interviews" ? "call-center" : null);
+  const selectedModule = routeParts[0] === "module" ? routeParts[1] : (path === "/candidates" || path.startsWith("/candidate") || path === "/demands" || path === "/interviews" ? "call-center" : path.startsWith("/passport-handover") ? "passport-handover" : null);
   const selectedPage = routeParts[0] === "module" ? routeParts[2] : (path === "/demands" ? "works-and-demands" : path === "/candidates" ? "candidate-list" : path === "/interviews" ? "registration-and-interviews" : null);
 
   const visible = useMemo(() => {
@@ -97,7 +97,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         !["ksa", "dubai", "other-country"].includes(m.id) &&
         !m.hidden &&
         (allowed.includes(m.id as any) ||
-          (m.id === "call-center" && (allowed.includes("registration") || allowed.includes("office-vendor")))),
+          (m.id === "call-center" && (allowed.includes("registration") || allowed.includes("office-vendor"))) ||
+          (m.id === "passport-handover" && (allowed.includes("call-center") || allowed.includes("document") || allowed.includes("passport-handover")))),
     );
 
     const countryMods =
@@ -657,7 +658,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 const expanded =
                   expandedModule === module.id || Boolean(moduleQuery);
                 const accent = ["#5ca8ec", "#f7bd23", "#8368ef", "#4fd3a1"][index % 4];
-                const navSection = (item: typeof module) => item.id === "dashboard" || item.id === "call-center" ? "RECRUITMENT" : (item as any).isCountry ? "COUNTRIES" : ["payment-collection", "document"].includes(item.id) ? "OPERATIONS" : ["country-setup", "tutorials"].includes(item.id) ? "ADMINISTRATION" : "COUNTRIES";
+                const navSection = (item: typeof module) => item.id === "dashboard" || item.id === "call-center" ? "RECRUITMENT" : (item as any).isCountry ? "COUNTRIES" : ["payment-collection", "document", "passport-handover"].includes(item.id) ? "OPERATIONS" : ["country-setup", "tutorials"].includes(item.id) ? "ADMINISTRATION" : "COUNTRIES";
                 const sectionHeading = (index === 0 || navSection(module) !== navSection(visible[index - 1])) ? navSection(module) : undefined;
 
                 if (module.id === "dashboard") {
@@ -707,7 +708,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         ? (module as any).candidateCount
                         : (navCounts[module.id]?.[singleItem.label] ?? 0);
                   const hideBadge =
-                    module.id === "document" || module.id === "payment-collection";
+                    module.id === "document" || module.id === "payment-collection" || module.id === "passport-handover";
                   return (
                     <div
                       className="nav-group"

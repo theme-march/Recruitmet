@@ -49,6 +49,31 @@ enum DocumentStatus {
   REPLACED
 }
 
+enum HandoverType {
+  SINGLE
+  GROUP
+}
+
+enum HandoverMode {
+  TEMPORARY
+  PERMANENT
+}
+
+enum HandoverStatus {
+  HANDED_OVER
+  PARTIALLY_COLLECTED
+  COLLECTED
+  PERMANENT
+  CANCELLED
+}
+
+enum HandoverItemStatus {
+  PENDING
+  COLLECTED
+  REJECTED_OR_LOST
+  PERMANENT
+}
+
 enum JobStatus {
   READY
   PROCESSING
@@ -211,6 +236,7 @@ model Candidate {
   phones           CandidatePhone[]
   educations       CandidateEducation[]
   experiences      CandidateExperience[]
+  passportHandovers PassportHandoverItem[]
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
 
@@ -1264,4 +1290,52 @@ model AuditLog {
   createdAt     DateTime @default(now())
 
   @@index([module, recordId, createdAt])
+}
+
+model PassportHandover {
+  id               String                 @id @default(cuid())
+  handoverNo       String                 @unique
+  handoverType     HandoverType           @default(SINGLE)
+  handoverMode     HandoverMode           @default(TEMPORARY)
+  takerName        String
+  takerPhone       String
+  takerDesignation String?
+  takerNid         String?
+  takenAt          DateTime               @default(now())
+  expectedReturn   DateTime?
+  takenReason      String?                @db.Text
+  returnDate       DateTime?
+  status           HandoverStatus         @default(HANDED_OVER)
+  remarks          String?                @db.Text
+  createdById      String?
+  officeId         String?
+  items            PassportHandoverItem[]
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  @@index([status, takenAt])
+  @@index([takerPhone])
+}
+
+model PassportHandoverItem {
+  id             String             @id @default(cuid())
+  handoverId     String
+  handover       PassportHandover   @relation(fields: [handoverId], references: [id], onDelete: Cascade)
+  candidateId    String
+  candidate      Candidate          @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  fileId         String?
+  passportNumber String
+  candidateName  String?
+  expectedReturn DateTime?
+  takenReason    String?            @db.Text
+  returnDate     DateTime?
+  status         HandoverItemStatus @default(PENDING)
+  returnedAt     DateTime?
+  returnedById   String?
+  returnRemarks  String?            @db.Text
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([passportNumber])
+  @@index([status])
 }

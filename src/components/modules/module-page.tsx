@@ -11,6 +11,7 @@ import { PaymentCollectionPage } from "@/components/modules/payment-collection-p
 import { DubaiDocumentsPage } from "@/components/modules/dubai-documents-page";
 import { CountryManagementPage } from "@/components/modules/country-management-page";
 import { TutorialLibraryPage } from "@/components/modules/tutorial-library-page";
+import { PassportHandoverPage } from "@/components/modules/passport-handover-page";
 import { KsaPassportPage } from "@/components/ksa/ksa-passport-page";
 import { KsaMedicalPage } from "@/components/ksa/ksa-medical-page";
 import { KsaMofaPage } from "@/components/ksa/ksa-mofa-page";
@@ -70,6 +71,11 @@ function renderModuleContent(moduleId: string, initialTab: string, officerName: 
   // Payment Collection module routes
   if (moduleId === "payment-collection" || (moduleId === "accounts" && initialTab === "Payment Collect")) {
     return <PaymentCollectionPage />;
+  }
+
+  // Passport Handover module route
+  if (moduleId === "passport-handover") {
+    return <PassportHandoverPage />;
   }
 
   // Document module routes

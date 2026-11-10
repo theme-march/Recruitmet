@@ -40,6 +40,7 @@ const aliases: Record<string, string> = {
   interviews: "registration", interviewSchedule: "registration", partners: "office-vendor", demands: "office-vendor", agent: "agents",
   accounts: "payment-collection", invoices: "payment-collection", payment: "payment-collection", payments: "payment-collection",
   documents: "document", repository: "document", training: "tutorials", knowledge: "tutorials",
+  "passport-handover": "call-center",
   overview: "dashboard", analytics: "dashboard", file: "files", flight: "flights", exception: "exceptions", notification: "notifications", master: "master-data",
 };
 export const canonicalModule = (value: string) => aliases[value] ?? countryModule(value);

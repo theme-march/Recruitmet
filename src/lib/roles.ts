@@ -13,6 +13,7 @@ export const agentRoleNames = ["AGENT", APP_ROLES.AGENT, "Agent Portal", "Agent"
 export const allModuleIds = [
   "dashboard",
   "call-center",
+  "passport-handover",
   "ksa",
   "dubai",
   "other-country",

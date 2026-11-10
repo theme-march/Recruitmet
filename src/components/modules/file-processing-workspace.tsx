@@ -586,21 +586,21 @@ export function FileProcessingWorkspace({
     );
 
     if (isAlreadyActive) {
-      toast.info(`"${pkg.name}" প্যাকেজটি ইতিমধ্যে সক্রিয় রয়েছে।`);
+      toast.info(`"${pkg.name}" package is already active.`);
       return;
     }
 
     const confirmMsg =
-      `প্যাকেজ পরিবর্তন কনফার্মেশন:\n\n` +
-      `আপনি কি এই ক্যান্ডিডেটের জন্য প্যাকেজ পরিবর্তন করতে চান?\n\n` +
-      `• নতুন প্যাকেজ: ${pkg.name}\n` +
-      `• নতুন রেট: ৳${Number(pkg.price).toLocaleString()} BDT\n\n` +
-      `'OK' বাটনে ক্লিক করলে রেট ও প্যাকেজের বিবরণ পরিবর্তন হবে।`;
+      `Package Change Confirmation:\n\n` +
+      `Do you want to switch to this package for this candidate?\n\n` +
+      `• New Package: ${pkg.name}\n` +
+      `• New Rate: ${Number(pkg.price).toLocaleString()} BDT\n\n` +
+      `Click 'OK' to update the rate and package title.`;
 
     if (window.confirm(confirmMsg)) {
       setPkgDraftPackage(Number(pkg.price));
       setPkgDraftTitle(pkg.name);
-      toast.success(`প্যাকেজ পরিবর্তন করে "${pkg.name}" (৳${Number(pkg.price).toLocaleString()} BDT) নির্ধারণ করা হয়েছে!`, {
+      toast.success(`Package changed to "${pkg.name}" (${Number(pkg.price).toLocaleString()} BDT)!`, {
         icon: "✨",
       });
     }
@@ -6256,7 +6256,7 @@ export function FileProcessingWorkspace({
                 {countryPackagesList.length > 0 && (
                   <div>
                     <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", display: "block", marginBottom: "8px" }}>
-                      🌍 Available {file.country} Packages (ক্লিক করে সিলেক্ট করুন):
+                      🌍 Available {file.country} Packages (Click to select):
                     </span>
                     {(() => {
                       const cleanTitle = (pkgDraftTitle || "").trim().toLowerCase();
@@ -6397,7 +6397,7 @@ export function FileProcessingWorkspace({
                 {/* Gross Package Price Input */}
                 <div>
                   <label style={{ fontSize: "12px", fontWeight: 800, color: "var(--ink)", display: "block", marginBottom: "4px" }}>
-                    Contract Package Rate (মোট প্যাকেজ মূল্য BDT) <span style={{ color: "#dc2626" }}>*</span>
+                    Contract Package Rate (Total Package BDT) <span style={{ color: "#dc2626" }}>*</span>
                   </label>
                   <input
                     type="number"
@@ -6413,7 +6413,7 @@ export function FileProcessingWorkspace({
                 {/* Special Discount Input */}
                 <div>
                   <label style={{ fontSize: "12px", fontWeight: 800, color: "var(--ink)", display: "block", marginBottom: "4px" }}>
-                    Candidate / Agent Discount (বিশেষ ছাড় BDT)
+                    Candidate / Agent Discount (Discount BDT)
                   </label>
                   <input
                     type="number"
@@ -6425,7 +6425,7 @@ export function FileProcessingWorkspace({
                     style={{ width: "100%", padding: "9px 12px", borderRadius: "8px", border: "1px solid var(--line)", fontSize: "14px", fontWeight: 700, color: "#059669" }}
                   />
                   <small style={{ color: "var(--muted)", fontSize: "11px", display: "block", marginTop: "3px" }}>
-                    এজেন্ট বা ক্যান্ডিডেটের জন্য কোনো ছাড় থাকলে এখানে দিন। এটি মোট প্যাকেজ থেকে বাদ যাবে।
+                    Enter discount if applicable for the agent or candidate. This will be deducted from the total package.
                   </small>
                 </div>
 
@@ -6441,40 +6441,40 @@ export function FileProcessingWorkspace({
                   return (
                     <div style={{ padding: "14px 16px", borderRadius: "12px", background: "#f8fafc", border: "1px solid #e2e8f0", fontSize: "12.5px", display: "flex", flexDirection: "column", gap: "7px" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ color: "var(--muted)", fontWeight: 600 }}>Gross Package (মোট চুক্তি প্যাকেজ):</span>
+                        <span style={{ color: "var(--muted)", fontWeight: 600 }}>Gross Package:</span>
                         <b style={{ color: "var(--ink)", fontSize: "13px" }}>৳{gross.toLocaleString()} BDT</b>
                       </div>
 
                       {discount > 0 && (
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "#059669" }}>
-                          <span style={{ fontWeight: 600 }}>Special Discount (বিশেষ ছাড়):</span>
+                          <span style={{ fontWeight: 600 }}>Special Discount:</span>
                           <b style={{ fontSize: "13px" }}>- ৳{discount.toLocaleString()} BDT</b>
                         </div>
                       )}
 
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "8px", borderTop: "1px dashed #cbd5e1" }}>
-                        <span style={{ fontWeight: 800, color: "var(--ink)" }}>Net Payable Package (প্রদেয় নিট প্যাকেজ):</span>
+                        <span style={{ fontWeight: 800, color: "var(--ink)" }}>Net Payable Package:</span>
                         <b style={{ fontWeight: 800, color: "#4338ca", fontSize: "14px" }}>
                           ৳{netPayable.toLocaleString()} BDT
                         </b>
                       </div>
 
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "#059669" }}>
-                        <span style={{ fontWeight: 600 }}>Total Collected / Paid (পরিশোধিত মোট জমা):</span>
+                        <span style={{ fontWeight: 600 }}>Total Collected / Paid:</span>
                         <b style={{ fontWeight: 700 }}>৳{paid.toLocaleString()} BDT</b>
                       </div>
 
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "8px", borderTop: "1px solid #e2e8f0" }}>
                         {due > 0 ? (
                           <>
-                            <span style={{ fontWeight: 800, color: "#dc2626" }}>Remaining Due (অবশিষ্ট বকেয়া):</span>
+                            <span style={{ fontWeight: 800, color: "#dc2626" }}>Remaining Due:</span>
                             <b style={{ fontWeight: 800, color: "#dc2626", fontSize: "14px" }}>
                               ৳{due.toLocaleString()} BDT
                             </b>
                           </>
                         ) : advance > 0 ? (
                           <>
-                            <span style={{ fontWeight: 800, color: "#7c3aed" }}>Advance / Extra Paid (অতিরিক্ত জমা):</span>
+                            <span style={{ fontWeight: 800, color: "#7c3aed" }}>Advance / Extra Paid:</span>
                             <b style={{ fontWeight: 800, color: "#7c3aed", fontSize: "14px" }}>
                               + ৳{advance.toLocaleString()} BDT
                             </b>
@@ -6483,7 +6483,7 @@ export function FileProcessingWorkspace({
                           <>
                             <span style={{ fontWeight: 800, color: "#16a34a" }}>Payment Status:</span>
                             <b style={{ fontWeight: 800, color: "#16a34a", fontSize: "13px" }}>
-                              ✓ 100% Fully Settled (কোনো বকেয়া নেই)
+                              ✓ 100% Fully Settled (No Due Balance)
                             </b>
                           </>
                         )}

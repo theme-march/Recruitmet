@@ -96,6 +96,7 @@ test("sidebar keeps all operational groups for Recruitment OS", () => {
       "agents",
       "payment-collection",
       "document",
+      "passport-handover",
       "country-setup",
       "tutorials",
     ]

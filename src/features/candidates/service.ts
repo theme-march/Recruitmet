@@ -50,6 +50,29 @@ export async function createCandidate(
         },
       },
     });
+
+    if (candidateInput.preferredCountry) {
+      const countryNormalized = candidateInput.preferredCountry.includes("Saudi")
+        ? "Saudi Arabia"
+        : candidateInput.preferredCountry.includes("Dubai")
+          ? "Dubai"
+          : candidateInput.preferredCountry;
+      const fileNo = `FILE-${Math.floor(100000 + Math.random() * 900000)}`;
+
+      await tx.processingFile.create({
+        data: {
+          fileNo,
+          candidateId: candidate.id,
+          country: countryNormalized,
+          currentStage: "Passport Entry",
+          status: "ACTIVE",
+          profession: candidateInput.profession || "General Worker",
+          agent: candidateInput.source || "Direct",
+          assignedToId: session.userId,
+          officeId: candidate.officeId ?? session.user.officeId,
+        },
+      });
+    }
     await tx.activityLog.create({
       data: {
         userId: session.userId,

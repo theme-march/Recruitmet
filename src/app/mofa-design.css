@@ -1,0 +1,716 @@
+/* =========================================================================
+   SAUDI EMBASSY MOFA APPLICATION FORM DESIGN
+   Bilingual English / Arabic Consular Section Visa Application
+   ========================================================================= */
+
+.mofa-page-container {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 64px);
+  background: #f1f5f9;
+  padding: 24px;
+}
+
+.mofa-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  background: #ffffff;
+  padding: 16px 20px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.mofa-title-area h1 {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+}
+
+.mofa-title-area p {
+  font-size: 12px;
+  color: #64748b;
+  margin: 3px 0 0 0;
+}
+
+.mofa-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Vertical Layout (Form on Top, Full A4 Preview Below) */
+.mofa-vertical-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+}
+
+/* Edit Controls Panel (Top) */
+.mofa-editor-card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  width: 100%;
+}
+
+.mofa-editor-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mofa-editor-header h2 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.mofa-editor-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.mofa-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 1280px) {
+  .mofa-editor-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .mofa-editor-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mofa-editor-section-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mofa-section-heading {
+  font-size: 11px;
+  font-weight: 800;
+  color: #0284c7;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 6px;
+}
+
+.mofa-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.mofa-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mofa-form-group label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.mofa-form-input,
+.mofa-form-select {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #0f172a;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
+.mofa-form-input:focus,
+.mofa-form-select:focus {
+  border-color: #007aff;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.15);
+}
+
+/* Document Paper (Visual Preview - Placed Below) */
+.mofa-preview-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.mofa-preview-header {
+  width: 100%;
+  max-width: 210mm;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.mofa-preview-header-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mofa-preview-area {
+  display: flex;
+  justify-content: center;
+  background: #94a3b8;
+  padding: 32px 16px;
+  border-radius: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: auto;
+}
+
+.mofa-paper {
+  background: #ffffff;
+  width: 210mm;
+  min-height: 297mm;
+  padding: 14mm 16mm;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+  box-sizing: border-box;
+  color: #000000;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+/* Official Saudi Embassy Header */
+.mofa-doc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.mofa-doc-photo {
+  width: 85px;
+  height: 105px;
+  border: 1.5px solid #000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  overflow: hidden;
+  background: #ffffff;
+  position: relative;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mofa-doc-photo:hover {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.mofa-doc-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mofa-photo-hover-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.7);
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.mofa-doc-photo:hover .mofa-photo-hover-overlay {
+  opacity: 1;
+}
+
+/* Edit panel photo card */
+.mofa-photo-uploader-box {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+}
+
+.mofa-photo-uploader-thumb {
+  width: 56px;
+  height: 70px;
+  border: 1.5px solid #000000;
+  background: #ffffff;
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.mofa-photo-uploader-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mofa-doc-barcode-area {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.mofa-barcode-svg {
+  height: 44px;
+  width: 190px;
+}
+
+.mofa-barcode-number {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  margin-top: 2px;
+}
+
+.mofa-barcode-sub {
+  font-size: 12px;
+  font-weight: 700;
+  color: #000000;
+  margin-top: 3px;
+}
+
+.mofa-doc-embassy-title {
+  text-align: right;
+  font-weight: 800;
+  font-size: 13px;
+  color: #000000;
+  line-height: 1.25;
+}
+
+.mofa-doc-embassy-title span {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Official Embassy Table */
+.mofa-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  border: 1.5px solid #000000;
+  margin-bottom: 6px;
+}
+
+/* ONLY direct table cells get standard borders */
+.mofa-table > tbody > tr > td,
+.mofa-table > tbody > tr > th {
+  border: 1px solid #000000;
+  padding: 3.5px 6px;
+  vertical-align: middle;
+  font-size: 11px;
+}
+
+/* Subtable wrapper cell: zero padding so inner subtable aligns flush */
+.mofa-table > tbody > tr > td.mofa-subtable-cell {
+  padding: 0 !important;
+  border: 1px solid #000000 !important;
+}
+
+/* Nested Subtables - completely borders-free on outer edges to prevent double borders */
+.mofa-subtable {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  border: none !important;
+  margin: 0 !important;
+}
+
+.mofa-subtable td,
+.mofa-subtable th {
+  padding: 3.5px 6px;
+  vertical-align: middle;
+  font-size: 11px;
+  border-top: none !important;
+  border-bottom: none !important;
+  border-left: none !important;
+  border-right: 1px solid #000000 !important;
+}
+
+.mofa-subtable td:last-child,
+.mofa-subtable th:last-child {
+  border-right: none !important;
+}
+
+/* Multi-row Subtables (e.g. Passport issue/expiry and Dependents) */
+.mofa-subtable.mofa-subtable-multi tr:not(:last-child) td,
+.mofa-subtable.mofa-subtable-multi tr:not(:last-child) th,
+.mofa-subtable.mofa-subtable-multi thead tr th {
+  border-bottom: 1px solid #000000 !important;
+}
+
+.mofa-subtable.mofa-subtable-multi tbody tr:last-child td {
+  border-bottom: none !important;
+}
+
+.mofa-table .label-en {
+  font-weight: 700;
+  color: #000000;
+  white-space: normal;
+  line-height: 1.2;
+}
+
+.mofa-table .label-ar {
+  font-weight: 700;
+  color: #000000;
+  text-align: right;
+  direction: rtl;
+  white-space: normal;
+  font-family: "Arial", "Tahoma", sans-serif;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.mofa-table .val-field {
+  font-weight: 700;
+  color: #000000;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+/* Checkboxes for Travel Purpose */
+.mofa-purpose-grid {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 2px 0;
+}
+
+.mofa-purpose-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+  font-size: 10.5px;
+}
+
+.mofa-checkbox {
+  width: 13px;
+  height: 13px;
+  border: 1.5px solid #000000;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.mofa-checkbox.checked {
+  background-color: #000000;
+  color: #ffffff;
+}
+
+/* Dependents Table */
+.mofa-dependents-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.mofa-dependents-table th,
+.mofa-dependents-table td {
+  border: 1px solid #000000;
+  text-align: center;
+  padding: 3px 4px;
+  font-size: 10px;
+}
+
+/* Official Declaration */
+.mofa-declaration-text {
+  font-size: 9.5px;
+  line-height: 1.35;
+  margin: 5px 0;
+  text-align: justify;
+}
+
+.mofa-sign-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Official Use Only Box */
+.mofa-official-box {
+  border: 1.5px solid #000000;
+  margin-top: 8px;
+  padding: 5px 8px;
+  font-size: 9.5px;
+}
+
+.mofa-official-title {
+  font-weight: 800;
+  text-decoration: underline;
+  margin-bottom: 3px;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Print CSS */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide app navigation, headers, footers and all editor/action panels */
+  header,
+  aside,
+  nav,
+  footer,
+  .sidebar,
+  .sidebar-backdrop,
+  .mobile-bottom-nav,
+  [data-app-shell="sidebar"],
+  [data-app-shell="header"],
+  .main > header,
+  [data-sonner-toaster],
+  .toaster,
+  .no-print,
+  .mofa-topbar,
+  .mofa-editor-card,
+  .mofa-preview-header {
+    display: none !important;
+  }
+
+  .app-shell,
+  .home-sidebar-shell {
+    min-height: 0 !important;
+    height: auto !important;
+    background: #ffffff !important;
+  }
+
+  .main {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    height: auto !important;
+  }
+
+  .main main {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  .mofa-page-container {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+    min-height: 0 !important;
+    height: auto !important;
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .mofa-vertical-layout {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    gap: 0 !important;
+  }
+
+  .mofa-preview-section {
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  .mofa-preview-area {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+    display: block !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    width: 100% !important;
+  }
+
+  .mofa-paper {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 0 !important;
+    height: auto !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 auto !important;
+    overflow: visible !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    background: #ffffff !important;
+  }
+
+  .mofa-doc-photo {
+    border: 1.5px solid #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .mofa-doc-photo img {
+    max-width: 100% !important;
+    max-height: 100% !important;
+    object-fit: cover !important;
+  }
+
+  .mofa-barcode-svg {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .mofa-barcode-svg rect {
+    fill: #000000 !important;
+  }
+
+  .mofa-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    border: 1.5px solid #000000 !important;
+    margin-bottom: 4px !important;
+  }
+
+  .mofa-table > tbody > tr > td,
+  .mofa-table > tbody > tr > th {
+    border: 1px solid #000000 !important;
+    border-color: #000000 !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .mofa-table > tbody > tr > td.mofa-subtable-cell {
+    padding: 0 !important;
+    border: 1px solid #000000 !important;
+  }
+
+  .mofa-subtable {
+    border: none !important;
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin: 0 !important;
+  }
+
+  .mofa-subtable td,
+  .mofa-subtable th {
+    border-top: none !important;
+    border-bottom: none !important;
+    border-left: none !important;
+    border-right: 1px solid #000000 !important;
+    border-color: #000000 !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .mofa-subtable td:last-child,
+  .mofa-subtable th:last-child {
+    border-right: none !important;
+  }
+
+  .mofa-subtable.mofa-subtable-multi tr:not(:last-child) td,
+  .mofa-subtable.mofa-subtable-multi tr:not(:last-child) th,
+  .mofa-subtable.mofa-subtable-multi thead tr th {
+    border-bottom: 1px solid #000000 !important;
+  }
+
+  .mofa-subtable.mofa-subtable-multi tbody tr:last-child td {
+    border-bottom: none !important;
+  }
+
+  .mofa-checkbox {
+    border: 1.5px solid #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .mofa-checkbox.checked {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .mofa-photo-hover-overlay {
+    display: none !important;
+  }
+
+  .mofa-official-box {
+    border: 1.5px solid #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

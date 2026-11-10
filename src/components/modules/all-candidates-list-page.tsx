@@ -778,6 +778,9 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
                   <td><div className="directory-design-row-actions">
                     <button data-action-ui="secondary" data-action-size="compact" type="button" className="country-design-dossier" onClick={() => openCandidateProfile(row)} aria-label={`Details for ${row.fullName}`}><Eye size={12} /> Details</button>
                     <Link data-action-ui="secondary" data-action-size="compact" href={`/candidate/${row.id}/cv`} title="Generate & Download Candidate CV" className="country-design-dossier"><FileText size={12} /> Generate CV</Link>
+                    {Boolean(/saudi/i.test(row.preferredCountry || "")) && (
+                      <Link data-action-ui="secondary" data-action-size="compact" href={`/candidate/${row.id}/mofa`} title="Generate Saudi Embassy MOFA Visa Application" className="country-design-dossier"><FileCheck size={12} /> Generate MOFA</Link>
+                    )}
                     {row.activeFile && <Link data-action-ui="secondary" data-action-size="compact" href={`/file/${row.activeFile.id}?view=pipeline`} title="Open Interactive Stage Processing Pipeline" className="country-design-dossier"><Layers size={12} /> Pipeline →</Link>}
                   </div></td>
                   <td><div className="country-design-cell client"><b>{row.fullName}</b><span className="country-design-candidate-id">{row.candidateNo}</span></div></td>
@@ -1147,6 +1150,16 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
                   >
                     <FileText size={14} /> Generate CV
                   </Link>
+                  {Boolean(/saudi/i.test(row.preferredCountry || "")) && (
+                    <Link data-action-ui="secondary" data-action-size="normal"
+                      href={`/candidate/${row.id}/mofa`}
+                      className="candidate-mobile-btn mofa"
+                      style={{ textDecoration: "none" }}
+                      title="Generate Saudi Embassy MOFA Form"
+                    >
+                      <FileCheck size={14} /> MOFA
+                    </Link>
+                  )}
                   {row.activeFile && (
                     <Link data-action-ui="secondary" data-action-size="normal"
                       href={`/file/${row.activeFile.id}?view=pipeline`}
@@ -1296,6 +1309,17 @@ export function AllCandidatesListPage({ initialData }: { initialData?: ApiRespon
                 >
                   <FileText size={12} /> Generate CV
                 </Link>
+                {Boolean(/saudi/i.test(selectedCandidate.preferredCountry || "")) && (
+                  <Link
+                    data-action-ui="secondary"
+                    data-action-size="compact"
+                    href={`/candidate/${selectedCandidate.id}/mofa`}
+                    style={{ textDecoration: "none" }}
+                    title="Generate Saudi Embassy MOFA Form"
+                  >
+                    <FileCheck size={12} /> Generate MOFA
+                  </Link>
+                )}
                 <button data-action-ui="neutral" data-action-size="icon" className="master-modal-close"
                   onClick={() => setSelectedCandidate(null)}
                   aria-label="Close candidate details"
